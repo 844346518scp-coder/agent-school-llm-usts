@@ -115,3 +115,36 @@ GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：
 - 已通过 GitHub 连接上传项目提交 e0747b374503e0f2b84a94b26214cb8bc26237fb，main 非强制更新成功。命令行缺少新账号凭据，改用已授权的 GitHub 接口，没有读取或保存访问令牌。
 - 验证通过：七个新二进制附件的 Git blob 哈希与本地完全一致；fetch 后比较项目提交整棵文件树无差异，共 58 个文件；与原 main 相比没有删除文件，原 EXE、AVIF 哈希保持不变，原 README 全文保留，原有两个提交仍为祖先。
 - AGENTS.md、README 与本日志同步完成状态；本条属于同一次上传的结果记录，不改变业务代码或上传资料范围。未运行应用测试，因为没有业务变更。后续开发按协作规范继续，正式账号管理和真实模型仍未实现。
+
+## 2026-09-17 · B 模块（智能体）最小版：真实模型接入 + 课程检索引用 + 步骤反馈 + 基础诊断
+
+- 日期 / 任务：2026-09-17 / 对齐 9/20 最小版：课程问答 · RAG 引用 · 拍照识别与确认 · 步骤反馈 · 错题收藏 · 历史记录。
+- 负责人 / AI 工具：B 模块成员（待填）/ Chatbox。
+- 开发了什么与原因：
+  - 把只有固定演示文案的问答升级为“配置 → 课程检索 → 分层提示 → 模型调用 → 如实降级”的骨架；没有模型密钥时仍走完整流程，但只返回演示内容并标注 `mode=demo`。
+  - 新增课程检索（本地 BM25，中文按字 bigram）与引用编号，解决“回答没有资料来源”的问题；知识点全部标记 `verified=false`，待课程资料复核。
+  - 新增步骤反馈接口：只判断学生本次提交的一步，不返回整题答案；demo 模式只标错、不说“正确”。
+  - 新增基础诊断接口：规则给出薄弱知识点与变式练习，结论可追溯到命中的关键词。
+  - 新增能力探针 `/api/agent/status`，便于前端与测试脚本判断当前是 demo 还是 live。
+- 修改文件：
+  - 新增 `backend/app/ai/config.py`、`knowledge.py`、`prompts.py`、`llm.py`、`diagnosis.py`。
+  - 修改 `backend/app/ai/service.py`（保留原演示文案与既有响应结构，新增 `/api/agent/*`）。
+  - 修改 `backend/app/main.py`（注册 `agent_router`；`/api/health` 的 `agent_mode` 改为如实反映生效模式）。
+  - 新增 `tests/test_agent.py`、`tests/smoke_agent.py`。
+  - 修改 `.env.example`（新增 `AGENT_MODE`、`MODEL_VISION_NAME`、超时与检索参数，全部为空值或默认值）；修改 `.gitignore`（忽略冒烟输出）。
+- 验证命令或方式 / 结果（通过、失败、未执行）：
+  - `python -m pytest -q` → **40 passed**（含原有 11 项 API 测试全部通过）。
+  - `python tests/smoke_agent.py` → **通过**：登录、`/api/agent/status`、`/api/agent/ask`、`/api/agent/feedback`、`/api/agent/diagnosis`、`/api/agent/ask/stream`（SSE 3 帧）行为符合预期；`/api/agent/recognize` 按设计返回 503（未配置模型，不返回编造结果）。
+- 目录结构变更 / 用户确认依据：**无新增目录**，只在既有 `backend/app/ai/` 与 `tests/` 下新增文件。
+- 文档同步清单（逐项写已更新，或已核对无变化及原因）：
+  - AGENTS.md 项目记忆与目录：已追加“B 模块（智能体）实现说明（2026-09-17）”。
+  - README.md：已核对无变化（本次不涉及启动方式与仓库总览）。
+  - docs/architecture.md：已追加“智能体（B）处理流水线（2026-09-17 追加）”。
+  - docs/contracts/ 下全部约定：已更新 `/api/health` 行与“仍待定义”段，并追加“智能体接口 v0.2（B 模块）”。
+  - 其他相关说明、配置模板、计划与图示：已更新 `.env.example`、`.gitignore`；无新增图示。
+- GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：**未上传**；新增配置项全部为空值或默认值，仓库内无真实密钥，`.env` 未入库。
+- 遗留问题与下一步：
+  1. 课程知识点内容需课程资料复核，复核后把 `knowledge.py` 中对应 `verified` 置为 True。
+  2. 配置真实模型（`MODEL_BASE_URL` / `MODEL_API_KEY` / `MODEL_NAME`）后重跑 `tests/smoke_agent.py`，确认 live 链路与超时降级。
+  3. 前端（A）按 `docs/contracts/README.md` 的 v0.2 接入 `mode`、`references`、`/api/agent/feedback`、识别确认流程。
+  4. 9/21–24 再补：长期记忆、推荐练习的个性化、资源检索与总结评价、语音。

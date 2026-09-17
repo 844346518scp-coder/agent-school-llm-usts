@@ -36,3 +36,6 @@ tmp/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# 本地冒烟输出（B 模块）
+tests/_smoke_out.txt
