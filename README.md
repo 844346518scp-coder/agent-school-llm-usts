@@ -118,7 +118,7 @@ npm run build
 
 目录与职责以 AGENTS.md 为准。本次依赖解析版本记录在 frontend/package-lock.json、backend/requirements.lock.txt。升级前停止旧后端。0.2 首次启动对旧库通过 SQLite backup 接口生成 `backend/demo.before-v2-*.db`，再事务性升级；失败不启动应用。完整操作和恢复命令见 [数据库迁移与恢复](migrations/README.md)。备份和数据库均被忽略，禁止上传。`create_all` 仅创建新表，旧字段升级由版本化迁移处理。旧后端仍占用 8000 时，启动器会拒绝复用旧版本；先关闭已确认属于本项目的旧进程，再启动。
 
-每次开发后追加日志、同步全部受影响文档和项目记忆。上传 GitHub 前执行 AGENTS.md 中的密钥检查和用户确认。目标仓库为 https://github.com/844346518scp-coder/agent-school-llm-usts 。历史 0.1 已上传 main；本轮 0.2 与 C 报告保留在本地分支 `codex/c-local-teaching`，已按用户要求准备独立分支提交，等待本次凭据状态确认后上传。远端 main 已合并 B；本分支保留 C 的原始基线，B/C 集成另行处理。检查范围、限制与执行记录见开发日志。仓库原有 PCL.exe 和 AVIF 图片原样保留，不参与本项目运行。
+每次开发后追加日志、同步全部受影响文档和项目记忆。上传 GitHub 前执行 AGENTS.md 中的密钥检查和用户确认。目标仓库为 https://github.com/844346518scp-coder/agent-school-llm-usts 。历史 0.1 已上传 main；本轮 0.2 与 C 报告保留在本地分支 `codex/c-local-teaching`，已按用户确认上传，功能提交955bbbe，远端文件树已核对一致。远端 main 已合并 B；本分支保留 C 的原始基线，B/C 集成另行处理。检查范围、限制与执行记录见开发日志。仓库原有 PCL.exe 和 AVIF 图片原样保留，不参与本项目运行。
 
 ## 仓库原有说明（原文保留）
 
