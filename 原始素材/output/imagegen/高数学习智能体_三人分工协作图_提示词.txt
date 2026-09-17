@@ -1,0 +1,112 @@
+生成方式：内置图像生成工具；生成后局部清除 GitHub 规则区的多余文字。
+最终修订提示词：Edit this infographic only: in section 05 GitHub 协作闭环, remove the stray garbled unnumbered line directly under numbered rule 2 (the extra third line of Chinese-looking text at the lower left of that light blue rules box). Leave that area clean light blue. Preserve all other text, colors, layout, resolution and sections exactly. Do not change rule 1, rule 2 or rule 3. Do not add any text.
+
+Use case: infographic-diagram
+Create ONE polished high-resolution Chinese portrait long infographic, approximately 2160x3840, for an internal university project team. Formal, extremely readable, precise simplified Chinese sans-serif typography. White background, navy headings, blue for A, teal for B, muted violet for C. Clean information design, no decorative illustrations, no logos, no watermark. Make all text legible, enough padding. Render exact copy below. Do not invent names or completed results. This is a proposed division of work. Organize into 6 numbered sections with strong hierarchy. Top role cards in three columns, middle schedule table, lower concise handoff and workflow cards. Every section fully within canvas.
+
+TITLE: 高数学习智能体
+SUBTITLE: 三人开发分工与协作图
+Top tags: 建议分工｜2026年9月｜9月27日完成开发
+Intro: 先搭建可运行骨架与接口规范，再并行开发；一个仓库、一套后端、统一数据规范。
+Scope: 首批内容：极限与连续、导数与微分｜手机与电脑可用的 Web App
+
+01 三人职责与交付
+Three equal cards:
+
+A｜学生端与交互
+主要工作
+• 学习首页、章节与目标选择
+• 文字提问、拍照上传与识别确认
+• 公式、步骤反馈与图片圈注
+• 错题收藏、重做与推荐练习
+• 费曼练习、学习报告与复习入口
+• 录音提问、讲解播放与移动端适配
+代码范围：frontend/src/student/
+交付：提问→反馈→修改→练习→复习
+边界：负责展示与交互，不另写诊断逻辑
+
+B｜智能体与教学逻辑
+主要工作
+• 模型适配、课程资料处理与 RAG
+• 手写识别、步骤诊断与数学工具
+• 分层提示、引用溯源与结构化输出
+• 长期记忆、知识状态与错因更新
+• 推荐选题、费曼评价与学习总结
+• 资源检索、语音服务适配与准确性评测
+代码范围：backend/app/ai/
+交付：可追溯的诊断、推荐与学习状态
+边界：负责判断策略，不擅改公共表结构
+
+C｜平台基础与教师端
+主要工作
+• 项目骨架、账号、角色与班级权限
+• 数据库、文件存储与后台任务
+• 题库、课程资料与作业管理
+• 教师学情、反馈复核与记录查询
+• 日志、部署、备份与故障恢复
+• 公共接口审核与版本集成
+代码范围：platform/、teaching/、teacher/
+交付：教师工作流与稳定的数据底座
+边界：兼任集成负责人；教师端先做基础版
+
+02 并行开发前｜共同完成的启动底座
+Six compact boxes:
+项目能启动｜Vue + FastAPI + PostgreSQL；统一 README 与配置模板
+接口先约定｜请求、响应、错误、任务状态；上传、确认、诊断、作答、历史
+数据先统一｜用户、题目、作答、反馈、知识点；统一 ID 与时间格式
+模拟接口先行｜无密钥也能联调；模拟结果明确标注，不作为真实 AI 效果
+AI 编程约束｜AGENTS.md 规定目录职责、修改边界、测试与依赖规则
+协作规则｜公共目录指定审核人；密钥与真实学生数据不入库
+Acceptance ribbon: 启动验收：三人均可拉取并运行“示例题→模拟反馈→页面展示→记录保存”
+
+03 时间进度与阶段交付
+A clean 4-column table: 阶段 | A 学生端 | B 智能体 | C 平台与教师端
+Row1:
+9月17日｜启动对齐
+页面原型、交互流程
+输入输出结构、测试题与模拟服务
+项目骨架、数据结构、运行说明
+Row2:
+9月18—20日｜最小可用版
+提问、上传确认、反馈、错题与历史
+RAG、识别、基础诊断；按条件接入真实服务
+账号、存储、上传、题库与日志
+Row3:
+9月21—24日｜功能扩展版
+练习、费曼、报告、圈注与语音交互
+长期记忆、推荐、评价、总结与资源检索
+班级、作业、教师复核与基础学情
+Row4:
+9月25—27日｜打磨与交付
+移动端、公式、加载与异常提示
+准确性评测、超时降级与错误修正
+权限、备份恢复、部署与回归
+Below table: 里程碑：9月20日最小版｜9月24日晚冻结新功能｜9月27日开发结束
+Small note: 9月28—30日集中用户验证暂定；师生联系、招募人数及试用安排均暂定。
+
+04 模块怎样衔接
+Four horizontal mini handoff rows with colored A/B/C badges:
+图片圈注｜B 输出步骤、坐标与解释 → A 展示批注；坐标不可靠则展示文本
+长期记忆｜C 保存证据与权限 → B 更新知识状态 → A 展示记录；教师在 C 端复核
+推荐练习｜C 维护复核题库 → B 按错因选题 → A 呈现练习并提交作答
+教师纠错｜C 提供复核入口 → B 修正判断与状态 → A 展示更新后的反馈
+Key boundary: 共享接口与数据库变更先沟通、再迁移；AI 不确定结果不写成确定错误标签。
+
+05 GitHub 协作闭环
+Numbered connected boxes:
+① Issue 明确任务 → ② 短功能分支 → ③ 开发与自测 → ④ 提交 PR → ⑤ 同伴审核与自动检查 → ⑥ 合并并联调
+Three concise rules:
+任务写清负责人、接口依赖与验收条件；不使用长期个人大分支。
+公共路由、依赖、数据库迁移由指定负责人审核；不直接修改主分支。
+每天同步一次接口变化、阻塞和可合并功能；合并前检查构建、测试与敏感信息。
+
+06 软件之外的配套工作｜共同承担
+Three small cards:
+内容准备｜课程资料、知识卡片、复核题库与测试照片；数学内容需合格人员复核
+视频与文档｜A 提供操作录屏；B 提供技术说明与评测；C 汇总部署材料；共同完成脚本、剪辑与申报填写
+试用组织（暂定）｜师生联系、试用时间、人数和效果采集待落实；不得预写应用成果
+
+Bottom emphasis: 首先打通一条真实流程，再逐步增加功能；分工明确，但共同对最终可用性负责。
+Footer: 项目组内部协作建议｜A / B / C 为角色占位，成员姓名后续填写
+
+Constraints: Preserve every date and tentative qualification. No claim real APIs or trials already working. Do not turn into three separate systems. Detailed but uncluttered, exact Chinese, formal professional layout.

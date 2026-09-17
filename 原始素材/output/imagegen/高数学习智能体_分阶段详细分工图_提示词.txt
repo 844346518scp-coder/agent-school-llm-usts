@@ -1,0 +1,119 @@
+Use case: infographic-diagram
+Create one detailed, professional Chinese portrait long infographic, high resolution approximately 2160x3840. This is a stage-by-stage work allocation chart for THREE humans using AI coding tools. White background, navy headings, blue A, teal B, purple C. Chinese sans-serif typography, excellent legibility and spacing. No decorative art, no watermark. Exact Chinese text below; no extra or garbled text. Main layout: 5 chronological full-width sections. Each section has prominent date and stage heading, three equal role columns, then full-width handoff and acceptance strips. Sixth bottom section for tentative trial arrangements. Dates are target plan, not completed status. Do not confuse roles or shift tasks.
+
+Title: 高数学习智能体
+Subtitle: 分阶段开发任务与协作安排
+Top line: 2026年9月｜建议分工｜9月27日完成开发
+Role legend: A 学生端与交互｜B 智能体与教学逻辑｜C 平台基础与教师端
+Scope line: 首批：极限与连续、导数与微分｜本地版先行，真实AI服务具备条件后接入
+
+01｜9月17日｜启动对齐与基础搭建
+Goal: 统一接口和数据规范，让三个人都能启动项目。
+A 学生端
+• 梳理提问、识别确认、反馈与错题流程
+• 搭建页面导航、公式显示和上传原型
+• 对接模拟接口，列出需要的返回字段
+B 智能体
+• 定义识别、诊断和引用的结构化结果
+• 准备模拟响应、典型题与失败样例
+• 明确模型适配、RAG与数学校验边界
+C 平台与教师端
+• 建立仓库、前后端骨架与启动配置
+• 定义核心表、账号权限和文件存储
+• 配置检查流程、任务状态与数据库迁移
+交接：三人确认接口；C维护公共规范，A与B使用同一套模拟数据。
+验收：各自拉取可运行；示例题→模拟反馈→页面展示→记录保存。
+
+02｜9月18—20日｜最小可用版
+Goal: 跑通“提问—反馈—保存—再次查看”的学生主流程。
+A 学生端
+• 完成文字提问、单题照片上传
+• 完成识别结果确认与手动修正
+• 展示步骤反馈、来源、等待与重试
+• 完成错题收藏和历史记录页面
+B 智能体
+• 整理首批课程资料，建立RAG检索
+• 实现识别与基础步骤诊断适配器
+• 输出首个可确认错误、原因与提示
+• 校验输出结构，保留不确定与失败状态
+C 平台与教师端
+• 完成登录、用户隔离与上传接口
+• 保存题目、作答、反馈和历史记录
+• 建立后台任务、运行日志与基础题库
+• 处理重复提交，提供本地运行说明
+交接：B返回统一反馈结构；C负责保存与任务状态；A呈现并完成确认。
+验收：刷新或重新登录后记录保留；失败可重试；9月20日交付最小版。
+条件说明：未接真实模型时明确标注模拟模式，不将联调结果算作AI效果。
+
+03｜9月21—22日｜学习闭环扩展
+Goal: 让系统依据前次学习证据调整下一次辅导。
+A 学生端
+• 完成针对性练习、提交与重做
+• 完成费曼解释与追问交互
+• 展示知识状态、学习报告与复习任务
+B 智能体
+• 实现错因记忆、知识状态更新与选题
+• 区分独立完成和提示后完成
+• 实现费曼评价、总结与复习策略
+• 处理教师纠错或误判撤销后的状态修正
+C 平台与教师端
+• 增加学习证据、知识状态与复习记录
+• 提供题库查询、重做和状态修正接口
+• 完成报告与复习后台任务
+• 保留状态变化依据与操作记录
+交接：C提供证据和题库；B计算状态与推荐；A展示依据并收集新作答。
+验收：历史证据影响推荐；能撤销误判；看过解析与独立做对分别记录。
+
+04｜9月23—24日｜多模态与教师闭环
+Goal: 接通图片批注、基础语音和教师作业流程。
+A 学生端
+• 根据步骤坐标绘制SVG圈注
+• 完成录音、转写确认与点击播放
+• 展示学习资源链接与推荐理由
+• 完成加入班级、作业作答与提交入口
+B 智能体
+• 关联步骤、错误解释与图片位置
+• 接入语音识别、合成及资源检索适配器
+• 实现坐标不可靠、服务失败时的降级
+• 接收教师复核并修正智能反馈
+C 平台与教师端
+• 完成建班、作业发布与提示规则
+• 展示提交情况、共性错误与复核入口
+• 限制教师只访问所管理班级任务记录
+• 串联作业、反馈与复核数据
+交接：B提供坐标与语音结果，A完成展示；C贯通教师任务与学生提交。
+验收：师生作业流程贯通；圈注不可靠则回退文本；9月24日晚冻结新功能。
+
+05｜9月25—27日｜体验打磨与发布交付
+Goal: 停止扩展功能，集中解决正确性、稳定性与操作问题。
+A 学生端
+• 打磨手机布局、公式阅读与图片缩放
+• 优化上传、等待、错误提示和操作步骤
+• 回归学生主流程，准备演示录屏
+B 智能体
+• 使用保留评测题检查诊断、条件与引用
+• 检查手写识别、记忆纠错与推荐结果
+• 优化超时、失败降级与调用成本记录
+• 整理技术说明、评测结果与已知限制
+C 平台与教师端
+• 回归账号、权限、作业与教师复核
+• 检查重复提交、后台任务及备份恢复
+• 整理部署配置，发布候选正式版
+• 汇总版本、使用说明和交付清单
+交接：共同登记缺陷并复测；C集成版本，跨模块问题由对应负责人配合。
+验收：9月27日开发结束；源代码、运行配置、资料题库、说明与测试记录齐备。
+
+06｜9月28—30日｜试用与材料收尾
+Prominent tag: 组织试用及相关验证安排均暂定
+A：修复体验问题，补充操作演示素材。
+B：复核反馈准确性，整理问题分析与实际测试记录。
+C：保障运行，汇总缺陷、版本和申报材料。
+共同工作：脚本、视频拍摄与剪辑、文档填写、材料审核。
+条件说明：师生联系、试用时间、人数及效果采集待落实；真实试用镜头与应用证据仅在实际开展后补充。不预写应用成果。
+
+Bottom compact box heading: 每阶段都遵守的协作规则
+Text: Issue明确任务 → 短功能分支 → 自测与PR → 同伴审核 → 合并联调
+Text: 接口与表结构先协商再修改；每日同步阻塞；公共变更统一审核。
+Footer: A / B / C 为角色占位，具体成员后续填写｜开发日期不变，试用安排暂定
+
+Layout constraints: all 6 sections fully visible, no clipped text, no invented names or completed results. Stages 1 and 3 can be shorter, stages 2,4,5 taller. Use compact but readable typography, minimal icons, no extra filler sentences. Preserve every tentative qualification.

@@ -1,0 +1,1 @@
+<template><div class="brand"><span class="brand-mark"><svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M9 28C16 2 23 36 31 12M9 17C16-1 24 38 31 12" stroke="currentColor" stroke-width="2.7" stroke-linecap="round"/></svg></span><span>数伴<span class="brand-en">SHUBAN</span></span></div></template>

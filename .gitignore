@@ -1,0 +1,38 @@
+# Local secrets (examples may be committed)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# Dependencies and caches
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Build, local data, and transient outputs
+dist/
+build/
+coverage/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+tmp/
+.tmp/
+
+# Local editor and OS state
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

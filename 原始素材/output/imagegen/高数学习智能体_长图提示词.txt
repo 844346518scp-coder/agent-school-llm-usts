@@ -1,0 +1,70 @@
+Use case: infographic-diagram.
+Create ONE high-resolution portrait infographic, a tall long image approximately 1440 x 3600 pixels (2:5 aspect ratio), suitable for sharing in Chinese university project team chats. This is a polished professional project roadmap, not an app mockup. Full-bleed clean white/offwhite canvas, deep navy headings (#17344D), restrained teal (#197A7A) timeline and accents, light grey separators. Chinese typography in a modern highly legible sans serif, excellent exact simplified Chinese text, strong hierarchy, generous comfortable spacing, no tiny body copy, no illustrations competing with text. Single continuous poster, no page seams, no watermarks or logos. Small consistent line icons are okay. Emphasize 09.20, 09.24, 09.27 milestone dates. Use concise text EXACTLY as specified below, without adding claims or invented people. Tasks mean what work needs doing, NOT assignment to named people.
+
+Layout: header around 12% height; main timeline about 62%; parallel work grid about 19%; footer about 7%. Timeline has 5 clearly separated full-width horizontal cards stacked top to bottom connected by a thin vertical line on left. Each card has date on left and stage name, task line, function line, result on right. Keep all card reading order top to bottom. Main text content:
+
+HEADER:
+Large title: “高数学习智能体”
+Subtitle: “时间进度 · 工作任务 · 功能路线”
+Date line: “2026.09.16—09.30”
+Scope line: “首批范围：极限与连续、导数与微分”
+3 equal milestone badges:
+“09.20 最小版”    “09.24 扩展版”    “09.27 开发完成”
+
+MAIN SECTION TITLE:
+“按阶段推进，每阶段交付可用成果”
+
+CARD 1:
+“09.16—09.17”
+“准备阶段”
+“工作：明确范围、整理资料、搭建环境”
+“内容：页面流程、账号数据库、知识库准备”
+“交付：本地框架可运行，外部接口条件明确”
+
+CARD 2:
+“09.18—09.20”
+“第一阶段｜最小可用版”
+“工作：开发核心学习流程，完成内部测试”
+“功能：课程问答 · RAG引用 · 拍照识别与确认”
+“功能：步骤反馈 · 错题收藏 · 历史记录”
+“交付：提问 → 确认 → 反馈 → 保存 → 再次学习”
+
+CARD 3:
+“09.21—09.24”
+“第二阶段｜功能扩展版”
+“工作：个性化学习、多模态与教师端开发”
+“功能：长期记忆 · 推荐练习 · 费曼练习 · 总结复习”
+“功能：图片圈注 · 资源搜索 · 基础语音”
+“功能：教师建班 · 布置作业 · 学情与复核”
+“同步：视频脚本、申报文档初稿”
+“交付：师生流程贯通，24日晚冻结新功能”
+
+CARD 4:
+“09.25—09.27”
+“第三阶段｜体验打磨与定稿”
+“工作：优化UI、手机操作、公式与异常处理”
+“同步：拍摄录屏、剪辑配音、申报文档填写”
+“交付：27日完成开发、回归测试与交付准备”
+
+CARD 5:
+“09.28—09.30”
+“集中验证（暂定）与材料定稿”
+“工作：组织试用（暂定）、收集反馈、修复问题”
+“同步：使用素材与应用数据（试用落实后补充）”
+“交付：验证记录（暂定）、视频与文档定稿”
+
+BOTTOM SECTION TITLE:
+“需要完成的工作”
+Six compact tiles in 2 columns x 3 rows, each with title plus one description:
+“资料与复核” / “知识点、题库、答案和来源”
+“开发与接入” / “前后端、数据库、AI接口”
+“测试与部署” / “功能、权限、稳定性、备份”
+“试用与验证（暂定）” / “联系师生（暂定）、记录反馈与效果”
+“视频拍摄制作” / “脚本、拍摄、录屏、配音剪辑”
+“文档填写整理” / “申报书、PPT、附件与审核”
+
+BOTTOM FOOTER separated by subtle line:
+“优先保证：学习主流程 → 学习记录 → 推荐练习 → 教师作业”
+“本地版先行；外部AI接通后验证。试用安排均为暂定。”
+
+Design constraints: make stage 3 taller to fit its 7 text lines. Avoid rendering tiny squeezed text. Maintain straight aligned columns, do not mix stage labels and deadlines. Everything legible in a phone long image. No database technical stack table; audience needs schedule and tasks. No fake charts, no percentage completion. Render all Chinese copy faithfully.
