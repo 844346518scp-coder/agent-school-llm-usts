@@ -102,7 +102,7 @@ npm run build
 
 目录与职责以 AGENTS.md 为准。本次依赖解析版本记录在 frontend/package-lock.json、backend/requirements.lock.txt。数据库初始表方案见 migrations/README.md；`create_all` 不承担后续表结构升级。
 
-每次开发后追加日志、同步全部受影响文档和项目记忆。上传 GitHub 前执行 AGENTS.md 中的密钥检查和用户确认。目标仓库为 https://github.com/844346518scp-coder/agent-school-llm-usts 。用户已授权 AI 主动核验秘密凭据后上传；检查范围、限制与执行记录见开发日志。仓库原有 PCL.exe 和 AVIF 图片原样保留，不参与本项目运行。
+每次开发后追加日志、同步全部受影响文档和项目记忆。上传 GitHub 前执行 AGENTS.md 中的密钥检查和用户确认。目标仓库为 https://github.com/844346518scp-coder/agent-school-llm-usts 。已按用户授权完成秘密凭据检查并上传至 main；检查范围、限制与执行记录见开发日志。仓库原有 PCL.exe 和 AVIF 图片原样保留，不参与本项目运行。
 
 ## 仓库原有说明（原文保留）
 
