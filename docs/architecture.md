@@ -42,3 +42,20 @@
 ## 首次仓库集成
 
 按用户授权，将本地项目接入已有 main 历史，不强制推送；原有 PCL.exe 与 AVIF 图片保持原始字节，原 README 全文保留在 README 的独立章节。AI 主动检查秘密凭据的责任与本轮直接上传授权见 AGENTS.md 第 6 节。未新增业务目录或改变运行架构。
+
+## 智能体（B）处理流水线（2026-09-17 追加）
+
+目的：把“演示问答”升级为可接真实模型的骨架，同时保证没有模型密钥时流程仍然完整、且不把预设文案冒充模型输出。
+
+流水线：
+
+1. **配置**：`backend/app/ai/config.py` 读取 `AGENT_MODE` 与 `MODEL_*`，得出 `resolved_mode`（`demo` / `live`）；`live` 缺凭据时如实降级为 `demo`。
+2. **检索**：`knowledge.py` 对 `KNOWLEDGE_POINTS` 建本地 BM25 索引（中文按字 bigram），返回带出处（`source`）与命中词（`matched`）的片段，因此引用可解释、可复核。
+3. **提示词**：`prompts.py` 组装分层提示（概念层 → 例题层 → 迁移层），要求只依据片段作答并在句末标注 `[n]` 编号。
+4. **调用**：`llm.py` 用 httpx 调 OpenAI 兼容 Chat Completions（含流式），把失败统一翻译成 `ModelUnavailable` / `ModelCallFailed`。
+5. **组装与降级**：`service.py#compose_answer` 决定走 live 还是 demo；模型失败时回退 demo，并在 `notice` 里写明原因。
+6. **诊断与步骤反馈**：`diagnosis.py` 规则优先（结论可追溯：命中哪些关键词）；live 模式下模型只润色学情总结或判断单步，规则结论始终保留。
+
+模块边界：B 只产出结构化结果，不实现权限与持久化；鉴权与存储仍走 `platform`（C）。B 未新增数据库列，历史记录的 `mode` 由答案文本中的演示标记反推。
+
+升级路径：把 `knowledge.retrieve()` 换成向量检索、把 `llm.chat()` 换成多模型路由，都不需要改动路由层与前端。

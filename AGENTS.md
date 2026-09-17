@@ -130,3 +130,37 @@ AI 必须主动帮助核验 API 密钥及其他秘密凭据，包括访问令牌
 - 接入真实模型与课程检索前，先补齐模型配置、接口约定和失败处理；不得把预设回复当作真实 AI 能力。
 - 按正式路线落实 PostgreSQL / pgvector、多班级权限、正式认证、迁移与部署；当前仅验证本地 SQLite 模式，不直接公开演示账号服务。
 - 保持开发日志、接口、架构、README 和本文件同步；需新增目录时按第 3 节确认。
+
+## B 模块（智能体）实现说明（2026-09-17 追加）
+
+范围：对齐 9/20 最小版——课程问答、RAG 引用、拍照识别与确认、步骤反馈、基础诊断。
+
+新增文件（均在既有目录内，未新增子目录）：
+
+- `backend/app/ai/config.py`：模式与模型配置。`AGENT_MODE=auto|demo|live`；`live` 缺凭据时如实降级为 `demo`。
+- `backend/app/ai/knowledge.py`：课程知识点与本地 BM25 检索（中文按字 bigram），返回带出处与命中词的片段；知识点均 `verified=false`，待课程资料复核。
+- `backend/app/ai/prompts.py`：分层提示（概念层 → 例题层 → 迁移层）与引用编号约束，另含教师版、费曼版、诊断、步骤批改、识别提示。
+- `backend/app/ai/llm.py`：OpenAI 兼容 Chat Completions 客户端（httpx，支持流式），失败统一为 `ModelUnavailable` / `ModelCallFailed`。
+- `backend/app/ai/diagnosis.py`：规则优先的薄弱知识点诊断与步骤反馈；模型只在 live 模式润色总结或判断单步。
+- `backend/app/ai/service.py`（已有文件，已改造）：保留原演示文案与既有响应结构，新增 `/api/agent/status`、`/api/agent/ask`、`/api/agent/ask/stream`、`/api/agent/feedback`、`/api/agent/diagnosis`、`/api/agent/recognize`。
+- `tests/test_agent.py`：检索、诊断、步骤反馈、提示词、模式降级、最小版测试题集。
+- `tests/smoke_agent.py`：端到端冒烟脚本（登录后可依次跑通问答、反馈、诊断、SSE、识别）。
+
+硬约束（后续改动不要破坏）：
+
+1. 未配置模型或调用失败时，答案必须是演示内容且 `mode='demo'`，并在 `notice` 说明原因；不得把预设文案冒充模型输出。
+2. demo 模式的步骤反馈只返回 `incorrect` / `unclear`，**不返回** `correct`。
+3. 演示答案正文保留 `还不能生成`、`固定例题演示` 等既有标记（原有 API 测试依赖它们）。
+4. B 不实现权限与持久化，路由只做结构化结果；不改 `platform` 的表结构。
+5. 不在业务路由内重复写权限逻辑；写操作仍由 `main.py` 的 `X-Requested-With: shuban-web` 中间件与 `current_user` 把关。
+
+本地验证：
+
+```
+python -m pytest -q              # 期望 40 passed
+python tests/smoke_agent.py      # 端到端冒烟（demo 模式下 recognize 返回 503 属预期）
+```
+
+配置真实模型：复制 `.env.example` 为 `.env`，填写 `MODEL_BASE_URL` / `MODEL_API_KEY` / `MODEL_NAME`（可选 `MODEL_VISION_NAME`），把 `AGENT_MODE` 保持 `auto` 或改 `live`；密钥不入库、不入仓。
+
+下一步（9/21–24 功能扩展版）：长期记忆、个性化推荐、资源检索与总结评价、语音；以及把 `knowledge.retrieve()` 升级为向量检索。
