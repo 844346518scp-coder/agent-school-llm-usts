@@ -10,10 +10,11 @@ from .platform.database import Base, engine, SessionLocal, User, Assignment
 from .platform.auth import router as auth_router, hash_password
 from .ai.service import router as agent_router
 from .teaching.routes import router as teaching_router
+from migrations.upgrade import upgrade
 
 
 def initialize_database():
-    Base.metadata.create_all(engine)
+    upgrade(engine, Base.metadata)
     with SessionLocal() as db:
         for role, name, password in [('student', '林同学', 'Student123!'), ('teacher', '陈老师', 'Teacher123!')]:
             if not db.get(User, role):
@@ -32,7 +33,7 @@ async def lifespan(app):
     yield
 
 
-app = FastAPI(title='数伴 · 教育智能体 MVP', version='0.1.0', lifespan=lifespan)
+app = FastAPI(title='数伴 · 教育智能体 MVP', version='0.2.0', lifespan=lifespan)
 
 
 @app.middleware('http')
@@ -56,7 +57,7 @@ app.include_router(teaching_router)
 
 @app.get('/api/health')
 def health():
-    return {'status': 'ok', 'agent_mode': 'demo', 'version': '0.1.0'}
+    return {'status': 'ok', 'agent_mode': 'demo', 'version': '0.2.0'}
 
 
 DIST = Path(__file__).resolve().parents[2] / 'frontend' / 'dist'
