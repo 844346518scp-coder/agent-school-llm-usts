@@ -88,7 +88,7 @@ B智能体接口已定义并在本轮集成，见下文；语音、异步任务�
 2. **引用**：响应 `references[i].index` 与正文中的 `[1]`、`[2]` 一一对应；`source` 是资料出处，`verified=false` 表示待课程资料复核。demo 模式的答案正文会附一行“本轮检索到的课程资料（未经模型解读）”，避免误认为已由资料生成。
 3. **拍照识别与确认**：`POST /api/agent/recognize` 只返回草稿（`requires_confirmation=true` + `suggested_topic`）；学生在界面校对/修正后，用确认后的题目调用 `POST /api/conversations` 保存并生成回答。识别接口不会自动入库，也不会代替学生确认。
 4. **步骤反馈**：`POST /api/agent/feedback` 只判断学生本次提交的这一步，`steps[]` 传已写步骤作为上下文；不返回整题答案。demo模式命中关键词也只返回`unclear`，提供待复核提示，不确定对错。
-5. **保存与再次学习**：`GET /api/conversations` 取历史，`PATCH /api/conversations/{id}` 收藏错题（既有接口，未变）。
+5. **保存与再次学习**：`GET /api/conversations` 取历史，`PATCH /api/conversations/{id}` 收藏错题（既有接口，未变）。2026-09-18 起复习收藏页的标签筛选与「同标签重练」是纯前端流程：标签取自该列表已有 topic 字段，重练仅预填同知识点练习请求并预选 topic，仍由学生手动调用 `POST /api/conversations` 发送；不新增接口。倒计时专注模式无任何网络请求。
 
 ### 既有接口的增量字段（向后兼容）
 

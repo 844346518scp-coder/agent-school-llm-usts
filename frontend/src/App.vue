@@ -21,6 +21,7 @@ const teachingStats = ref<TeachingStats>({ published: 0, submitted: 0, pending: 
 const draftToOpen = ref('')
 const mobileNav = ref(false)
 const initialQuestion = ref('')
+const initialTopic = ref('')
 const selectedId = ref('')
 const createRequested = ref(false)
 const loadError = ref('')
@@ -44,12 +45,18 @@ async function loadData() {
     records.value = r; assignments.value = a; if (stats) teachingStats.value = stats; loadError.value = ''
   } catch (e) { if (current === generation && user.value) loadError.value = (e as Error).message }
 }
-function navigate(id: string) { if (id === 'assignments' || id === 'dashboard' || id === 'students') void loadData(); page.value = id; mobileNav.value = false; if (id !== 'agent') { initialQuestion.value = ''; selectedId.value = '' } }
-function ask(question: string) { initialQuestion.value = question; selectedId.value = ''; navigate('agent') }
+function navigate(id: string) { if (id === 'assignments' || id === 'dashboard' || id === 'students') void loadData(); page.value = id; mobileNav.value = false; if (id !== 'agent') { initialQuestion.value = ''; initialTopic.value = ''; selectedId.value = '' } }
+function ask(question: string) { initialQuestion.value = question; initialTopic.value = ''; selectedId.value = ''; navigate('agent') }
+function practiceTopic(topic: string) {
+  initialTopic.value = topic
+  initialQuestion.value = `我想重练「${topic}」这个标签下的内容。请再给我一道同知识点的练习题：先只给出题目，等我自己作答后，再帮我核对思路。`
+  selectedId.value = ''
+  navigate('agent')
+}
 function openRecord(id: string) { initialQuestion.value = ''; selectedId.value = id; navigate('agent') }
 async function drafted(id: string) { draftToOpen.value = id; page.value = 'assignments'; await loadData() }
 function create() { createRequested.value = true; navigate('assignments') }
-function reset() { generation++; draftToOpen.value = ''; teachingStats.value = { published: 0, submitted: 0, pending: 0, needs_improvement: 0, completed: 0 }; user.value = null; records.value = []; assignments.value = []; page.value = 'dashboard'; initialQuestion.value = ''; selectedId.value = ''; mobileNav.value = false; createRequested.value = false; loadError.value = '' }
+function reset() { generation++; draftToOpen.value = ''; teachingStats.value = { published: 0, submitted: 0, pending: 0, needs_improvement: 0, completed: 0 }; user.value = null; records.value = []; assignments.value = []; page.value = 'dashboard'; initialQuestion.value = ''; initialTopic.value = ''; selectedId.value = ''; mobileNav.value = false; createRequested.value = false; loadError.value = '' }
 async function loggedIn(value: User) { reset(); user.value = value; await loadData() }
 async function logout() {
   loggingOut.value = true
@@ -76,13 +83,13 @@ onBeforeUnmount(() => window.removeEventListener('session-expired', expired))
       <StudentHome v-if="page === 'dashboard' && !teacher" :user="user" :records="records" :assignments="assignments" @navigate="navigate" @ask="ask"/>
       <TeacherHome v-else-if="page === 'dashboard'" :user="user" :records="records" :assignments="assignments" :stats="teachingStats" @navigate="navigate" @create="create" @refresh="loadData"/>
       <QuestionBank v-else-if="page === 'questions' && teacher" @drafted="drafted"/>
-      <AgentView v-else-if="page === 'agent'" :user="user" :records="records" :initial-question="initialQuestion" :selected-id="selectedId" @saved="loadData" @select="selectedId = $event"/>
+      <AgentView v-else-if="page === 'agent'" :user="user" :records="records" :initial-question="initialQuestion" :initial-topic="initialTopic" :selected-id="selectedId" @saved="loadData" @select="selectedId = $event"/>
       <AssignmentsView v-else-if="page === 'assignments'" :user="user" :assignments="assignments" :create-requested="createRequested" :open-id="draftToOpen" @opened="draftToOpen = ''" @refresh="loadData" @saved="loadData" @close-create="createRequested = false"/>
       <CoursesView v-else-if="page === 'courses' && !teacher" @ask="ask"/>
-      <RecordsView v-else-if="page === 'favorites' || page === 'records'" :records="records" :favorites="page === 'favorites'" @open="openRecord" @ask="navigate('agent')"/>
+      <RecordsView v-else-if="page === 'favorites' || page === 'records'" :records="records" :favorites="page === 'favorites'" @open="openRecord" @ask="navigate('agent')" @practice="practiceTopic"/>
       <template v-else-if="page === 'students' && teacher"><div class="page-heading"><div><div class="eyebrow">GROW TOGETHER</div><h1>看见每一位同学</h1><p>高等数学 · 演示班级，当前只有一名预设学生。</p></div><span class="status-pill">1 位学生</span></div><section class="panel"><div class="section-heading"><h3>班级成员</h3><span class="muted small">账号与作业数据</span></div><div class="class-student"><span class="user-avatar">林</span><div><h3>林同学</h3><p class="muted">student · 学生演示账号</p></div><div><strong>{{ assignments.filter(a => a.status === 'published' && a.submissions?.some(s => s.student_id === 'student')).length }} / {{ teachingStats.published }}</strong><p class="muted">已提交作业</p></div><button class="outline-button" @click="navigate('assignments')">查看作业 <ArrowUpRight :size="15"/></button></div><div class="teaching-reminder"><h4>先观察，再判断</h4><p>本版仅记录作业提交，不推断知识点掌握程度。当前可进行教师人工作业反馈；多班级管理、成员邀请、AI 学情诊断与 AI 反馈复核尚未开放。</p></div></section></template>
       <footer class="workspace-footer"><span>数伴 · 让每一步学习都有回应</span><span>MVP 0.2 <span class="tiny-dot"/> 持续生长中</span></footer>
     </main></div>
-    <el-dialog v-model="help" title="欢迎体验数伴" width="520px"><div class="help-content"><p>这是一个高数教学与学习的最小可行版本。</p><p><strong>已经可以体验：</strong>学生 / 教师登录、记住登录、课程入口、模型 / 演示问答与课程引用、拍照搜题取景框选与压缩上传、收藏、历史记录、教师题库、草稿与发布、学生提交、教师人工反馈和历史记录、作业归档。</p><p><strong>能力边界：</strong>已接入模型兼容接口与本地课程检索；未配置模型时仍为演示。拍照搜题入口已在智能体页开放，识别结果需人工确认后才会带入提问，未配置视觉模型时后端返回不可用提示；步骤反馈和诊断已有后端接口，页面入口待接入；语音、自动评分、多班级和向量检索尚未实现。</p><p>所有预设账号均用于本地体验，不要填入真实师生隐私。账号切换请先退出登录；退出会撤销已记住的会话。</p></div></el-dialog>
+    <el-dialog v-model="help" title="欢迎体验数伴" width="520px"><div class="help-content"><p>这是一个高数教学与学习的最小可行版本。</p><p><strong>已经可以体验：</strong>学生 / 教师登录、记住登录、课程入口、模型 / 演示问答与课程引用、拍照搜题取景框选与压缩上传、收藏、按标签筛选与同标签重练、倒计时专注学习模式、历史记录、教师题库、草稿与发布、学生提交、教师人工反馈和历史记录、作业归档。</p><p><strong>能力边界：</strong>已接入模型兼容接口与本地课程检索；未配置模型时仍为演示。拍照搜题入口已在智能体页开放，识别结果需人工确认后才会带入提问，未配置视觉模型时后端返回不可用提示；步骤反馈和诊断已有后端接口，页面入口待接入；语音、自动评分、多班级和向量检索尚未实现。</p><p>所有预设账号均用于本地体验，不要填入真实师生隐私。账号切换请先退出登录；退出会撤销已记住的会话。</p></div></el-dialog>
   </div>
 </template>

@@ -351,3 +351,34 @@ GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：
   6. 实时全双工语音答疑（需后端与第三方语音服务，当前静态页面无法真实交付）。
   其中第 6 项涉及真实外部服务与后端能力，不属于本地静态页面可交付范围；第 4、5 项需引入第三方密钥，接入前须先确认服务商与密钥管理方式。
 - 说明：本目录为独立原型，与 frontend/src 中已接入的 PhotoSearchDialog.vue 无代码依赖，两者可独立演进。是否将视频解析能力并入 Vue 前端由用户与 A 侧责任人决定。
+
+## 2026-09-18 / 复习收藏同标签重练 + 智能体页倒计时专注模式
+
+- 负责人 / AI：TRAE（用户 C 侧发起）。用户要求在网页应用的错题收藏页新增「同标签重练」，并在搜题页新增「倒计时专注学习模式」。落点为真实 Vue 前端：错题收藏页即学生侧「复习收藏」（RecordsView favorites 态），搜题页即拍照搜题入口所在的 AgentView。
+- 协作边界：RecordsView.vue、AgentView.vue、App.vue 属 A 负责的共享文件。沿用拍照搜题一轮的最小侵入做法——可复用逻辑放新组件，共享文件只做接线与文案，不改问答发送、收藏、拍照识别等既有逻辑；按第 4 节合并前应由 A 或另一成员复核。
+- 新增文件：frontend/src/shared/FocusTimer.vue（Vue 3 + TS + scoped CSS，约 9 KB；复用 el-dialog 与全局按钮/配色，无新增依赖）。
+- 修改文件：
+  1. frontend/src/shared/RecordsView.vue：模板由单行展开；新增标签行——「全部 + 各 topic」按收藏记录实时统计数量，点击即按标签筛选（仅 favorites 态显示；切到学习记录页自动重置）；每张收藏卡片增加「同标签重练」操作（Repeat 图标，@click.stop，键盘 Enter/Space 可达），标签行右侧在选中具体标签时出现紫色「重练「xx」」按钮。原卡片是 button，为避免按钮嵌套改为 div[role=button][tabindex] 并补键盘处理。新增样式全部 scoped，未改 style.css。
+  2. frontend/src/App.vue：新增 initialTopic ref 与 practiceTopic(topic)——跳转到智能体页并把提问框预填为「我想重练「标签」…请再给我一道同知识点的练习题，先只给题目，作答后再核对思路。」，由学生自行决定是否发送（不自动提问）；navigate/reset/ask 清理 initialTopic；AgentView 传 initial-topic；RecordsView 监听 @practice；帮助弹窗「已经可以体验」补入两项功能。
+  3. frontend/src/shared/AgentView.vue：props 增加可选 initialTopic，topic 初值与 watch 接收该预设（教师角色不覆盖「教学设计」）；对话头 chat-header-actions 在「拍照搜题」与「新问题」之间挂载 `<FocusTimer/>`；coming-note 文案补入倒计时专注模式。
+  4. FocusTimer.vue：对话头触发按钮（idle 显示「专注模式」，运行中显示 MM:SS + 脉动点，暂停/完成有独立文案与 aria-label）；el-dialog 设 `append-to-body` 与 `:close-on-click-modal="false"`（见下方问题修复）；25/15/10/5 分钟预设 + 自定义 1–120 分钟（clamp 容错）；SVG 圆环 + 每秒基于 Date.now() 截止时间计时（250 ms tick，暂停不累积误差）；开始/暂停/继续/结束本轮；关闭弹窗计时继续，头部持续显示；归零自动进入完成态，统计本页累计轮数/分钟，可再来一轮；结束播放三音 WebAudio 提示（AudioContext 在用户点击开始时创建，失败静默）。纯前端、不发请求、不写库；离开本页或刷新即重置，弹窗内有明确说明。
+- 本轮修复的自身缺陷：首次浏览器冒烟发现专注弹窗内所有控件 pointer-events:none 不可点击。DOM 诊断确认 el-dialog 默认不 teleport，弹窗渲染在对话头 flex 容器内，自动化快速点击落在开启过渡中的遮罩层（EP 在过渡/closing 态对 .el-dialog 设 pointer-events:none），叠加默认 close-on-click-modal 触发关闭，进入 enter/leave class 并存的卡死状态。修复：append-to-body 传送到 body、禁止点遮罩关闭；复验全部交互正常。
+- 验证（通过）：
+  1. `npm run build`（vue-tsc --noEmit && vite build）两轮均 exit 0；最终 2914 modules，index 产物 115.10 kB（gzip 38.63 kB，较上轮 +0.91 kB）。
+  2. 起真实前后端（项目 .runtime Python 3.13 + uvicorn 8000、Vite 5173）浏览器端到端：学生登录→复习收藏出现「全部 1 / 函数与极限 1」标签行，筛选高亮、计数正确；卡片「同标签重练」跳转智能体页，提问框含「我想重练」与标签名，主题下拉正确预选（未发送提问）。
+  3. 专注模式：弹窗配置态按钮 pointer-events 均 auto、遮罩确认传送到 body；自定义 1 分钟开始→圆环递减、头部胶囊同步；暂停停止且「继续」恢复；关闭弹窗头部继续计时、重开连续；用页面内 Date.now 偏移即时触发归零→完成态显示「这一轮完成了」、累计 2 轮共 2 分钟、头部显示「专注完成」；再来一轮/结束本轮正常。
+  4. 回归：在智能体页打开拍照搜题弹窗，标题/取景区/三个操作按钮正常且可点击，关闭后无残留；切页卸载后可见遮罩数为 0；全程 console 无 error。
+- 未执行 / 限制（不得写成已完成）：
+  1. 同标签重练没有独立题库或「随机打乱迷你测验」（那是独立原型清单里的设想）：当前是用收藏记录已有 topic 标签筛选，并预填一段同知识点练习题请求，发送仍走既有 POST /api/conversations；未配置模型时得到的仍是明确标注的固定演示回复。
+  2. 专注计时不做跨页/刷新持久化、无后台通知与真实提示音设备兼容性全覆盖；浏览器音频策略下提示音可能被拦截（已静默降级）；未在真机移动端实测头部胶囊在窄屏的图标折叠（≤520px 已写隐藏文字样式）。
+  3. 后端、数据库、接口约定本轮零改动；pytest 未运行（无 backend 改动），未做真实模型/语音相关验证。
+- 目录结构变更 / 用户确认依据：无新增目录；在既有 frontend/src/shared/ 内新增 FocusTimer.vue，按规则无需目录确认。
+- 文档同步清单：
+  - AGENTS.md 项目记忆与目录：已更新（新增本轮功能条目、shared 目录登记 FocusTimer.vue、下一步清单口径）。
+  - README.md：已更新（开头能力简介补入两项功能）。
+  - docs/architecture.md：已更新（当前实现补一条纯前端学习辅助说明，决策记录追加一行）。
+  - docs/contracts/：已核对接口无变化，并在「保存与再次学习」补充一条前端流程说明——标签复用 GET 列表的 topic，重练仍由学生手动 POST /api/conversations（既有 4 个 topic 字面量），专注计时无网络请求。
+  - .env.example、migrations/、.gitignore、启动脚本：已核对，无变化。
+- GitHub 上传 / 密钥状态：改动均为前端源码与文档，无密钥、令牌或学生隐私；FocusTimer 不使用 localStorage/sessionStorage，计时状态仅存内存。2026-09-18 上传前已按第 6 节完成本地核验：范围为本条目 9 个文件（8 改 1 增），暂存区原本为空，无未推送历史提交；diff 新增行与新文件按常见凭据模式扫描无匹配；仅 .env.example 被跟踪且为空值占位符（本轮未改），真实 .env 未跟踪；无二进制附件。结论「已检查，待用户确认」→ 用户明确确认无真实凭据、占位符无真实值、无待处理历史泄露，授权上传；扫描局限（非文本载体）已在会话中说明。按用户选择推送短期分支 feat/focus-practice 并开 PR 供复核（PR 编号见随后追加）。
+- 遗留与下一步：请 A（或另一成员）按第 4 节复核 RecordsView/AgentView/App 改动后走短期分支与 PR；原型清单中错题分类/localStorage 错题本、语音搜题、语音讲解、全双工语音仍未实现，维持原记录。
+
