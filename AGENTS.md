@@ -13,13 +13,15 @@
 - 项目方向：教育智能体，以高等数学学习支持为当前场景，连接学生学习、智能体教学反馈、教师管理。
 - 协作方式：三名成员借助各自的 AI 编程工具，通过 GitHub 协作；当前用户已认领 C（平台基础、教师端与集成协调）；姓名与账号、A/B 负责人待填写。
 - 当前已完成：数伴（SHUBAN）0.2 本地 B/C 集成版本；学生 / 教师独立登录界面与工作台、角色校验、记住登录、演示问答与公式渲染、对话收藏与历史、教师发布作业、学生提交、教师查看作答、实际提问统计及响应式页面。新增教师私有题库、按顺序选题生成草稿、草稿编辑/删除/发布、延长截止日期、复制草稿、只读归档、按作答版本保存教师人工反馈、学生查看当前/历史反馈和实际教学统计。已提供后端接口测试、前端构建与启动说明。
-- 当前未完成：真实模型实连/效果验证、拍照识别等前端流程、语音、SymPy工具校验、向量检索、worker、多班级管理、AI反馈复核、正式账号和公网部署。B模型兼容接口、本地BM25、引用、诊断与识别API已集成；不能把代码接入或模拟测试写成真实模型效果已验证。
+- 当前未完成：真实模型实连/效果验证、语音、SymPy工具校验、向量检索、worker、多班级管理、AI反馈复核、正式账号和公网部署。B模型兼容接口、本地BM25、引用、诊断与识别API已集成；不能把代码接入或模拟测试写成真实模型效果已验证。
+- 拍照搜题前端入口（2026-09-18）：新增 frontend/src/shared/PhotoSearchDialog.vue，在 AgentView.vue 对话头开放「拍照搜题」入口（该文件属 A 负责，本轮改动限于导入组件、弹层开关、识别文本回填提问框与侧栏占位文案，未改问答发送逻辑）。功能为 getUserMedia 取景（后置优先、OverconstrainedError 回退、权限/占用/非安全上下文分类提示）、canvas 框选（8 手柄 + 整体拖动 + 任意方向重新框选 + 三分网格）、按 object-fit:cover 反推源矩形精确裁剪、最长边/JPEG 质量/PNG 压缩导出、复用 api.ts 提交 POST /agent/recognize（image_base64/media_type/hint，自动带 X-Requested-With 与 90 秒 AI 超时）。识别文本可编辑，确认后仅回填提问框并提示用户核对，发送仍走既有 POST /conversations，组件不自行入库，符合 contracts 中 requires_confirmation 约定。503/502 与失败均如实展示后端原文，非 live 明确标注，不编造识别结果；相册导入与相机同走框选路径。**验证范围：vue-tsc --noEmit 与 vite build 均通过（2910 modules）；未做真实浏览器运行、真机相机、后端联调与真实视觉模型验证。**多题切分、公式人工修正与语音仍未实现。
 - 技术路线已从恢复的建设计划书核实：Vue 3 + TypeScript + Element Plus + KaTeX + ECharts，FastAPI 模块化后端。正式数据路线为 PostgreSQL / pgvector；本地 MVP 使用 SQLAlchemy + SQLite 免部署体验，PostgreSQL 驱动已安装但未实连验证；0.2 迁移仅支持 SQLite，非 SQLite 启动明确拒绝，待单独验证后开放。具体依赖版本见 frontend/package-lock.json 与 backend/requirements.lock.txt。
 - 0.2 数据升级：新增 schema_migrations 版本2，启动旧库迁移前自动生成被忽略的 SQLite 备份；实际旧库副本先行验证，失败回滚且不启动。migrations/restore.py 支持恢复到新路径，拒绝覆盖既有数据库。
 - 第一轮闭环已验证：提交示例题 → 明确标注的演示反馈 → 保存记录 → 刷新与重登后查看；教师发布 → 学生提交 → 教师查看也已跑通。0.2 已进一步验证题库→草稿→发布→提交→人工反馈→学生修改→新版复核→归档；演示数据保留，本轮无真实 AI。
 - 本地运行：默认源码自动模式为同源18080（占用自动换端口）；-Dev模式为frontend 5173、backend 8000；入口、安装、启动及公开演示凭据见 README.md。数据库为被忽略的 backend/demo.db。首次未登录显示登录页；有效 Cookie 会话恢复工作台。“记住密码”保留七天会话，不存储明文密码；退出撤销会话。
 - 启动入口：普通源码完整解压后双击一键启动.cmd。start.ps1默认调用bootstrap.ps1自动下载并校验项目专用Python3.13.13/Node22.23.2/pip26.2.1、安装锁定依赖、构建前端；首次需联网，缓存完整时复用。仅使用项目.runtime缓存及进程环境，不要求管理员或系统开发环境。默认同源18080，可自动选端口；-SetupOnly/-NoBrowser/-Port以及-Dev（原8000/5173开发模式）见README。
 - 历史可选便携包（2026-09-18，随后用户明确改为源码自动初始化）：在新分支codex/portable-windows为当前C版增加build-portable.py和platform/portable.py。开发机预构建前端并打包CPython 3.11.15、锁定后端依赖与许可，测试者无需安装Node/Python；完整解压后仍双击一键启动.cmd，默认18080端口。源码启动保留8000/5173；运行产物位于已忽略dist，不新增维护目录。无数据库、.env或日志随包分发，当时未上传；当前源码方案替代其作为默认入口。最终包dist/shuban-windows-x64-20260918-083356.zip约28.1MiB；19项后端测试、前端构建和实际ZIP隔离验收（含CMD、重启持久化与自动选端口）通过，尚待其他电脑实测。默认18080不可用时自动换端口并记住。验收结果与限制见开发日志和docs/portable-windows.md。
+- 拍照搜题原型（2026-09-18，独立目录 拍照搜题-20260918T062840513Z）：用户要求实现拍照搜题效果，经确认交付移动 Web/H5 单文件页面（不产出微信原生小程序包），识别来源为可配置接口地址 + 本地演示兜底。getUserMedia 取流、canvas 框选、cover 精确裁剪、最长边/JPEG 压缩、POST 到 /api/agent/recognize（字段 image_base64/media_type/hint，默认带 X-Requested-With: shuban-web，与 service.py 的 RecognizeInput 及 frontend api.ts 约定一致）；非 live 一律标注“演示模式 · 未连接真实模型”，503/失败如实展示不编造。只是独立原型，未接入 frontend/src（A）或 backend（B），不改依赖/迁移/接口约定；第 2 节未完成项中“拍照识别等前端流程”状态不变。本轮仅通过静态语法与引用抽验（0 BLOCKER/0 WARN），未做真实浏览器运行、真机相机或后端联调验证。落点由用户在项目根指定后按 parent 语义新建子目录（第 3 节新增目录已确认）。是否入库及后续并入 A 端由用户/责任人决定。
 - 师生招募、组织试用及依赖试用的效果验证均为暂定，不得写成已落实安排或真实效果。
 - 历史依据：关联任务“分析教育智能体优秀案例”及原始素材中的建设计划书。此前素材清理已留日志；2026-09-17 本轮检查发现原始素材目录已恢复（含 PDF、案例汇编和三套图示），本轮已实际读取建设计划书第 4 页确认技术路线，并保留素材原位。历史材料中的建议不等于已完成实现。
 - 本轮本地开发状态：用户已确认先完善本地教师流程，将正式账号、多班级、PostgreSQL 和云端部署后置。原C分支codex/c-local-teaching已上传，功能提交955bbbe；本轮从其后续本地状态建立codex/source-bootstrap-integration，合入origin/main的B代码，并完善源码自动安装、模式/超时/降级/引用兼容。此次集成已更新原C分支，并通过PR #2合入main（b52f194）；其他远端分支不变。
@@ -58,7 +60,7 @@
 │     ├─ App.vue                 # 登录状态、工作台与导航
 │     ├─ student/                # A：StudentHome.vue、CoursesView.vue
 │     ├─ teacher/                # C：TeacherHome.vue、QuestionBank.vue
-│     └─ shared/                 # 登录、智能体、作业、FeedbackView、记录、图表、公式、样式与 API
+│     └─ shared/                 # 登录、智能体、作业、FeedbackView、记录、图表、公式、样式与 API；新增 PhotoSearchDialog.vue（拍照搜题弹层）
 ├─ backend/
 │  ├─ requirements.txt          # 后端依赖范围
 │  ├─ requirements.lock.txt     # 本轮验证的完整依赖版本
@@ -82,6 +84,9 @@
 │  └─ output/
 │     ├─ pdf/
 │     └─ imagegen/
+├─ 拍照搜题-20260918T062840513Z/  # 独立移动Web原型；不参与frontend构建与一键启动，详见开发日志2026-09-18
+│  ├─ 拍照搜题.html              # 单文件入口（相机/框选/压缩/上传识别）
+│  └─ history/                   # 版本快照与MANIFEST，非运行内容
 └─ docs/
    ├─ architecture.md           # 模块边界与技术决策
    ├─ development-log.md        # 每次开发记录及文档同步清单

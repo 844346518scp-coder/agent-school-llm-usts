@@ -66,3 +66,7 @@ summary { cursor:pointer; color:#527564; padding:6px 0; }
 
 .answer-references { margin-top: 16px; padding: 12px; background: var(--bg, #f7f5fa); border-radius: 10px; font-size: 12px; overflow-wrap: anywhere; }
 .answer-references small { display: block; color: #7c6c90; }
+
+/* 对话头操作区：拍照搜题 + 新问题（AgentView） */
+.chat-header-actions { display: flex; align-items: center; gap: 14px; margin-left: auto; flex-shrink: 0; }
+.photo-dialog .el-dialog__body { padding-top: 12px; }

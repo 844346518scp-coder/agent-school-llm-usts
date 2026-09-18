@@ -1,0 +1,1748 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b1120">
+<title>拍照搜题 · 高数题目识别</title>
+<style>
+/* SECTION: tokens */
+:root{
+  --bg:#0b1120;
+  --bg-soft:#111a2e;
+  --panel:#ffffff;
+  --panel-soft:#f4f6fb;
+  --line:#e3e8f2;
+  --line-dark:rgba(255,255,255,.14);
+  --text:#101728;
+  --text-soft:#5b6579;
+  --text-inv:#f2f5fb;
+  --text-inv-soft:rgba(242,245,251,.62);
+  --brand:#2f7cf6;
+  --brand-deep:#1b5fd0;
+  --accent:#b8f24a;
+  --warn:#f0932b;
+  --danger:#e5484d;
+  --ok:#1fa971;
+  --radius:16px;
+  --radius-sm:10px;
+  --shadow:0 10px 30px rgba(16,23,40,.10);
+  --tap:44px;
+}
+
+/* SECTION: base */
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  background:#05080f;
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;
+  overscroll-behavior:none;
+}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input,textarea,select{font:inherit;color:inherit}
+img{display:block;max-width:100%}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* SECTION: shell */
+#app{
+  position:relative;
+  width:100%;
+  max-width:520px;
+  margin:0 auto;
+  min-height:100dvh;
+  background:var(--bg);
+  overflow:hidden;
+  box-shadow:0 0 60px rgba(0,0,0,.6);
+}
+@media (min-width:600px){
+  body{display:flex;align-items:center;justify-content:center;padding:18px}
+  #app{min-height:min(900px,calc(100dvh - 36px));border-radius:26px}
+}
+
+/* SECTION: views */
+.view{display:none;height:100%;flex-direction:column}
+.view.is-active{display:flex}
+.view-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;background:var(--panel)}
+
+/* SECTION: camera view */
+#view-camera{position:relative;background:#000}
+.stage{position:relative;flex:1;overflow:hidden;background:#000;touch-action:none}
+#preview{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+#stillFrame{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+#frameCanvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+.stage-fallback{
+  position:absolute;inset:0;display:none;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  color:var(--text-inv-soft);background:linear-gradient(160deg,#131c31,#080d18);
+}
+.stage-fallback.is-on{display:flex}
+.stage-fallback .fb-icon{
+  width:62px;height:62px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(255,255,255,.07);border:1px solid var(--line-dark);font-size:28px;
+}
+.stage-fallback h2{margin:0;font-size:17px;color:var(--text-inv);font-weight:650}
+.stage-fallback p{margin:0;font-size:13px;line-height:1.75;max-width:34ch}
+.stage-fallback code{
+  background:rgba(255,255,255,.09);padding:1px 6px;border-radius:5px;
+  font-size:12px;color:var(--accent);word-break:break-all;
+}
+
+/* camera top bar */
+.cam-top{
+  position:absolute;top:0;left:0;right:0;z-index:5;
+  display:flex;align-items:center;gap:10px;
+  padding:calc(12px + env(safe-area-inset-top)) 14px 22px;
+  background:linear-gradient(180deg,rgba(0,0,0,.62),transparent);
+  pointer-events:none;
+}
+.cam-top>*{pointer-events:auto}
+.cam-title{flex:1;min-width:0;color:var(--text-inv);font-size:14px;font-weight:600;letter-spacing:.2px}
+.cam-title small{display:block;font-size:11px;font-weight:400;color:var(--text-inv-soft);margin-top:2px}
+.icon-btn{
+  width:38px;height:38px;border-radius:50%;display:grid;place-items:center;flex:none;
+  background:rgba(12,18,32,.58);border:1px solid var(--line-dark);color:var(--text-inv);
+  backdrop-filter:blur(8px);transition:background .16s,transform .16s;
+}
+.icon-btn:active{transform:scale(.92);background:rgba(12,18,32,.85)}
+.icon-btn[aria-pressed="true"]{background:var(--accent);color:#12200a;border-color:transparent}
+.icon-btn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+/* camera bottom bar */
+.cam-bottom{
+  position:absolute;left:0;right:0;bottom:0;z-index:5;
+  padding:20px 18px calc(18px + env(safe-area-inset-bottom));
+  background:linear-gradient(0deg,rgba(0,0,0,.72),transparent);
+  display:flex;flex-direction:column;gap:14px;
+}
+.frame-hint{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  color:var(--text-inv);font-size:12.5px;
+}
+.frame-hint .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex:none;animation:pulse 1.8s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.28}}
+.cam-actions{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.side-btn{
+  min-width:var(--tap);height:var(--tap);padding:0 14px;border-radius:24px;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  background:rgba(255,255,255,.13);border:1px solid var(--line-dark);
+  color:var(--text-inv);font-size:12.5px;backdrop-filter:blur(8px);
+  transition:background .16s,transform .16s;
+}
+.side-btn:active{transform:scale(.95);background:rgba(255,255,255,.22)}
+.side-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.shutter{
+  width:70px;height:70px;border-radius:50%;flex:none;
+  background:#fff;border:4px solid rgba(255,255,255,.34);
+  display:grid;place-items:center;transition:transform .12s;
+  box-shadow:0 4px 18px rgba(0,0,0,.4);
+}
+.shutter::after{content:"";width:54px;height:54px;border-radius:50%;background:var(--accent)}
+.shutter:active{transform:scale(.9)}
+.shutter:disabled{opacity:.4}
+.shutter:disabled::after{background:#7d8798}
+
+/* SECTION: crop view */
+.page-head{
+  position:sticky;top:0;z-index:6;
+  display:flex;align-items:center;gap:10px;
+  padding:calc(12px + env(safe-area-inset-top)) 14px 12px;
+  background:rgba(255,255,255,.94);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+}
+.page-head h1{flex:1;min-width:0;margin:0;font-size:16px;font-weight:680;letter-spacing:.2px}
+.back-btn{
+  min-width:var(--tap);height:var(--tap);padding:0 12px;border-radius:12px;flex:none;
+  display:inline-flex;align-items:center;gap:4px;color:var(--text-soft);font-size:13px;
+  transition:background .16s;
+}
+.back-btn:active{background:var(--panel-soft)}
+.back-btn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+
+.pad{padding:16px 14px calc(24px + env(safe-area-inset-bottom))}
+.card{
+  background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px;margin-bottom:14px;box-shadow:var(--shadow);
+}
+.card-h{display:flex;align-items:center;gap:8px;margin-bottom:11px}
+.card-h h2{margin:0;font-size:13.5px;font-weight:660;color:var(--text)}
+.card-h .tag{
+  margin-left:auto;font-size:11px;padding:2px 8px;border-radius:20px;
+  background:var(--panel-soft);color:var(--text-soft);border:1px solid var(--line);
+}
+.crop-preview{
+  position:relative;border-radius:var(--radius-sm);overflow:hidden;
+  background:repeating-conic-gradient(#eef1f6 0% 25%,#fff 0% 50%) 50%/18px 18px;
+  border:1px solid var(--line);min-height:120px;display:grid;place-items:center;
+}
+.crop-preview img{width:100%;height:auto;max-height:44vh;object-fit:contain}
+.crop-empty{padding:34px 16px;text-align:center;color:var(--text-soft);font-size:13px;line-height:1.8}
+
+.meta-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:11px}
+.meta-item{
+  background:var(--panel-soft);border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:9px 11px;min-width:0;
+}
+.meta-item dt{margin:0;font-size:11px;color:var(--text-soft)}
+.meta-item dd{margin:3px 0 0;font-size:13.5px;font-weight:640;color:var(--text);word-break:break-all}
+.meta-item dd.down{color:var(--ok)}
+
+.field{margin-bottom:12px}
+.field:last-child{margin-bottom:0}
+.field label{display:block;font-size:12px;color:var(--text-soft);margin-bottom:6px;font-weight:560}
+.field .hint{font-size:11.5px;color:var(--text-soft);line-height:1.65;margin-top:6px}
+.inp,.ta{
+  width:100%;padding:11px 12px;border-radius:var(--radius-sm);
+  border:1px solid var(--line);background:#fff;font-size:13.5px;
+  transition:border-color .16s,box-shadow .16s;
+}
+.inp:focus,.ta:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(47,124,246,.14)}
+.ta{resize:vertical;min-height:70px;line-height:1.7}
+.inp.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+
+.range-row{display:flex;align-items:center;gap:11px}
+.range-row input[type=range]{flex:1;min-width:0;accent-color:var(--brand);height:26px}
+.range-val{
+  flex:none;min-width:62px;text-align:center;font-size:12.5px;font-weight:640;
+  background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:5px 7px;
+  font-variant-numeric:tabular-nums;
+}
+.seg{display:flex;gap:6px;background:var(--panel-soft);padding:4px;border-radius:11px;border:1px solid var(--line)}
+.seg button{
+  flex:1;min-height:34px;padding:0 8px;border-radius:8px;font-size:12.5px;color:var(--text-soft);
+  transition:background .16s,color .16s;
+}
+.seg button[aria-pressed="true"]{background:#fff;color:var(--text);font-weight:640;box-shadow:0 1px 4px rgba(16,23,40,.10)}
+
+.switch-row{
+  display:flex;align-items:center;gap:11px;padding:9px 0;
+  border-top:1px solid var(--line);
+}
+.switch-row:first-of-type{border-top:0}
+.switch-row .sw-text{flex:1;min-width:0}
+.switch-row .sw-text b{display:block;font-size:13px;font-weight:600}
+.switch-row .sw-text span{display:block;font-size:11.5px;color:var(--text-soft);line-height:1.6;margin-top:2px}
+.sw{
+  flex:none;width:46px;height:27px;border-radius:20px;background:#cdd5e3;
+  position:relative;transition:background .2s;
+}
+.sw::after{
+  content:"";position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.24);transition:transform .2s;
+}
+.sw[aria-pressed="true"]{background:var(--brand)}
+.sw[aria-pressed="true"]::after{transform:translateX(19px)}
+
+.btn{
+  width:100%;min-height:48px;padding:0 16px;border-radius:13px;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  font-size:14.5px;font-weight:640;transition:transform .14s,opacity .16s,background .16s;
+}
+.btn:active{transform:scale(.985)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:0 6px 18px rgba(47,124,246,.30)}
+.btn-primary:active:not(:disabled){background:var(--brand-deep)}
+.btn-ghost{background:#fff;color:var(--text);border:1px solid var(--line)}
+.btn-ghost:active{background:var(--panel-soft)}
+.btn-soft{background:var(--panel-soft);color:var(--text-soft);border:1px solid var(--line)}
+.btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.btn-row{display:flex;gap:9px}
+.btn-row .btn{flex:1;min-width:0}
+.btn-sm{min-height:38px;font-size:13px;border-radius:10px;padding:0 12px;width:auto}
+
+.sticky-foot{
+  position:sticky;bottom:0;z-index:6;
+  padding:12px 14px calc(12px + env(safe-area-inset-bottom));
+  background:rgba(255,255,255,.95);backdrop-filter:blur(10px);
+  border-top:1px solid var(--line);display:flex;flex-direction:column;gap:9px;
+}
+
+/* SECTION: result view */
+.banner{
+  display:flex;gap:10px;align-items:flex-start;
+  padding:11px 12px;border-radius:var(--radius-sm);font-size:12.5px;line-height:1.7;margin-bottom:12px;
+}
+.banner .b-ico{flex:none;width:19px;height:19px;margin-top:1px}
+.banner .b-ico svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.banner b{font-weight:660}
+.banner.demo{background:#fff6e6;border:1px solid #ffdca8;color:#8a5300}
+.banner.live{background:#e8f7f0;border:1px solid #b3e5cf;color:#0d6b45}
+.banner.err{background:#fdecec;border:1px solid #f7c2c4;color:#a1262a}
+.banner.info{background:#eef4ff;border:1px solid #cddffb;color:#1b4fa8}
+
+.result-thumb{
+  width:100%;border-radius:var(--radius-sm);border:1px solid var(--line);
+  background:var(--panel-soft);object-fit:contain;max-height:190px;
+}
+.conf-bar{height:7px;border-radius:5px;background:var(--panel-soft);overflow:hidden;margin-top:7px;border:1px solid var(--line)}
+.conf-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,var(--warn),var(--ok));width:0;transition:width .5s ease}
+.chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{
+  font-size:11.5px;padding:4px 10px;border-radius:20px;
+  background:var(--panel-soft);border:1px solid var(--line);color:var(--text-soft);
+}
+.chip.warn{background:#fff6e6;border-color:#ffdca8;color:#8a5300}
+.chip.topic{background:#eef4ff;border-color:#cddffb;color:var(--brand-deep);font-weight:600}
+pre.code{
+  margin:0;padding:11px;border-radius:var(--radius-sm);background:#0e1526;color:#c9d6ee;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;
+  line-height:1.7;overflow-x:auto;white-space:pre-wrap;word-break:break-all;max-height:210px;
+}
+.hist-item{
+  padding:11px 0;border-top:1px solid var(--line);
+}
+.hist-item:first-of-type{border-top:0}
+.hist-item .h-top{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.hist-item .h-time{font-size:11px;color:var(--text-soft);font-variant-numeric:tabular-nums}
+.hist-item .h-src{font-size:10.5px;padding:1px 7px;border-radius:12px;background:var(--panel-soft);border:1px solid var(--line);color:var(--text-soft)}
+.hist-item .h-src.live{background:#e8f7f0;border-color:#b3e5cf;color:#0d6b45}
+.hist-item .h-text{font-size:12.5px;line-height:1.7;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.empty-note{padding:20px 6px;text-align:center;color:var(--text-soft);font-size:12.5px;line-height:1.8}
+
+/* SECTION: drawer */
+.scrim{
+  position:absolute;inset:0;z-index:20;background:rgba(5,8,15,.5);
+  opacity:0;pointer-events:none;transition:opacity .22s;backdrop-filter:blur(2px);
+}
+.scrim.is-on{opacity:1;pointer-events:auto}
+.drawer{
+  position:absolute;left:0;right:0;bottom:0;z-index:21;
+  max-height:88%;display:flex;flex-direction:column;
+  background:var(--panel);border-radius:22px 22px 0 0;
+  transform:translateY(102%);transition:transform .28s cubic-bezier(.32,.72,.36,1);
+  box-shadow:0 -10px 40px rgba(0,0,0,.28);
+}
+.drawer.is-on{transform:translateY(0)}
+.drawer-h{
+  display:flex;align-items:center;gap:10px;padding:14px 16px 10px;
+  border-bottom:1px solid var(--line);flex:none;
+}
+.drawer-h h2{margin:0;flex:1;font-size:15px;font-weight:680}
+.drawer-b{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px calc(20px + env(safe-area-inset-bottom))}
+.grab{width:38px;height:4px;border-radius:3px;background:var(--line);margin:7px auto 0}
+
+/* SECTION: toast + spinner */
+#toast{
+  position:absolute;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));z-index:40;
+  transform:translate(-50%,16px);opacity:0;pointer-events:none;
+  max-width:84%;padding:10px 16px;border-radius:12px;
+  background:rgba(12,18,32,.94);color:var(--text-inv);font-size:12.5px;line-height:1.6;
+  text-align:center;transition:opacity .2s,transform .2s;backdrop-filter:blur(6px);
+  box-shadow:0 6px 22px rgba(0,0,0,.3);
+}
+#toast.is-on{opacity:1;transform:translate(-50%,0)}
+#toast.err{background:rgba(160,32,38,.96)}
+
+.busy{
+  position:absolute;inset:0;z-index:30;display:none;
+  flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  background:rgba(255,255,255,.9);backdrop-filter:blur(3px);text-align:center;padding:24px;
+}
+.busy.is-on{display:flex}
+.spinner{
+  width:38px;height:38px;border-radius:50%;flex:none;
+  border:3px solid var(--line);border-top-color:var(--brand);animation:spin .85s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.busy p{margin:0;font-size:13px;color:var(--text-soft);line-height:1.7}
+.busy b{display:block;font-size:14.5px;color:var(--text);font-weight:650;margin-bottom:4px}
+
+.flash{position:absolute;inset:0;z-index:15;background:#fff;opacity:0;pointer-events:none}
+.flash.is-on{animation:flash .34s ease-out}
+@keyframes flash{0%{opacity:.92}100%{opacity:0}}
+
+.divider{height:1px;background:var(--line);margin:12px 0}
+.link-btn{color:var(--brand);font-size:12.5px;font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.foot-note{
+  padding:14px;text-align:center;font-size:11.5px;color:var(--text-soft);line-height:1.8;
+  border-top:1px solid var(--line);background:var(--panel-soft);
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- SECTION: view-camera -->
+  <section class="view is-active" id="view-camera" aria-label="相机取景">
+    <div class="stage" id="stage">
+      <video id="preview" playsinline muted autoplay aria-label="相机实时画面"></video>
+      <img id="stillFrame" alt="相册导入的待裁剪图片" hidden>
+      <canvas id="frameCanvas" aria-label="题目框选区域"></canvas>
+
+      <div class="stage-fallback" id="camFallback" role="status">
+        <div class="fb-icon" id="fbIcon">📷</div>
+        <h2 id="fbTitle">正在准备相机…</h2>
+        <p id="fbText">浏览器会请求相机权限，请在弹窗中选择「允许」。</p>
+        <div class="btn-row" style="width:100%;max-width:300px">
+          <button class="btn btn-ghost btn-sm" type="button" id="fbRetry" style="color:#f2f5fb;border-color:rgba(255,255,255,.2);background:rgba(255,255,255,.1)">重试相机</button>
+          <button class="btn btn-ghost btn-sm" type="button" id="fbFile" style="color:#f2f5fb;border-color:rgba(255,255,255,.2);background:rgba(255,255,255,.1)">从相册选择</button>
+        </div>
+      </div>
+
+      <div class="cam-top">
+        <div class="cam-title">拍照搜题<small>框选高数题目区域后拍摄</small></div>
+        <button class="icon-btn" type="button" id="btnGrid" aria-pressed="true" aria-label="切换三分网格">
+          <svg viewBox="0 0 24 24"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+        </button>
+        <button class="icon-btn" type="button" id="btnTorch" aria-pressed="false" aria-label="切换闪光灯" hidden>
+          <svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
+        </button>
+        <button class="icon-btn" type="button" id="btnSettings" aria-label="识别设置">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M12 2.6v2.8M12 18.6v2.8M2.6 12h2.8M18.6 12h2.8M5.4 5.4l2 2M16.6 16.6l2 2M18.6 5.4l-2 2M7.4 16.6l-2 2"/></svg>
+        </button>
+      </div>
+
+      <div class="flash" id="flash"></div>
+
+      <div class="cam-bottom">
+        <div class="frame-hint"><span class="dot"></span><span id="frameHintText">拖动选框对准题目，可拉动边角调整大小</span></div>
+        <div class="cam-actions">
+          <button class="side-btn" type="button" id="btnAlbum">
+            <svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2.4"/><circle cx="8.6" cy="9.8" r="1.6"/><path d="m3.6 17.4 4.9-4.6 4.2 3.7 3-2.6 4.7 4"/></svg>
+            相册
+          </button>
+          <button class="shutter" type="button" id="btnShoot" aria-label="拍摄并裁剪" data-primary-action="capture"></button>
+          <button class="side-btn" type="button" id="btnFlip">
+            <svg viewBox="0 0 24 24"><path d="M3.5 8.5A8.5 8.5 0 0 1 18 5.2M20.5 15.5A8.5 8.5 0 0 1 6 18.8"/><path d="M18 2.4v3.1h-3.1M6 21.6v-3.1h3.1"/></svg>
+            翻转
+          </button>
+        </div>
+        <button class="side-btn" type="button" id="btnFullFrame" style="align-self:center">
+          <svg viewBox="0 0 24 24"><path d="M4 9V5.6A1.6 1.6 0 0 1 5.6 4H9M15 4h3.4A1.6 1.6 0 0 1 20 5.6V9M20 15v3.4a1.6 1.6 0 0 1-1.6 1.6H15M9 20H5.6A1.6 1.6 0 0 1 4 18.4V15"/></svg>
+          选框铺满画面
+        </button>
+      </div>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" class="sr" aria-label="从相册选择图片">
+  </section>
+
+  <!-- SECTION: view-crop -->
+  <section class="view" id="view-crop" aria-label="裁剪确认">
+    <header class="page-head">
+      <button class="back-btn" type="button" id="cropBack">
+        <svg viewBox="0 0 24 24"><path d="m14.5 5-7 7 7 7"/></svg>重拍
+      </button>
+      <h1>确认裁剪范围</h1>
+      <button class="icon-btn" type="button" id="btnSettings2" aria-label="识别设置" style="background:var(--panel-soft);border-color:var(--line);color:var(--text-soft)">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M12 2.6v2.8M12 18.6v2.8M2.6 12h2.8M18.6 12h2.8M5.4 5.4l2 2M16.6 16.6l2 2M18.6 5.4l-2 2M7.4 16.6l-2 2"/></svg>
+      </button>
+    </header>
+    <div class="view-scroll">
+      <div class="pad">
+        <div class="card">
+          <div class="card-h">
+            <h2>裁剪结果</h2>
+            <span class="tag" id="cropDimTag">—</span>
+          </div>
+          <div class="crop-preview" id="cropPreview">
+            <div class="crop-empty">还没有裁剪结果<br>请先在取景页拍摄或从相册选择</div>
+          </div>
+          <div class="btn-row" style="margin-top:11px">
+            <button class="btn btn-ghost btn-sm" type="button" id="btnReframe" style="flex:1">
+              <svg viewBox="0 0 24 24"><path d="M4 9V5.6A1.6 1.6 0 0 1 5.6 4H9M15 4h3.4A1.6 1.6 0 0 1 20 5.6V9M20 15v3.4a1.6 1.6 0 0 1-1.6 1.6H15M9 20H5.6A1.6 1.6 0 0 1 4 18.4V15"/></svg>
+              调整选框
+            </button>
+            <button class="btn btn-soft btn-sm" type="button" id="btnDownloadImg" style="flex:1">
+              <svg viewBox="0 0 24 24"><path d="M12 3.6v11M7.6 10.4 12 14.8l4.4-4.4M4.4 19.4h15.2"/></svg>
+              下载图片
+            </button>
+          </div>
+          <dl class="meta-grid" id="cropMeta"></dl>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><h2>识别参数</h2><span class="tag">可选</span></div>
+          <div class="field">
+            <label for="hintInput">题目提示（hint）</label>
+            <input class="inp" id="hintInput" type="text" maxlength="200" placeholder="例如：高等数学 极限 计算题">
+            <div class="hint">随图片一起发给后端，帮助识别模型判断题型。留空也可以。</div>
+          </div>
+          <div class="divider"></div>
+          <div class="field">
+            <label for="maxSide">最长边像素</label>
+            <div class="range-row">
+              <input type="range" id="maxSide" min="480" max="2048" step="32" value="1280">
+              <span class="range-val" id="maxSideVal">1280 px</span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="quality">JPEG 压缩质量</label>
+            <div class="range-row">
+              <input type="range" id="quality" min="0.4" max="0.98" step="0.02" value="0.82">
+              <span class="range-val" id="qualityVal">0.82</span>
+            </div>
+            <div class="hint">质量越低体积越小，但公式笔画可能糊。识别不清时把它调高再拍一次。</div>
+          </div>
+          <div class="field">
+            <label>输出格式</label>
+            <div class="seg" id="formatSeg" role="group" aria-label="输出格式">
+              <button type="button" data-fmt="image/jpeg" aria-pressed="true">JPEG（小）</button>
+              <button type="button" data-fmt="image/png" aria-pressed="false">PNG（清晰）</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="sticky-foot">
+      <div class="banner info" id="endpointBanner" style="margin:0">
+        <span class="b-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.4M12 7.7v.1"/></svg></span>
+        <span id="endpointBannerText">未配置后端地址，将使用本地演示反馈。</span>
+      </div>
+      <button class="btn btn-primary" type="button" id="btnRecognize" data-primary-action="recognize" disabled>
+        <svg viewBox="0 0 24 24"><path d="M4 8.4V6.2A2.2 2.2 0 0 1 6.2 4h2.2M15.6 4h2.2A2.2 2.2 0 0 1 20 6.2v2.2M20 15.6v2.2a2.2 2.2 0 0 1-2.2 2.2h-2.2M8.4 20H6.2A2.2 2.2 0 0 1 4 17.8v-2.2"/><path d="M4 12h16"/></svg>
+        提交识别
+      </button>
+    </div>
+  </section>
+
+  <!-- SECTION: view-result -->
+  <section class="view" id="view-result" aria-label="识别结果">
+    <header class="page-head">
+      <button class="back-btn" type="button" id="resultBack">
+        <svg viewBox="0 0 24 24"><path d="m14.5 5-7 7 7 7"/></svg>返回
+      </button>
+      <h1>识别结果</h1>
+      <button class="icon-btn" type="button" id="btnNewShot" aria-label="重新拍照" style="background:var(--panel-soft);border-color:var(--line);color:var(--text-soft)">
+        <svg viewBox="0 0 24 24"><path d="M4 8.6h3.2L8.8 6h6.4l1.6 2.6H20v10.2H4z"/><circle cx="12" cy="13.4" r="3.2"/></svg>
+      </button>
+    </header>
+    <div class="view-scroll">
+      <div class="pad">
+        <div id="resultBannerSlot"></div>
+
+        <div class="card">
+          <div class="card-h"><h2>本次提交</h2><span class="tag" id="resultSrcTag">—</span></div>
+          <img class="result-thumb" id="resultThumb" alt="本次提交的裁剪图片" hidden>
+          <dl class="meta-grid" id="resultMeta"></dl>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <h2>识别文本</h2>
+            <span class="tag" id="confTag">—</span>
+          </div>
+          <div class="conf-bar" id="confBar" hidden><div class="conf-fill" id="confFill"></div></div>
+          <div class="field" style="margin-top:11px">
+            <label for="resultText">识别结果可直接修改，确认后才算最终题目文本</label>
+            <textarea class="ta" id="resultText" rows="6" placeholder="识别结果会出现在这里"></textarea>
+          </div>
+          <div class="chip-row" id="resultChips"></div>
+          <div class="btn-row" style="margin-top:12px">
+            <button class="btn btn-ghost btn-sm" type="button" id="btnCopyText" style="flex:1">
+              <svg viewBox="0 0 24 24"><rect x="8.6" y="8.6" width="11.4" height="11.4" rx="2.2"/><path d="M15.4 5.6a2 2 0 0 0-2-1.6H6.6a2.6 2.6 0 0 0-2.6 2.6v6.8a2 2 0 0 0 1.6 2"/></svg>
+              复制文本
+            </button>
+            <button class="btn btn-ghost btn-sm" type="button" id="btnCopyB64" style="flex:1">
+              <svg viewBox="0 0 24 24"><path d="m8.4 7.6-4 4.4 4 4.4M15.6 7.6l4 4.4-4 4.4M13.6 4.6l-3.2 14.8"/></svg>
+              复制 Base64
+            </button>
+          </div>
+        </div>
+
+        <div class="card" id="rawCard" hidden>
+          <div class="card-h">
+            <h2>接口原始返回</h2>
+            <button class="link-btn" type="button" id="btnToggleRaw">展开</button>
+          </div>
+          <pre class="code" id="rawBody" hidden></pre>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <h2>本地识别历史</h2>
+            <button class="link-btn" type="button" id="btnClearHist">清空</button>
+          </div>
+          <div id="histList"><div class="empty-note">还没有记录。确认识别文本后会保存在当前浏览器。</div></div>
+        </div>
+      </div>
+      <div class="foot-note">
+        演示反馈内容为固定示例，不代表真实模型识别能力。<br>
+        真实识别需在设置中填写后端地址，并由后端配置可用的视觉模型。
+      </div>
+    </div>
+    <div class="sticky-foot">
+      <button class="btn btn-primary" type="button" id="btnConfirm" data-primary-action="confirm">
+        <svg viewBox="0 0 24 24"><path d="m5 12.6 4.6 4.6L19 7.8"/></svg>
+        确认题目文本并保存
+      </button>
+    </div>
+  </section>
+
+  <!-- SECTION: settings-drawer -->
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="识别设置">
+    <div class="grab"></div>
+    <div class="drawer-h">
+      <h2>识别设置</h2>
+      <button class="icon-btn" type="button" id="btnCloseDrawer" aria-label="关闭设置" style="background:var(--panel-soft);border-color:var(--line);color:var(--text-soft)">
+        <svg viewBox="0 0 24 24"><path d="M6.4 6.4l11.2 11.2M17.6 6.4 6.4 17.6"/></svg>
+      </button>
+    </div>
+    <div class="drawer-b">
+      <div class="card" style="box-shadow:none;margin-bottom:12px">
+        <div class="card-h"><h2>后端接口</h2><span class="tag">识别来源</span></div>
+        <div class="field">
+          <label for="endpoint">接口地址</label>
+          <input class="inp mono" id="endpoint" type="text" placeholder="/api/agent/recognize">
+          <div class="hint">
+            相对地址（如 <code>/api/agent/recognize</code>）要求页面与后端同源部署；
+            本地用 <code>file://</code> 直接打开时请填完整地址，例如
+            <code>http://localhost:8000/api/agent/recognize</code>。留空则只走本地演示。
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="switch-row">
+          <div class="sw-text">
+            <b>携带 X-Requested-With</b>
+            <span>对接本项目后端需开启（写操作中间件校验该请求头）</span>
+          </div>
+          <button class="sw" type="button" id="swHeader" aria-pressed="true" aria-label="携带 X-Requested-With 请求头"></button>
+        </div>
+        <div class="switch-row">
+          <div class="sw-text">
+            <b>携带同源 Cookie</b>
+            <span>后端接口需要登录会话时开启</span>
+          </div>
+          <button class="sw" type="button" id="swCred" aria-pressed="true" aria-label="携带同源 Cookie"></button>
+        </div>
+        <div class="switch-row">
+          <div class="sw-text">
+            <b>失败时演示兜底</b>
+            <span>接口不可用时展示明确标注的演示反馈，不会冒充识别结果</span>
+          </div>
+          <button class="sw" type="button" id="swFallback" aria-pressed="true" aria-label="失败时演示兜底"></button>
+        </div>
+      </div>
+
+      <div class="card" style="box-shadow:none;margin-bottom:12px">
+        <div class="card-h"><h2>相机</h2></div>
+        <div class="field">
+          <label for="camFacing">默认摄像头</label>
+          <div class="seg" id="facingSeg" role="group" aria-label="默认摄像头">
+            <button type="button" data-facing="environment" aria-pressed="true">后置</button>
+            <button type="button" data-facing="user" aria-pressed="false">前置</button>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <button class="btn btn-ghost btn-sm" type="button" id="btnCamDiag" style="width:100%">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.4M12 7.7v.1"/></svg>
+          检测相机与运行环境
+        </button>
+        <pre class="code" id="diagBody" hidden style="margin-top:10px"></pre>
+      </div>
+
+      <div class="card" style="box-shadow:none;margin-bottom:0">
+        <div class="card-h"><h2>小程序对照说明</h2></div>
+        <p style="margin:0;font-size:12.5px;line-height:1.85;color:var(--text-soft)">
+          本页面是移动 Web/H5 实现，不含微信原生小程序包。两端逻辑一一对应：
+          <code>getUserMedia</code> 对应 <code>wx.createCameraContext</code>，
+          <code>video</code> 预览对应 <code>&lt;camera&gt;</code> 组件，
+          <code>toDataURL</code> 压缩对应 <code>takePhoto</code> 临时路径 +
+          <code>wx.compressImage</code>，上传对应 <code>wx.uploadFile</code>。
+          小程序侧还需在后台配置 <code>scope.camera</code> 权限说明与 uploadFile 合法域名。
+        </p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- SECTION: busy + toast -->
+  <div class="busy" id="busy" role="status" aria-live="polite">
+    <div class="spinner"></div>
+    <p><b id="busyTitle">正在提交识别</b><span id="busyText">压缩图片并发送到后端…</span></p>
+  </div>
+  <div id="toast" role="status" aria-live="polite"></div>
+</div>
+
+<script>
+/* SECTION: state */
+'use strict';
+
+var DEFAULTS = {
+  endpoint: '/api/agent/recognize',
+  sendHeader: true,
+  sendCred: true,
+  fallback: true,
+  facing: 'environment',
+  maxSide: 1280,
+  quality: 0.82,
+  format: 'image/jpeg',
+  grid: true
+};
+var STORE_KEY = 'shuban.photo-search.settings.v1';
+var HIST_KEY  = 'shuban.photo-search.history.v1';
+var HIST_MAX  = 12;
+
+var settings = loadSettings();
+var state = {
+  stream: null,
+  deviceId: null,
+  torchOn: false,
+  torchOk: false,
+  camReady: false,
+  frame: { x: 0.10, y: 0.30, w: 0.80, h: 0.30 },  /* 归一化选框（相对取景容器） */
+  drag: null,
+  shot: null,          /* { dataUrl, base64, mediaType, width, height, rawBytes, b64Bytes, source } */
+  source: null,        /* 上一帧来源图（相册导入时用） */
+  result: null,        /* { ok, live, text, confidence, warnings, topic, raw, errorText } */
+  history: loadHistory()
+};
+
+/* SECTION: storage */
+function loadSettings(){
+  var out = {};
+  for (var k in DEFAULTS) if (Object.prototype.hasOwnProperty.call(DEFAULTS,k)) out[k] = DEFAULTS[k];
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (raw){
+      var p = JSON.parse(raw);
+      for (var k2 in DEFAULTS) if (Object.prototype.hasOwnProperty.call(DEFAULTS,k2) && p[k2] !== undefined && p[k2] !== null) out[k2] = p[k2];
+    }
+  } catch(e){ /* 隐私模式下 localStorage 不可用，使用默认值 */ }
+  return out;
+}
+function saveSettings(){
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(settings)); } catch(e){}
+}
+function loadHistory(){
+  try {
+    var raw = localStorage.getItem(HIST_KEY);
+    var arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch(e){ return []; }
+}
+function saveHistory(){
+  try { localStorage.setItem(HIST_KEY, JSON.stringify(state.history.slice(0, HIST_MAX))); } catch(e){}
+}
+
+/* SECTION: dom */
+function $(id){ return document.getElementById(id); }
+var el = {
+  app: $('app'), stage: $('stage'), preview: $('preview'), canvas: $('frameCanvas'),
+  stillFrame: $('stillFrame'),
+  fallback: $('camFallback'), fbIcon: $('fbIcon'), fbTitle: $('fbTitle'), fbText: $('fbText'),
+  flash: $('flash'), frameHint: $('frameHintText'),
+  viewCamera: $('view-camera'), viewCrop: $('view-crop'), viewResult: $('view-result'),
+  busy: $('busy'), busyTitle: $('busyTitle'), busyText: $('busyText'), toast: $('toast'),
+  scrim: $('scrim'), drawer: $('drawer'),
+  cropPreview: $('cropPreview'), cropDimTag: $('cropDimTag'), cropMeta: $('cropMeta'),
+  hintInput: $('hintInput'), maxSide: $('maxSide'), maxSideVal: $('maxSideVal'),
+  quality: $('quality'), qualityVal: $('qualityVal'),
+  endpointBanner: $('endpointBanner'), endpointBannerText: $('endpointBannerText'),
+  btnRecognize: $('btnRecognize'),
+  resultBannerSlot: $('resultBannerSlot'), resultSrcTag: $('resultSrcTag'),
+  resultThumb: $('resultThumb'), resultMeta: $('resultMeta'),
+  resultText: $('resultText'), confTag: $('confTag'), confBar: $('confBar'), confFill: $('confFill'),
+  resultChips: $('resultChips'), rawCard: $('rawCard'), rawBody: $('rawBody'),
+  histList: $('histList'),
+  endpoint: $('endpoint'), swHeader: $('swHeader'), swCred: $('swCred'), swFallback: $('swFallback'),
+  diagBody: $('diagBody'),
+  fileInput: $('fileInput'),
+  btnGrid: $('btnGrid'), btnTorch: $('btnTorch'), btnShoot: $('btnShoot'),
+  shutter: $('btnShoot')
+};
+var ctx = el.canvas.getContext('2d');
+</script>
+<script>
+/* SECTION: helpers */
+function clamp(v, lo, hi){ return v < lo ? lo : (v > hi ? hi : v); }
+function bytes(n){
+  if (!isFinite(n) || n <= 0) return '0 B';
+  if (n < 1024) return n + ' B';
+  if (n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
+  return (n/1024/1024).toFixed(2) + ' MB';
+}
+function b64Bytes(b64){ return Math.floor(b64.length * 3 / 4); }
+function nowText(){
+  var d = new Date(), p = function(n){ return (n<10?'0':'')+n; };
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+function escapeHtml(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+  });
+}
+function toast(msg, isErr){
+  el.toast.textContent = msg;
+  el.toast.className = isErr ? 'is-on err' : 'is-on';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function(){ el.toast.className = ''; }, 2600);
+}
+function busy(on, title, text){
+  if (on){
+    el.busyTitle.textContent = title || '处理中';
+    el.busyText.textContent = text || '';
+    el.busy.classList.add('is-on');
+  } else {
+    el.busy.classList.remove('is-on');
+  }
+}
+function showView(name){
+  [el.viewCamera, el.viewCrop, el.viewResult].forEach(function(v){ v.classList.remove('is-active'); });
+  var map = { camera: el.viewCamera, crop: el.viewCrop, result: el.viewResult };
+  map[name].classList.add('is-active');
+  window.scrollTo(0,0);
+}
+function copyText(text, okMsg){
+  var done = function(){ toast(okMsg || '已复制'); };
+  var fail = function(){ toast('复制失败，请长按文本手动选择复制', true); };
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done, function(){ legacyCopy(text, done, fail); });
+  } else { legacyCopy(text, done, fail); }
+}
+function legacyCopy(text, done, fail){
+  try {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly','');
+    ta.style.cssText = 'position:absolute;left:-9999px;top:0';
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    ok ? done() : fail();
+  } catch(e){ fail(); }
+}
+</script>
+
+<script>
+/* SECTION: camera */
+var CAM_ERRORS = {
+  NotAllowedError: ['相机权限被拒绝','请在浏览器地址栏左侧的站点设置里把「相机」改为允许，然后点下方「重试相机」。无痕窗口和部分企业策略会直接拒绝。'],
+  NotFoundError: ['没有找到可用摄像头','这台设备可能没有摄像头，或驱动未就绪。可以先用「相册」选择一张题目照片，后续流程完全一致。'],
+  NotReadableError: ['摄像头被其他程序占用','请关闭正在使用相机的应用（视频会议、相机 App、其他浏览器标签页），再点「重试相机」。'],
+  OverconstrainedError: ['设备不支持所请求的摄像头参数','已自动回退到任意可用摄像头；若仍失败请用「相册」导入。'],
+  SecurityError: ['当前环境不是安全上下文','浏览器只在 https、localhost 或 file:// 下开放相机。若你通过局域网 IP（如 http://192.168.x.x）访问，请改用 https 或本机 localhost 打开；也可以先用「相册」导入。'],
+  AbortError: ['相机启动被中断','请点「重试相机」再试一次；反复失败时用「相册」导入。']
+};
+function cameraDiagLines(){
+  var secure = window.isSecureContext ? '是' : '否（相机将被禁用）';
+  var gUM = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) ? '可用' : '不可用';
+  var lines = [];
+  lines.push('协议: ' + location.protocol + (location.protocol === 'file:' ? '（file:// 部分浏览器仍禁用相机）' : ''));
+  lines.push('安全上下文 isSecureContext: ' + secure);
+  lines.push('getUserMedia: ' + gUM);
+  lines.push('当前页面地址: ' + location.href);
+  lines.push('视频轨道: ' + (state.stream && state.stream.getVideoTracks().length ? '已获取 ' + state.stream.getVideoTracks().length + ' 条' : '无'));
+  if (state.stream && state.stream.getVideoTracks()[0]){
+    var t = state.stream.getVideoTracks()[0];
+    var s = t.getSettings ? t.getSettings() : {};
+    lines.push('摄像头名称: ' + (t.label || '（未授权时不显示）'));
+    lines.push('分辨率: ' + (s.width || '?') + '×' + (s.height || '?'));
+    lines.push('朝向: ' + (s.facingMode || state.facingHint || '未知'));
+    lines.push('闪光灯可控: ' + (state.torchOk ? '是' : '否'));
+  }
+  lines.push('后端地址: ' + (settings.endpoint ? settings.endpoint : '（未配置，走本地演示）'));
+  return lines.join('\n');
+}
+function showCamFallback(kind, detail){
+  var info = CAM_ERRORS[kind];
+  el.fallback.classList.add('is-on');
+  el.canvas.style.display = 'none';
+  el.btnShoot.disabled = true;
+  if (kind === 'preparing'){
+    el.fbIcon.textContent = '📷';
+    el.fbTitle.textContent = '正在准备相机…';
+    el.fbText.innerHTML = '浏览器会请求相机权限，请在弹窗中选择「允许」。';
+    return;
+  }
+  el.fbIcon.textContent = kind === 'unsupported' ? '⚠️' : '🔒';
+  el.fbTitle.textContent = info ? info[0] : (detail || '相机不可用');
+  el.fbText.innerHTML = escapeHtml(info ? info[1] : (detail || '未知原因，请改用「相册」导入题目照片。'))
+    + (detail && info ? '<br><br><code>' + escapeHtml(detail) + '</code>' : '');
+}
+function hideCamFallback(){
+  el.fallback.classList.remove('is-on');
+  el.canvas.style.display = '';
+  el.btnShoot.disabled = false;
+}
+function stopStream(){
+  if (state.stream){
+    state.stream.getTracks().forEach(function(t){ try{ t.stop(); }catch(e){} });
+    state.stream = null;
+  }
+  state.camReady = false;
+  state.torchOn = false;
+  state.torchOk = false;
+  el.btnTorch.hidden = true;
+  el.btnTorch.setAttribute('aria-pressed','false');
+}
+function startCamera(forceFallbackToAny){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    stopStream();
+    showCamFallback('unsupported', 'navigator.mediaDevices.getUserMedia 不存在。请使用较新的 Chrome / Edge / Safari，且通过 https 或 localhost 打开。');
+    return;
+  }
+  showCamFallback('preparing');
+  stopStream();
+
+  var ideal = forceFallbackToAny ? undefined : settings.facing;
+  var constraints = {
+    audio: false,
+    video: ideal ? { facingMode: { ideal: ideal }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+                 : { width: { ideal: 1920 }, height: { ideal: 1080 } }
+  };
+  navigator.mediaDevices.getUserMedia(constraints).then(function(stream){
+    if (state.pendingDeviceId){
+      var vt = stream.getVideoTracks()[0];
+      if (vt && vt.getSettings) state.deviceId = vt.getSettings().deviceId || null;
+      state.pendingDeviceId = false;
+    }
+    onStreamReady(stream);
+  }).catch(function(err){
+    var name = err && err.name;
+    if (name === 'OverconstrainedError' && !forceFallbackToAny){
+      /* 指定朝向不被支持时回退到任意摄像头 */
+      startCamera(true);
+      return;
+    }
+    stopStream();
+    showCamFallback(name, (err && (err.message || String(err))) || '');
+  });
+}
+function onStreamReady(stream){
+  state.stream = stream;
+  state.camReady = true;
+  state.source = null;
+  el.stillFrame.hidden = true;
+  el.stillFrame.removeAttribute('src');
+  el.preview.hidden = false;
+  el.frameHint.textContent = '拖动选框对准题目，可拉动边角调整大小';
+  try { el.preview.srcObject = stream; } catch(e){ el.preview.src = window.URL.createObjectURL(stream); }
+  var p = el.preview.play();
+  if (p && typeof p.catch === 'function'){
+    p.catch(function(){ toast('自动播放被拦截，请点击画面一次以开始预览'); });
+  }
+  hideCamFallback();
+  detectTorch(stream);
+  resizeCanvas();
+  drawFrame();
+}
+function detectTorch(stream){
+  var t = stream.getVideoTracks()[0];
+  state.torchOk = !!(t && t.getCapabilities && t.getCapabilities().torch);
+  el.btnTorch.hidden = !state.torchOk;
+}
+function toggleTorch(){
+  if (!state.stream || !state.torchOk) return;
+  var t = state.stream.getVideoTracks()[0];
+  var next = !state.torchOn;
+  t.applyConstraints({ advanced: [{ torch: next }] }).then(function(){
+    state.torchOn = next;
+    el.btnTorch.setAttribute('aria-pressed', String(next));
+    toast(next ? '闪光灯已开启' : '闪光灯已关闭');
+  }).catch(function(){
+    toast('这台设备不支持运行时切换闪光灯', true);
+    state.torchOk = false;
+    el.btnTorch.hidden = true;
+  });
+}
+function flipCamera(){
+  settings.facing = settings.facing === 'environment' ? 'user' : 'environment';
+  saveSettings();
+  syncFacingSeg();
+  state.pendingDeviceId = true;
+  startCamera(false);
+  toast(settings.facing === 'user' ? '已切换到前置摄像头' : '已切换到后置摄像头');
+}
+</script>
+
+<script>
+/* SECTION: frame-selection */
+function resizeCanvas(){
+  var r = el.stage.getBoundingClientRect();
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  el.canvas.width = Math.max(1, Math.round(r.width * dpr));
+  el.canvas.height = Math.max(1, Math.round(r.height * dpr));
+  el.canvas._dpr = dpr;
+  el.canvas._cssW = r.width;
+  el.canvas._cssH = r.height;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function frameRectPx(){
+  var w = el.canvas._cssW || el.stage.clientWidth;
+  var h = el.canvas._cssH || el.stage.clientHeight;
+  var f = state.frame;
+  return { x: f.x*w, y: f.y*h, w: f.w*w, h: f.h*h, W: w, H: h };
+}
+function drawFrame(){
+  if (!el.canvas._cssW) resizeCanvas();
+  var w = el.canvas._cssW, h = el.canvas._cssH;
+  if (!w || !h) return;
+  ctx.clearRect(0,0,w,h);
+  var r = frameRectPx();
+
+  /* 框外压暗 */
+  ctx.save();
+  ctx.fillStyle = 'rgba(4,7,14,.58)';
+  ctx.beginPath();
+  ctx.rect(0,0,w,h);
+  ctx.rect(r.x, r.y, r.w, r.h);
+  ctx.fill('evenodd');
+  ctx.restore();
+
+  /* 圆角描边 */
+  var rad = 12;
+  ctx.save();
+  ctx.strokeStyle = '#b8f24a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(r.x, r.y, r.w, r.h, rad);
+  else ctx.rect(r.x, r.y, r.w, r.h);
+  ctx.stroke();
+  ctx.restore();
+
+  /* 四角加粗把手 */
+  var L = Math.min(26, Math.min(r.w, r.h) * 0.28);
+  ctx.save();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  var corners = [[r.x,r.y,1,1],[r.x+r.w,r.y,-1,1],[r.x,r.y+r.h,1,-1],[r.x+r.w,r.y+r.h,-1,-1]];
+  corners.forEach(function(c){
+    ctx.beginPath();
+    ctx.moveTo(c[0]+c[2]*L, c[1]);
+    ctx.lineTo(c[0], c[1]);
+    ctx.lineTo(c[0], c[1]+c[3]*L);
+    ctx.stroke();
+  });
+  ctx.restore();
+
+  /* 三分网格 */
+  if (settings.grid){
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,.30)';
+    ctx.lineWidth = 1;
+    for (var i=1;i<=2;i++){
+      ctx.beginPath();
+      ctx.moveTo(r.x + r.w*i/3, r.y);
+      ctx.lineTo(r.x + r.w*i/3, r.y + r.h);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(r.x, r.y + r.h*i/3);
+      ctx.lineTo(r.x + r.w, r.y + r.h*i/3);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* 尺寸提示 */
+  var label = Math.round(r.w) + ' × ' + Math.round(r.h);
+  ctx.save();
+  ctx.font = '600 11px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif';
+  var tw = ctx.measureText(label).width;
+  var bx = clamp(r.x + r.w/2 - tw/2 - 7, 4, w - tw - 22);
+  var by = r.y > 26 ? r.y - 22 : r.y + r.h + 6;
+  ctx.fillStyle = 'rgba(8,12,22,.78)';
+  if (ctx.roundRect){ ctx.beginPath(); ctx.roundRect(bx, by, tw+14, 17, 5); ctx.fill(); }
+  else ctx.fillRect(bx, by, tw+14, 17);
+  ctx.fillStyle = '#e9f6cf';
+  ctx.fillText(label, bx+7, by+12);
+  ctx.restore();
+}
+var HANDLE = 26;
+function hitTest(px, py){
+  var r = frameRectPx();
+  var pts = {
+    nw:[r.x,r.y], n:[r.x+r.w/2,r.y], ne:[r.x+r.w,r.y],
+    w:[r.x,r.y+r.h/2], e:[r.x+r.w,r.y+r.h/2],
+    sw:[r.x,r.y+r.h], s:[r.x+r.w/2,r.y+r.h], se:[r.x+r.w,r.y+r.h]
+  };
+  for (var k in pts){
+    if (Object.prototype.hasOwnProperty.call(pts,k) &&
+        Math.abs(px-pts[k][0]) <= HANDLE && Math.abs(py-pts[k][1]) <= HANDLE) return k;
+  }
+  if (px >= r.x && px <= r.x+r.w && py >= r.y && py <= r.y+r.h) return 'move';
+  return 'new';
+}
+function cursorFor(mode){
+  return ({nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',
+           n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize',
+           move:'move','new':'crosshair'})[mode] || 'default';
+}
+function pointerPos(ev){
+  var r = el.canvas.getBoundingClientRect();
+  var p = ev.touches && ev.touches[0] ? ev.touches[0] : ev;
+  return { x: p.clientX - r.left, y: p.clientY - r.top, W: r.width, H: r.height };
+}
+function onDown(ev){
+  if (!state.camReady && !state.source) return;
+  var p = pointerPos(ev);
+  var mode = hitTest(p.x, p.y);
+  var r = frameRectPx();
+  if (mode === 'new'){
+    state.frame = { x: p.x/r.W, y: p.y/r.H, w: 0, h: 0 };
+    mode = 'new';
+  }
+  state.drag = { mode: mode, sx: p.x, sy: p.y, W: r.W, H: r.H, orig: JSON.parse(JSON.stringify(state.frame)) };
+  if (ev.cancelable) ev.preventDefault();
+  drawFrame();
+}
+function onMove(ev){
+  var p = pointerPos(ev);
+  el.canvas.style.cursor = state.drag ? 'grabbing' : cursorFor(hitTest(p.x, p.y));
+  if (!state.drag) return;
+  if (ev.cancelable) ev.preventDefault();
+  var d = state.drag, o = d.orig;
+  var dxn = (p.x - d.sx)/d.W, dyn = (p.y - d.sy)/d.H;
+  var MIN = 0.06;
+  var f = state.frame;
+
+  if (d.mode === 'new'){
+    /* 从框外起笔：以起点和当前点构成矩形，支持任意拖拽方向 */
+    var ax = clamp(o.x, 0, 1), ay = clamp(o.y, 0, 1);
+    var bx = clamp(o.x + dxn, 0, 1), by = clamp(o.y + dyn, 0, 1);
+    f.x = Math.min(ax, bx); f.y = Math.min(ay, by);
+    f.w = Math.max(Math.abs(bx - ax), MIN);
+    f.h = Math.max(Math.abs(by - ay), MIN);
+    f.x = clamp(f.x, 0, 1 - f.w);
+    f.y = clamp(f.y, 0, 1 - f.h);
+  } else if (d.mode === 'move'){
+    f.x = clamp(o.x + dxn, 0, 1 - o.w);
+    f.y = clamp(o.y + dyn, 0, 1 - o.h);
+    f.w = o.w; f.h = o.h;
+  } else {
+    var x1 = o.x, y1 = o.y, x2 = o.x + o.w, y2 = o.y + o.h;
+    if (d.mode.indexOf('w') >= 0) x1 = clamp(o.x + dxn, 0, x2 - MIN);
+    if (d.mode.indexOf('e') >= 0) x2 = clamp(o.x + o.w + dxn, x1 + MIN, 1);
+    if (d.mode.indexOf('n') >= 0) y1 = clamp(o.y + dyn, 0, y2 - MIN);
+    if (d.mode.indexOf('s') >= 0) y2 = clamp(o.y + o.h + dyn, y1 + MIN, 1);
+    f.x = x1; f.y = y1; f.w = x2 - x1; f.h = y2 - y1;
+  }
+  drawFrame();
+}
+function onUp(){
+  if (!state.drag) return;
+  var f = state.frame;
+  if (f.w < 0.05 || f.h < 0.04){
+    state.frame = { x: 0.10, y: 0.30, w: 0.80, h: 0.30 };
+    toast('选框太小，已恢复默认范围');
+  }
+  state.drag = null;
+  drawFrame();
+}
+function fullFrame(){
+  state.frame = { x: 0.02, y: 0.02, w: 0.96, h: 0.96 };
+  drawFrame();
+  toast('选框已铺满画面');
+}
+</script>
+
+<script>
+/* SECTION: capture + compress */
+function coverSourceRect(vw, vh, cw, ch){
+  /* video 以 object-fit:cover 铺满容器，反推容器区域对应的视频源矩形 */
+  var scale = Math.max(cw/vw, ch/vh);
+  var sw = cw/scale, sh = ch/scale;
+  return { sx: (vw-sw)/2, sy: (vh-sh)/2, sw: sw, sh: sh };
+}
+function sourceBitmap(){
+  /* 返回 { node, vw, vh, label }：实时相机帧或相册图片 */
+  if (state.camReady && el.preview.videoWidth){
+    return { node: el.preview, vw: el.preview.videoWidth, vh: el.preview.videoHeight, label: '相机实拍' };
+  }
+  if (state.source && state.source.img && state.source.img.naturalWidth){
+    return { node: state.source.img, vw: state.source.img.naturalWidth, vh: state.source.img.naturalHeight, label: '相册导入' };
+  }
+  return null;
+}
+function captureFrame(){
+  var src = sourceBitmap();
+  if (!src){ toast('相机还没准备好，请稍候或改用相册导入', true); return; }
+
+  var r = frameRectPx();
+  if (r.w < 8 || r.h < 8){ toast('选框太小，请重新框选', true); return; }
+
+  var cov = coverSourceRect(src.vw, src.vh, r.W, r.H);
+  var k = cov.sw / r.W;                     /* 视频像素 / 容器像素 */
+  var sx = cov.sx + r.x * k;
+  var sy = cov.sy + r.y * k;
+  var sw = r.w * k;
+  var sh = r.h * k;
+  sx = clamp(sx, 0, Math.max(0, src.vw - 1));
+  sy = clamp(sy, 0, Math.max(0, src.vh - 1));
+  sw = Math.max(1, Math.min(sw, src.vw - sx));
+  sh = Math.max(1, Math.min(sh, src.vh - sy));
+
+  /* 前置摄像头镜像，与预览观感保持一致 */
+  var mirror = settings.facing === 'user' && state.camReady;
+
+  var c = document.createElement('canvas');
+  c.width = Math.round(sw); c.height = Math.round(sh);
+  var g = c.getContext('2d');
+  g.imageSmoothingEnabled = true;
+  g.imageSmoothingQuality = 'high';
+  if (mirror){ g.translate(c.width, 0); g.scale(-1, 1); }
+  g.drawImage(src.node, sx, sy, sw, sh, 0, 0, c.width, c.height);
+
+  /* 保留全分辨率裁剪结果，供修改压缩参数后重新导出 */
+  state.lastFull = c;
+  state.lastInfo = { label: src.label, mirror: mirror, srcW: src.vw, srcH: src.vh };
+
+  compressCanvas(c, { label: src.label, mirror: mirror, srcW: src.vw, srcH: src.vh });
+}
+function compressCanvas(fullCanvas, info){
+  var maxSide = Number(settings.maxSide) || 1280;
+  var q = Number(settings.quality);
+  if (!isFinite(q) || q <= 0 || q > 1) q = 0.82;
+  var fmt = settings.format === 'image/png' ? 'image/png' : 'image/jpeg';
+
+  var longSide = Math.max(fullCanvas.width, fullCanvas.height);
+  var scale = longSide > maxSide ? maxSide/longSide : 1;
+  var c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(fullCanvas.width * scale));
+  c.height = Math.max(1, Math.round(fullCanvas.height * scale));
+  var g = c.getContext('2d');
+  g.imageSmoothingEnabled = true;
+  g.imageSmoothingQuality = 'high';
+  if (fmt === 'image/jpeg'){ g.fillStyle = '#ffffff'; g.fillRect(0,0,c.width,c.height); }
+  g.drawImage(fullCanvas, 0, 0, c.width, c.height);
+
+  var dataUrl;
+  try {
+    dataUrl = c.toDataURL(fmt, fmt === 'image/png' ? undefined : q);
+  } catch(e){
+    toast('导出图片失败：' + (e.message || e), true);
+    return;
+  }
+  var comma = dataUrl.indexOf(',');
+  var b64 = comma >= 0 ? dataUrl.slice(comma+1) : dataUrl;
+
+  state.shot = {
+    dataUrl: dataUrl,
+    base64: b64,
+    mediaType: fmt,
+    width: c.width,
+    height: c.height,
+    b64Bytes: b64Bytes(b64),
+    fullW: fullCanvas.width,
+    fullH: fullCanvas.height,
+    source: info.label,
+    mirror: !!info.mirror,
+    time: nowText()
+  };
+
+  el.flash.classList.remove('is-on');
+  void el.flash.offsetWidth;
+  el.flash.classList.add('is-on');
+
+  renderCrop();
+  showView('crop');
+  toast('已裁剪 ' + c.width + '×' + c.height + '，体积 ' + bytes(state.shot.b64Bytes));
+}
+function renderCrop(){
+  var s = state.shot;
+  el.cropPreview.innerHTML = '';
+  if (!s){
+    el.cropPreview.innerHTML = '<div class="crop-empty">还没有裁剪结果<br>请先在取景页拍摄或从相册选择</div>';
+    el.cropDimTag.textContent = '—';
+    el.cropMeta.innerHTML = '';
+    el.btnRecognize.disabled = true;
+    return;
+  }
+  var img = document.createElement('img');
+  img.alt = '裁剪后的题目图片';
+  img.src = s.dataUrl;
+  el.cropPreview.appendChild(img);
+  el.cropDimTag.textContent = s.width + ' × ' + s.height;
+  el.btnRecognize.disabled = false;
+
+  var ratio = s.fullW && s.fullH ? Math.round(s.fullW/s.fullH*100)/100 : null;
+  var rows = [
+    ['裁剪前分辨率', s.fullW + ' × ' + s.fullH],
+    ['压缩后分辨率', s.width + ' × ' + s.height],
+    ['最长边限制', (Number(settings.maxSide)||1280) + ' px'],
+    ['输出格式', s.mediaType === 'image/png' ? 'PNG（无损）' : 'JPEG q=' + (Number(settings.quality).toFixed(2))],
+    ['图片体积', bytes(s.b64Bytes)],
+    ['Base64 长度', s.base64.length.toLocaleString('en-US') + ' 字符'],
+    ['来源', s.source + (s.mirror ? '（已镜像）' : '')],
+    ['拍摄时间', s.time]
+  ];
+  if (ratio) rows.splice(2, 0, ['宽高比', String(ratio)]);
+  el.cropMeta.innerHTML = rows.map(function(r){
+    var down = /体积|Base64/.test(r[0]) ? ' class="down"' : '';
+    return '<div class="meta-item"><dt>' + escapeHtml(r[0]) + '</dt><dd' + down + '>' + escapeHtml(r[1]) + '</dd></div>';
+  }).join('');
+
+  renderEndpointBanner();
+}
+function renderEndpointBanner(){
+  var has = !!settings.endpoint;
+  el.endpointBanner.className = 'banner ' + (has ? 'info' : 'demo');
+  el.endpointBanner.style.margin = '0';
+  el.endpointBannerText.innerHTML = has
+    ? '将提交到 <b>' + escapeHtml(settings.endpoint) + '</b>；接口不可用时按设置决定是否展示演示反馈。'
+    : '未配置后端地址，本次将使用<b>本地演示反馈</b>（会明确标注，不代表真实识别）。';
+}
+function importFile(file){
+  if (!file) return;
+  if (!/^image\//.test(file.type)){ toast('请选择图片文件', true); return; }
+  if (file.size > 20*1024*1024){ toast('图片超过 20 MB，请先压缩后再导入', true); return; }
+  var url = URL.createObjectURL(file);
+  var img = new Image();
+  img.onload = function(){
+    state.source = { img: img, url: url, name: file.name, bytes: file.size };
+    /* 停掉相机，把相册图放进静态取景层，让用户和相机路径一样框选裁剪 */
+    stopStream();
+    state.camReady = false;
+    el.stillFrame.src = url;
+    el.stillFrame.hidden = false;
+    el.preview.hidden = true;
+    hideCamFallback();
+    el.frameHint.textContent = '相册图片：拖动选框对准题目后点快门';
+    showView('camera');
+    setTimeout(function(){ resizeCanvas(); drawFrame(); }, 60);
+    toast('已载入相册图片，请框选题目区域');
+  };
+  img.onerror = function(){
+    URL.revokeObjectURL(url);
+    toast('图片解码失败，请换一张再试', true);
+  };
+  img.src = url;
+}
+function downloadShot(){
+  if (!state.shot){ toast('还没有可下载的图片', true); return; }
+  var a = document.createElement('a');
+  var ext = state.shot.mediaType === 'image/png' ? 'png' : 'jpg';
+  a.href = state.shot.dataUrl;
+  a.download = '题目裁剪_' + Date.now() + '.' + ext;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  toast('已保存到浏览器下载目录');
+}
+</script>
+
+<script>
+/* SECTION: recognize */
+var DEMO_TEXT = '【演示模式 · 未连接真实模型，以下内容不是识别结果】\n\n' +
+  '固定示例题目：求极限 lim(x→0) (sin 3x) / (tan 5x)。\n\n' +
+  '这里只能展示“拍照 → 框选 → 压缩 → 提交 → 回填文本”的完整流程，' +
+  '不会对图片做任何真实识别。要拿到真实转录结果，请在设置中填写后端接口地址，' +
+  '并由后端配置可用的视觉模型（MODEL_BASE_URL / MODEL_API_KEY / MODEL_NAME / MODEL_VISION_NAME）。';
+
+function recognize(){
+  var s = state.shot;
+  if (!s){ toast('请先拍摄或导入图片', true); return; }
+
+  var hint = (el.hintInput.value || '').trim().slice(0, 200);
+  var endpoint = (settings.endpoint || '').trim();
+
+  if (!endpoint){
+    if (!settings.fallback){
+      toast('未配置后端地址，且已关闭演示兜底', true);
+      return;
+    }
+    busy(true, '生成本地演示反馈', '未配置后端地址，不会调用任何模型…');
+    setTimeout(function(){
+      busy(false);
+      renderResult({
+        ok: true, live: false, text: DEMO_TEXT, confidence: null,
+        warnings: ['未配置后端地址，展示的是固定演示文案'], topic: '未连接识别服务',
+        raw: null, errorText: null, hint: hint
+      });
+    }, 420);
+    return;
+  }
+
+  busy(true, '正在提交识别', '压缩图片并发送到 ' + endpoint + ' …');
+  var headers = { 'Content-Type': 'application/json' };
+  if (settings.sendHeader) headers['X-Requested-With'] = 'shuban-web';
+
+  fetch(endpoint, {
+    method: 'POST',
+    headers: headers,
+    credentials: settings.sendCred ? 'same-origin' : 'omit',
+    body: JSON.stringify({ image_base64: s.base64, media_type: s.mediaType, hint: hint })
+  }).then(function(resp){
+    return resp.text().then(function(body){
+      var parsed = null;
+      try { parsed = JSON.parse(body); } catch(e){}
+      if (!resp.ok){
+        var detail = parsed && (parsed.detail || parsed.message || parsed.error);
+        if (detail && typeof detail === 'object') detail = JSON.stringify(detail);
+        var err = new Error(detail || ('HTTP ' + resp.status + ' ' + resp.statusText));
+        err.status = resp.status;
+        err.raw = body;
+        throw err;
+      }
+      return parsed || { text: body };
+    });
+  }).then(function(data){
+    busy(false);
+    renderResult({
+      ok: true,
+      live: data.mode === 'live' || data.mode === undefined,
+      text: typeof data.text === 'string' ? data.text : JSON.stringify(data, null, 2),
+      confidence: typeof data.confidence === 'number' ? data.confidence : null,
+      warnings: Array.isArray(data.warnings) ? data.warnings : [],
+      topic: data.suggested_topic || null,
+      requiresConfirmation: data.requires_confirmation !== false,
+      raw: JSON.stringify(data, null, 2),
+      errorText: null,
+      hint: hint,
+      endpoint: endpoint
+    });
+  }).catch(function(err){
+    busy(false);
+    var statusText = err.status ? ('HTTP ' + err.status + '：') : '';
+    var msg = statusText + (err.message || '网络请求失败');
+    if (settings.fallback){
+      renderResult({
+        ok: false, live: false,
+        text: DEMO_TEXT,
+        confidence: null,
+        warnings: ['真实接口未返回结果，以下为固定演示文案'],
+        topic: null, raw: null, errorText: msg, hint: hint, endpoint: endpoint
+      });
+      toast('接口未成功，已切到演示反馈', true);
+    } else {
+      renderResult({
+        ok: false, live: false, text: '', confidence: null, warnings: [],
+        topic: null, raw: null, errorText: msg, hint: hint, endpoint: endpoint, noFallback: true
+      });
+      toast(msg, true);
+    }
+  });
+}
+
+function bannerHtml(kind, title, body){
+  var icons = {
+    live: '<path d="m5 12.6 4.6 4.6L19 7.8"/>',
+    demo: '<path d="M12 8.4v4.4M12 16.2v.1"/><circle cx="12" cy="12" r="9"/>',
+    err:  '<circle cx="12" cy="12" r="9"/><path d="M12 7.6v5M12 15.8v.1"/>'
+  };
+  return '<div class="banner ' + kind + '">' +
+    '<span class="b-ico"><svg viewBox="0 0 24 24">' + icons[kind] + '</svg></span>' +
+    '<span><b>' + escapeHtml(title) + '</b><br>' + body + '</span></div>';
+}
+function renderResult(r){
+  state.result = r;
+  el.resultBannerSlot.innerHTML = '';
+  var parts = [];
+
+  if (r.errorText){
+    parts.push(bannerHtml('err', '后端未返回识别结果', escapeHtml(r.errorText)
+      + '<br>常见原因：地址不可达、未登录（401/403）、后端未配置视觉模型（503）、跨域被拦截。'));
+  }
+  if (r.ok && r.live && !r.errorText){
+    parts.push(bannerHtml('live', '来自真实接口的识别草稿',
+      '识别结果为草稿，' + (r.requiresConfirmation === false ? '可直接采用' : '需要你确认或修改后才算最终题目文本') + '。'));
+  }
+  if (!r.live){
+    parts.push(bannerHtml('demo', '演示模式 · 未连接真实模型',
+      '下方文本是固定示例，' + (r.errorText ? '因为接口请求失败而降级展示' : '因为未配置后端地址') +
+      '，不是对你图片的识别结果。'));
+  }
+  el.resultBannerSlot.innerHTML = parts.join('');
+
+  el.resultSrcTag.textContent = r.errorText ? '接口失败' : (r.live ? '真实接口' : '本地演示');
+  el.resultSrcTag.className = 'tag';
+
+  var s = state.shot;
+  if (s){
+    el.resultThumb.hidden = false;
+    el.resultThumb.src = s.dataUrl;
+    el.resultMeta.innerHTML = [
+      ['图片尺寸', s.width + ' × ' + s.height],
+      ['提交体积', bytes(s.b64Bytes)],
+      ['媒体类型', s.mediaType],
+      ['提示词', (r.hint || '').trim() || '（未填写）']
+    ].map(function(x){
+      return '<div class="meta-item"><dt>' + escapeHtml(x[0]) + '</dt><dd>' + escapeHtml(x[1]) + '</dd></div>';
+    }).join('');
+  } else {
+    el.resultThumb.hidden = true;
+    el.resultMeta.innerHTML = '';
+  }
+
+  el.resultText.value = r.text || '';
+  el.resultText.placeholder = r.noFallback ? '接口失败且未开启演示兜底，没有可回填的文本。' : '识别结果会出现在这里';
+
+  /* 置信度 */
+  if (typeof r.confidence === 'number' && isFinite(r.confidence)){
+    var pct = r.confidence <= 1 ? r.confidence * 100 : r.confidence;
+    pct = clamp(pct, 0, 100);
+    el.confTag.textContent = '置信度 ' + pct.toFixed(0) + '%';
+    el.confBar.hidden = false;
+    el.confFill.style.width = pct + '%';
+  } else {
+    el.confTag.textContent = r.live ? '后端未给置信度' : '演示内容';
+    el.confBar.hidden = true;
+    el.confFill.style.width = '0%';
+  }
+
+  /* chips */
+  var chips = [];
+  if (r.topic) chips.push('<span class="chip topic">建议知识点：' + escapeHtml(r.topic) + '</span>');
+  (r.warnings || []).forEach(function(w){
+    chips.push('<span class="chip warn">' + escapeHtml(String(w)) + '</span>');
+  });
+  if (r.endpoint) chips.push('<span class="chip">' + escapeHtml(r.endpoint) + '</span>');
+  el.resultChips.innerHTML = chips.join('');
+
+  /* 原始返回 */
+  if (r.raw){
+    el.rawCard.hidden = false;
+    el.rawBody.textContent = r.raw;
+    el.rawBody.hidden = true;
+    $('btnToggleRaw').textContent = '展开';
+  } else {
+    el.rawCard.hidden = true;
+  }
+
+  renderHistory();
+  showView('result');
+}
+
+function confirmResult(){
+  var text = (el.resultText.value || '').trim();
+  if (!text){ toast('识别文本为空，无法确认', true); return; }
+  var r = state.result || {};
+  var s = state.shot;
+  var item = {
+    id: Date.now(),
+    time: nowText(),
+    text: text,
+    live: !!r.live && !r.errorText,
+    failed: !!r.errorText,
+    confidence: typeof r.confidence === 'number' ? r.confidence : null,
+    topic: r.topic || null,
+    hint: r.hint || '',
+    size: s ? (s.width + '×' + s.height) : null,
+    bytes: s ? s.b64Bytes : null
+  };
+  state.history.unshift(item);
+  state.history = state.history.slice(0, HIST_MAX);
+  saveHistory();
+  renderHistory();
+  toast(item.live ? '已保存真实识别结果到本地历史' : '已保存演示记录到本地历史');
+}
+function renderHistory(){
+  if (!state.history.length){
+    el.histList.innerHTML = '<div class="empty-note">还没有记录。确认识别文本后会保存在当前浏览器。</div>';
+    return;
+  }
+  el.histList.innerHTML = state.history.map(function(h){
+    var label = h.failed ? '接口失败' : (h.live ? '真实接口' : '演示');
+    return '<div class="hist-item">' +
+      '<div class="h-top"><span class="h-time">' + escapeHtml(h.time) + '</span>' +
+      '<span class="h-src' + (h.live ? ' live' : '') + '">' + escapeHtml(label) + '</span>' +
+      (h.size ? '<span class="h-src">' + escapeHtml(h.size) + '</span>' : '') +
+      (h.bytes ? '<span class="h-src">' + escapeHtml(bytes(h.bytes)) + '</span>' : '') +
+      (h.topic ? '<span class="h-src">' + escapeHtml(h.topic) + '</span>' : '') + '</div>' +
+      '<div class="h-text">' + escapeHtml(h.text) + '</div></div>';
+  }).join('');
+}
+</script>
+
+<script>
+/* SECTION: settings-drawer */
+function openDrawer(){
+  el.drawer.classList.add('is-on');
+  el.scrim.classList.add('is-on');
+  el.endpoint.focus({ preventScroll: true });
+}
+function closeDrawer(){
+  el.drawer.classList.remove('is-on');
+  el.scrim.classList.remove('is-on');
+}
+function syncSettingsUI(){
+  el.endpoint.value = settings.endpoint || '';
+  el.swHeader.setAttribute('aria-pressed', String(!!settings.sendHeader));
+  el.swCred.setAttribute('aria-pressed', String(!!settings.sendCred));
+  el.swFallback.setAttribute('aria-pressed', String(!!settings.fallback));
+  el.maxSide.value = String(settings.maxSide);
+  el.maxSideVal.textContent = settings.maxSide + ' px';
+  el.quality.value = String(settings.quality);
+  el.qualityVal.textContent = Number(settings.quality).toFixed(2);
+  el.btnGrid.setAttribute('aria-pressed', String(!!settings.grid));
+  Array.prototype.forEach.call(document.querySelectorAll('#formatSeg button'), function(b){
+    b.setAttribute('aria-pressed', String(b.getAttribute('data-fmt') === settings.format));
+  });
+  syncFacingSeg();
+  renderEndpointBanner();
+}
+function syncFacingSeg(){
+  Array.prototype.forEach.call(document.querySelectorAll('#facingSeg button'), function(b){
+    b.setAttribute('aria-pressed', String(b.getAttribute('data-facing') === settings.facing));
+  });
+}
+
+/* SECTION: bindings */
+function bind(){
+  /* 相机顶栏 */
+  el.btnGrid.addEventListener('click', function(){
+    settings.grid = !settings.grid; saveSettings();
+    el.btnGrid.setAttribute('aria-pressed', String(settings.grid));
+    drawFrame();
+  });
+  el.btnTorch.addEventListener('click', toggleTorch);
+  $('btnSettings').addEventListener('click', openDrawer);
+  $('btnSettings2').addEventListener('click', openDrawer);
+  $('btnCloseDrawer').addEventListener('click', closeDrawer);
+  el.scrim.addEventListener('click', closeDrawer);
+  $('btnFlip').addEventListener('click', flipCamera);
+  $('btnAlbum').addEventListener('click', function(){ el.fileInput.click(); });
+  $('fbFile').addEventListener('click', function(){ el.fileInput.click(); });
+  $('fbRetry').addEventListener('click', function(){ startCamera(false); });
+  $('btnFullFrame').addEventListener('click', fullFrame);
+  el.btnShoot.addEventListener('click', captureFrame);
+  el.preview.addEventListener('click', function(){
+    if (state.camReady && el.preview.paused){ el.preview.play(); }
+  });
+
+  el.fileInput.addEventListener('change', function(e){
+    importFile(e.target.files && e.target.files[0]);
+    e.target.value = '';
+  });
+
+  /* 框选交互 */
+  var down = function(e){ onDown(e); };
+  var move = function(e){ onMove(e); };
+  var up = function(){ onUp(); };
+  el.canvas.addEventListener('mousedown', down);
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+  el.canvas.addEventListener('touchstart', down, { passive: false });
+  el.canvas.addEventListener('touchmove', move, { passive: false });
+  el.canvas.addEventListener('touchend', up);
+  el.canvas.addEventListener('touchcancel', up);
+
+  /* 裁剪页 */
+  $('cropBack').addEventListener('click', function(){ reframe(); });
+  $('btnReframe').addEventListener('click', reframe);
+  $('btnDownloadImg').addEventListener('click', downloadShot);
+  $('btnRecognize').addEventListener('click', recognize);
+
+  el.maxSide.addEventListener('input', function(){
+    settings.maxSide = Number(el.maxSide.value);
+    el.maxSideVal.textContent = settings.maxSide + ' px';
+    saveSettings();
+  });
+  el.maxSide.addEventListener('change', recompress);
+  el.quality.addEventListener('input', function(){
+    settings.quality = Number(el.quality.value);
+    el.qualityVal.textContent = settings.quality.toFixed(2);
+    saveSettings();
+  });
+  el.quality.addEventListener('change', recompress);
+  Array.prototype.forEach.call(document.querySelectorAll('#formatSeg button'), function(b){
+    b.addEventListener('click', function(){
+      settings.format = b.getAttribute('data-fmt');
+      saveSettings(); syncSettingsUI(); recompress();
+    });
+  });
+
+  /* 设置抽屉 */
+  el.endpoint.addEventListener('input', function(){
+    settings.endpoint = el.endpoint.value.trim();
+    saveSettings(); renderEndpointBanner();
+  });
+  el.swHeader.addEventListener('click', function(){
+    settings.sendHeader = !settings.sendHeader; saveSettings(); syncSettingsUI();
+  });
+  el.swCred.addEventListener('click', function(){
+    settings.sendCred = !settings.sendCred; saveSettings(); syncSettingsUI();
+  });
+  el.swFallback.addEventListener('click', function(){
+    settings.fallback = !settings.fallback; saveSettings(); syncSettingsUI();
+    toast(settings.fallback ? '接口失败时会展示标注过的演示反馈' : '接口失败时只显示错误，不展示演示内容');
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('#facingSeg button'), function(b){
+    b.addEventListener('click', function(){
+      settings.facing = b.getAttribute('data-facing');
+      saveSettings(); syncFacingSeg();
+      state.pendingDeviceId = true;
+      startCamera(false);
+      closeDrawer();
+    });
+  });
+  $('btnCamDiag').addEventListener('click', function(){
+    el.diagBody.hidden = false;
+    el.diagBody.textContent = cameraDiagLines();
+  });
+
+  /* 结果页 */
+  $('resultBack').addEventListener('click', function(){ showView('crop'); });
+  $('btnNewShot').addEventListener('click', function(){ reframe(); });
+  $('btnCopyText').addEventListener('click', function(){
+    var t = (el.resultText.value || '').trim();
+    if (!t){ toast('没有可复制的文本', true); return; }
+    copyText(t, '识别文本已复制');
+  });
+  $('btnCopyB64').addEventListener('click', function(){
+    if (!state.shot){ toast('没有可复制的图片数据', true); return; }
+    copyText(state.shot.base64, 'Base64 已复制（' + state.shot.base64.length + ' 字符）');
+  });
+  $('btnToggleRaw').addEventListener('click', function(){
+    var hidden = el.rawBody.hidden;
+    el.rawBody.hidden = !hidden;
+    this.textContent = hidden ? '收起' : '展开';
+  });
+  $('btnConfirm').addEventListener('click', confirmResult);
+  $('btnClearHist').addEventListener('click', function(){
+    if (!state.history.length){ toast('历史已经是空的'); return; }
+    state.history = []; saveHistory(); renderHistory();
+    toast('已清空本地识别历史');
+  });
+
+  /* 尺寸变化 */
+  var rt = null;
+  window.addEventListener('resize', function(){
+    clearTimeout(rt);
+    rt = setTimeout(function(){
+      if (el.viewCamera.classList.contains('is-active')){ resizeCanvas(); drawFrame(); }
+    }, 120);
+  });
+  window.addEventListener('orientationchange', function(){
+    setTimeout(function(){ resizeCanvas(); drawFrame(); }, 260);
+  });
+  el.preview.addEventListener('loadedmetadata', function(){ resizeCanvas(); drawFrame(); });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape'){
+      if (el.drawer.classList.contains('is-on')) closeDrawer();
+    }
+  });
+}
+function reframe(){
+  if (state.source){ state.source = null; }
+  el.stillFrame.hidden = true;
+  el.stillFrame.removeAttribute('src');
+  el.preview.hidden = false;
+  el.frameHint.textContent = '拖动选框对准题目，可拉动边角调整大小';
+  if (!state.camReady) startCamera(false);
+  showView('camera');
+  setTimeout(function(){ resizeCanvas(); drawFrame(); }, 60);
+}
+function recompress(){
+  /* 参数变化后基于已保存的全分辨率裁剪重新压缩 */
+  if (!state.lastFull){
+    if (state.shot) renderCrop();
+    return;
+  }
+  compressCanvas(state.lastFull, state.lastInfo);
+}
+
+/* SECTION: boot */
+function boot(){
+  syncSettingsUI();
+  bind();
+  renderHistory();
+  renderEndpointBanner();
+  resizeCanvas();
+  drawFrame();
+  startCamera(false);
+  if (!window.isSecureContext){
+    setTimeout(function(){
+      toast('当前不是安全上下文，相机可能被浏览器禁用；可改用相册导入', true);
+    }, 900);
+  }
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+else boot();
+</script>
+</body>
+</html>

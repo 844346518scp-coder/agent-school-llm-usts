@@ -47,7 +47,18 @@ B智能体接口已定义并在本轮集成，见下文；语音、异步任务�
 
 `GET /api/health`原有字段保持；便携启动设置`SHUBAN_INSTANCE_ID`时额外返回`instance_id`（由本地路径哈希生成，非会话/认证凭据），供启动器识别本目录服务，避免误复用另一份测试包。此字段不授予访问权限。便携包网页与API同源于127.0.0.1:18080（可换端口），其余接口不变。
 
-真实模型与流式输出、RAG 引用、诊断已于 2026-09-17 由 B 模块给出接口（见下节“智能体接口 v0.2”）。仍待定义：拍照识别的上传与确认流程细节、诊断任务状态（异步）、语音、长期记忆与异步任务队列。改接口先更新此文档并协调调用方；新增子目录依照 [协作规范](../../AGENTS.md) 先确认。
+真实模型与流式输出、RAG 引用、诊断已于 2026-09-17 由 B 模块给出接口（见下节“智能体接口 v0.2”）。拍照识别的上传与确认流程已于 2026-09-18 在前端落地（见下节“拍照识别前端调用约定”）。仍待定义：诊断任务状态（异步）、语音、长期记忆与异步任务队列。改接口先更新此文档并协调调用方；新增子目录依照 [协作规范](../../AGENTS.md) 先确认。
+
+## 2026-09-18 · 拍照识别前端调用约定
+
+前端入口位于 `frontend/src/shared/PhotoSearchDialog.vue`，由 `AgentView.vue` 对话头的「拍照搜题」按钮打开。调用与确认流程如下，接口字段未变更：
+
+1. **上传**：`POST /api/agent/recognize`，请求体 `{ image_base64, media_type, hint }`。`image_base64` 为裁剪压缩后的纯 base64（不含 `data:` 前缀，与 `service.py` 中 `RecognizeInput` 一致）；`media_type` 取 `image/jpeg` 或 `image/png`；`hint` 为可选题目提示，前端限长 200 字符。
+2. **传输方式**：复用 `frontend/src/shared/api.ts` 的 `api()`，自动携带 `Content-Type: application/json`、`X-Requested-With: shuban-web` 与 `credentials: same-origin`；该路径命中 `isAiWrite`，超时 90 秒，不做自动重试。
+3. **确认**：后端返回 `requires_confirmation=true`，前端把 `text` 放入可编辑文本框，由学生核对或修正；确认后仅回填到提问框，再由学生决定是否发送。发送走既有 `POST /api/conversations`，组件本身不入库、不代替学生确认。
+4. **来源标注**：仅当返回 `mode === 'live'` 才标为真实接口结果；`confidence`、`warnings`、`suggested_topic` 原样展示。
+5. **失败处理**：`503`（未配置视觉模型）、`502`（调用失败）与网络异常均如实展示 `detail` 原文，不回退为编造的识别文本。
+6. **仍待定义**：多题切分、公式人工修正、语音输入。
 
 ## 2026-09-17 · 智能体接口 v0.2（B 模块）
 

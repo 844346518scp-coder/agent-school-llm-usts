@@ -265,3 +265,62 @@ GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：
 - 凭据：沿用上一条78文件/43历史blob检查，本轮新增内容仅为审核过的状态说明，不含秘密值；上传前已再次提醒。既有附件未变且本轮未重新视觉审计，保留该限制。
 - 验证：fetch确认main合并结果，本地快进成功；应用代码与已验证集成版本一致，沿用57项测试与构建/冷启动结果。本轮只同步发布状态文档，提交前检查差异格式与凭据模式；完成后核对两个目标分支及未修改的B分支。
 - 文档同步：AGENTS、README、架构、合并评估、源码启动与本日志更新已发布状态；接口、迁移、C功能说明、配置及原始素材已核对无功能变化，无需修改。后续仍需其他Windows实机和真实模型效果验收；上传不是公网部署。
+
+
+## 2026-09-18 / 新增拍照搜题移动 Web 原型（独立目录，未接入前后端代码）
+
+- 负责人 / AI：千问工作助理（用户 C 侧发起）。用户要求实现拍照搜题效果，并说明用 getUserMedia 取流、canvas 框选、toDataURL 压缩后传后端；同时提到 wx.createCameraContext 小程序路径。
+- 范围与授权：经用户选择，交付形态为移动 Web/H5 页面（不产出微信原生小程序包），识别来源为“可配置接口地址 + 本地演示兜底”。用户指定落点为项目根 D:\agent-school-llm-usts，据此在其下新建独立子目录 拍照搜题-20260918T062840513Z。未修改 frontend/src（A 负责）与 backend/app（B 负责）任何文件，不改依赖、不改迁移、不改接口约定。
+- 目录变更依据：AGENTS.md 第 3 节要求新增目录先确认。已在生成前向用户列出三个候选（新建独立原型目录 / 放进已有演示目录 / 已忽略 tmp），用户回复项目根路径，按其选择以 parent 语义新建子目录；本条记录确认依据。
+- 实现要点（单文件静态页面，无构建、无运行时依赖）：
+  1. 相机：navigator.mediaDevices.getUserMedia 后置优先，OverconstrainedError 自动回退任意摄像头；权限拒绝、无设备、被占用、非安全上下文分别给出具体原因与排查指引，并提供相册导入替代路径。
+  2. 框选：canvas 绘制遮罩、圆角选框、四角把手与三分网格；支持 8 手柄缩放、整体拖动、框外任意方向重新框选；最小尺寸校验，过小自动恢复默认。
+  3. 裁剪压缩：按 object-fit:cover 反推视频源矩形做精确裁剪（原始分辨率），再按最长边与 JPEG 质量缩放导出；前置摄像头镜像与预览一致；展示裁剪前后分辨率、体积、Base64 长度。参数改动基于保留的全分辨率画布重新导出。
+  4. 上传：POST 到可配置地址，请求体 { image_base64, media_type, hint }，与 backend/app/ai/service.py 的 RecognizeInput 字段一致；默认携带 X-Requested-With: shuban-web 与 same-origin 凭据，对齐 frontend/src/shared/api.ts 的现有约定，三项均可在设置中关闭。
+  5. 真实性标注：非 live 返回一律标注“演示模式 · 未连接真实模型”，演示文本自身首行也带该标注；接口失败与后端 503 原文如实展示，不把演示文案冒充识别结果。识别文本可编辑后才确认保存（对应后端 requires_confirmation）。
+  6. 设置抽屉内提供相机与安全上下文自检（协议、isSecureContext、getUserMedia 可用性、轨道分辨率、闪光灯可控性、后端地址）。
+- 已知边界与限制（未验收项）：
+  1. 未做真实浏览器运行验证，也未在真机上调用相机；本轮仅完成静态语法与本地引用抽验（0 BLOCKER、0 WARN）。
+  2. 未与后端联调；默认相对地址 /api/agent/recognize 需页面与后端同源部署，用 file:// 打开时需填完整地址，且跨域时会被浏览器拦截（页面会如实报错）。
+  3. 后端未配置视觉模型时 /api/agent/recognize 返回 503，这是既有行为，页面按错误展示而非编造结果。
+  4. 该目录不属于 frontend 构建产物，不参与一键启动与测试；AGENTS.md 中“拍照识别等前端流程”未完成项状态不变，本次只是独立原型，不能视为 A 端功能已实现。
+- 文档同步：AGENTS.md 目录树与项目记忆已登记本原型目录及授权依据；本日志追加本条。README、docs/architecture.md、docs/contracts/README.md、docs/source-startup.md、migrations/README.md、.env.example、.gitignore 已核对，无需修改——本次未改入口、启动方式、接口约定、数据表结构或忽略规则；新目录位于项目根且为独立静态原型，若后续不入库可由用户自行忽略。原始素材与历史材料保持原样，未改写。
+- 验证：静态抽验通过；后端 pytest、前端 TypeScript/Vite 构建本轮未执行（未触及相关代码）。
+- 下一步建议：如要真正接入，需 A 侧决定是把该流程并入 frontend/src/student 还是作为独立页面由后端静态托管；接入后需在真实模型下验证 503/502 分支与识别质量，并在手机真机验证 https 下的相机权限。
+
+
+## 2026-09-18 / 拍照搜题接入真实前端 AgentView（新组件 + 最小侵入）
+
+- 负责人 / AI：千问工作助理（用户 C 侧发起）。用户要求把上一条的拍照搜题原型“塞到智能体网页里，做一个小功能”。给出两个候选（apps-builder 演示页 / 真实前端 AgentView.vue），用户明确选择真实前端 AgentView.vue。
+- 协作边界提示：AgentView.vue 与 style.css 属 A 负责的共享文件。本轮按最小侵入原则改动——主逻辑全部放新组件，共享文件只加入口与样式，未改问答发送、收藏、主题选择、记录选择等既有逻辑；按第 4 节，合并前应由 A 或另一成员复核。
+- 新增文件：frontend/src/shared/PhotoSearchDialog.vue（约 24 KB，Vue 3 + TS + scoped CSS，沿用项目 CSS 变量与 el-dialog / primary-button / outline-button / small-pill / form-error 既有类名，无新增依赖）。
+- 修改文件：
+  1. frontend/src/shared/AgentView.vue：导入 Camera 图标与新组件；新增 photoOpen 状态、applyRecognized() 与 guessRecognizedTopic()；对话头加「拍照搜题」按钮（与原「新问题」并列于 .chat-header-actions）；侧栏 coming-note 从“拍照识题 · 步骤反馈 / 页面入口后续接入”改为“步骤反馈 · 语音 / 拍照搜题已可用”；模板挂载组件。diff 为 +26/-3。
+  2. frontend/src/shared/style.css：末尾追加 .chat-header-actions 与 .photo-dialog .el-dialog__body 两条规则，未改既有规则。
+  3. frontend/src/App.vue：帮助弹窗“已经可以体验”补入拍照搜题取景框选与压缩上传；“能力边界”从“拍照识题…页面入口待接入”改为“入口已开放，识别结果需人工确认后带入提问，未配置视觉模型时后端返回不可用提示”，步骤反馈与诊断仍标为待接入。
+  4. docs/contracts/README.md：删除“仍待定义：拍照识别的上传与确认流程细节”，新增“2026-09-18 · 拍照识别前端调用约定”一节，记录上传字段、传输方式（复用 api.ts，90 秒 isAiWrite 超时、不自动重试）、确认流程（仅回填提问框、发送走既有 POST /api/conversations、组件不入库）、来源标注（仅 mode==='live' 视为真实）、失败处理（503/502/网络异常如实展示 detail，不回退为编造文本）与仍待定义项。
+  5. AGENTS.md：第 2 节未完成项移除“拍照识别等前端流程”，新增拍照搜题前端入口条目；第 3 节目录树 shared/ 登记 PhotoSearchDialog.vue。
+- 实现要点：
+  1. 相机：getUserMedia 后置优先，OverconstrainedError 自动回退任意摄像头；权限拒绝、无设备、被占用、非安全上下文分别给出分类原因与排查指引，并提供相册导入走同一框选路径；支持翻转、闪光灯（仅 getCapabilities().torch 为真时显示）。
+  2. 框选：canvas 遮罩 + 选框 + 四角把手 + 三分网格；Pointer Events 支持 8 手柄缩放、整体拖动、框外任意方向重新框选与 setPointerCapture；选框过小自动恢复默认；实时显示选框像素尺寸。
+  3. 裁剪压缩：按 object-fit:cover 反推源矩形做原始分辨率精确裁剪，再按最长边（480–2048）与 JPEG 质量（0.40–0.98）或 PNG 导出；前置摄像头镜像与预览一致；参数变更基于保留的全分辨率画布重新导出；展示裁剪前后分辨率、体积与来源。
+  4. 上传：复用 api.ts 的 api()，POST /agent/recognize，body 为 { image_base64, media_type, hint }，与 service.py 的 RecognizeInput 字段一致（base64 不含 data: 前缀，hint 限长 200）；自动带 Content-Type、X-Requested-With: shuban-web 与 same-origin 凭据。
+  5. 确认闭环：识别文本可编辑；「用这段文字提问」仅回填提问框（已有内容则换行追加，截断至 2000）并按关键词建议主题，由学生自行决定是否发送。发送仍走既有 send() → POST /api/conversations，组件不自行入库，符合后端注释“确认动作复用 POST /api/conversations”与 contracts 的 requires_confirmation 约定。
+  6. 真实性：仅 mode==='live' 标为真实接口结果；confidence / warnings / suggested_topic 原样展示；503、502 与网络异常均展示后端 detail 原文，不生成编造的识别文本；非 live 给出明确警示。
+  7. 生命周期：弹窗打开时才申请相机，关闭与组件卸载即停止全部轨道并 revokeObjectURL，避免摄像头指示灯常亮。
+- 验证：
+  1. vue-tsc --noEmit 首轮 12 项类型错误（toast 参数个数 11 处、ev.currentTarget 可能为 null 且无 setPointerCapture），修正 toast 签名增加可选 isError 参数、指针捕获改为类型收窄后可选调用；复查 exit 0。
+  2. npm run build（vue-tsc --noEmit && vite build）exit 0，2910 modules transformed，7.92s，产物 index-Ci1w2ail.js 104.19 kB。
+  3. 后端 pytest 本轮未执行（未改动 backend 任何文件）。
+- 环境说明：默认沙箱下 vite build 因 esbuild 需 spawn 原生子进程报 spawn EPERM，属沙箱限制而非代码问题；已在沙箱外用项目自带 .runtime/node-v22.23.2 重跑通过。dist 为已忽略产物。
+- 未验证项（不得写成已完成）：
+  1. 未做真实浏览器运行验证，未在真机调用相机；未验证移动端触控框选手感与 iOS Safari 的 playsinline / getUserMedia 行为。
+  2. 未与后端联调；未验证 401 会话过期事件、503（未配置视觉模型）、502（调用失败）三条分支在真实服务下的展示。
+  3. 未验证真实视觉模型的识别质量、置信度与多题切分；本项目当前 AGENT_MODE 未配置真实模型时识别接口按既有行为返回 503。
+  4. 桌面浏览器通过 http://localhost 属安全上下文可用相机；若以局域网 IP 访问会被浏览器拒绝，页面会分类提示，尚未实测。
+- GitHub 上传 / 密钥状态：未上传，未做任何 push。新增与修改文件均为源码与文档，不含密钥、令牌、真实账号密码或学生隐私；组件不存储图片到 localStorage，裁剪结果仅存于内存，弹窗关闭即释放。本轮未新增配置项，.env.example 未改。
+- 遗留与下一步：
+  1. 按第 4 节请 A（或另一成员）复核 AgentView.vue / style.css / App.vue 改动，走短期分支与 PR，不在 main 直接合并。
+  2. 起后端做真实联调，覆盖 503 / 502 / 401 三条分支与识别文本回填后的提问保存。
+  3. 配置视觉模型后验证识别质量，并决定是否补多题切分与公式人工修正。
+  4. 上一条的独立原型目录 拍照搜题-20260918T062840513Z 仍保留为参考实现，与本组件无代码依赖；是否删除或忽略由用户决定，本轮未删除任何文件。

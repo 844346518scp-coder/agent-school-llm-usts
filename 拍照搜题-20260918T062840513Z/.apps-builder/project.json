@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "projectId": "7d407761-3f42-4e16-b166-b194610b9c1a",
+  "lineageId": "7d407761-3f42-4e16-b166-b194610b9c1a",
+  "semanticName": "拍照搜题",
+  "createdAt": "2026-09-18T06:28:40.513Z",
+  "updatedAt": "2026-09-18T06:28:40.513Z",
+  "entryFile": null,
+  "status": "workspace_ready",
+  "operationId": "photo-search-20260918-01"
+}

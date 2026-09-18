@@ -1,0 +1,2759 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数伴 SHUBAN · 高等数学教育智能体前端演示</title>
+<style>
+/* SECTION: tokens */
+:root{
+  --primary:#8066c6;
+  --primary-dark:#6a50b0;
+  --primary-soft:#f0ebf9;
+  --accent:#c98d4b;
+  --green:#4f9d7a;
+  --green-soft:#eaf5ef;
+  --peach:#e8a87c;
+  --peach-soft:#fdf1e8;
+  --ink:#383343;
+  --muted:#9791a3;
+  --line:#eeecf3;
+  --bg:#f8f9fc;
+  --card:#ffffff;
+  --danger:#c0564f;
+  --danger-soft:#fbeeec;
+  --radius:16px;
+  --radius-sm:10px;
+  --shadow:0 1px 2px rgba(56,51,67,.04),0 8px 24px rgba(56,51,67,.06);
+  --shadow-lg:0 18px 48px rgba(56,51,67,.12);
+  --font:Inter,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+/* SECTION: reset */
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:var(--font);
+  color:var(--ink);
+  background:var(--bg);
+  font-size:15px;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4,p{margin:0}
+button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+a{color:var(--primary);text-decoration:none}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--primary-soft);color:var(--primary-dark);padding:1px 6px;border-radius:5px;font-size:.86em}
+.hidden{display:none !important}
+[hidden]{display:none !important}
+/* SECTION: primitives */
+.tiny-dot{width:6px;height:6px;border-radius:50%;background:var(--primary);display:inline-block;flex:none}
+.eyebrow{font-size:11px;letter-spacing:.14em;color:var(--muted);font-weight:600;text-transform:uppercase}
+.muted{color:var(--muted)}
+.small{font-size:12.5px}
+.primary-button{
+  display:inline-flex;align-items:center;gap:8px;justify-content:center;
+  background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+  color:#fff;padding:11px 20px;border-radius:11px;font-weight:600;
+  box-shadow:0 6px 16px rgba(128,102,198,.28);
+  transition:transform .16s ease,box-shadow .16s ease,opacity .16s ease;
+}
+.primary-button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 10px 22px rgba(128,102,198,.34)}
+.primary-button:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
+.outline-button{
+  display:inline-flex;align-items:center;gap:7px;justify-content:center;
+  border:1px solid var(--line);background:#fff;padding:9px 16px;border-radius:10px;
+  font-weight:600;color:var(--ink);transition:border-color .16s,color .16s,background .16s;
+}
+.outline-button:hover{border-color:var(--primary);color:var(--primary-dark);background:var(--primary-soft)}
+.subtle-link{
+  display:inline-flex;align-items:center;gap:5px;color:var(--primary);font-weight:600;font-size:13.5px;
+  padding:4px 6px;border-radius:7px;transition:background .15s,color .15s;
+}
+.subtle-link:hover{background:var(--primary-soft);color:var(--primary-dark)}
+.icon-button{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:34px;height:34px;border-radius:9px;color:var(--muted);flex:none;
+  transition:background .15s,color .15s;
+}
+.icon-button:hover{background:var(--primary-soft);color:var(--primary-dark)}
+.icon-button:disabled{opacity:.4;cursor:not-allowed}
+.small-pill{
+  display:inline-flex;align-items:center;gap:5px;
+  background:var(--primary-soft);color:var(--primary-dark);
+  padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;
+}
+.small-pill.success{background:var(--green-soft);color:var(--green)}
+.small-pill.warn{background:var(--peach-soft);color:#a9713a}
+.small-pill.neutral{background:#f2f1f6;color:var(--muted)}
+.status-pill{
+  display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);
+  padding:6px 13px;border-radius:999px;font-size:12.5px;font-weight:600;color:var(--muted);
+  box-shadow:var(--shadow);
+}
+.section-kicker{font-size:11.5px;letter-spacing:.1em;color:var(--muted);font-weight:700;text-transform:uppercase}
+.count-badge{
+  min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:var(--primary);color:#fff;
+  font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;
+}
+.empty-small{color:var(--muted);font-size:13.5px;padding:6px 2px;margin:0}
+/* SECTION: boot */
+.boot-screen{
+  position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:18px;z-index:200;color:var(--muted);font-size:14px;
+}
+.boot-screen .brand-mark{font-size:26px}
+.boot-spinner{width:26px;height:26px;border:2.5px solid var(--line);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* SECTION: brand */
+.brand{display:flex;align-items:center;gap:11px}
+.brand-mark{
+  width:40px;height:40px;border-radius:12px;flex:none;
+  background:linear-gradient(135deg,var(--primary),#a48fdf);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-weight:800;font-size:17px;letter-spacing:-.02em;
+  box-shadow:0 6px 16px rgba(128,102,198,.3);
+}
+.brand-text strong{display:block;font-size:16.5px;letter-spacing:.02em;line-height:1.25}
+.brand-text span{display:block;font-size:11px;color:var(--muted);letter-spacing:.16em;font-weight:600}
+/* SECTION: login */
+.login-page{min-height:100vh;display:grid;grid-template-columns:1.05fr .95fr;background:#fff}
+.login-story{
+  position:relative;overflow:hidden;padding:46px 52px;display:flex;flex-direction:column;
+  background:linear-gradient(158deg,#faf8fe 0%,#f3eefb 46%,#efe9f9 100%);
+}
+.login-story::after{
+  content:"";position:absolute;width:520px;height:520px;right:-190px;top:-190px;border-radius:50%;
+  background:radial-gradient(circle,rgba(164,143,223,.20),transparent 66%);pointer-events:none;
+}
+.story-content{flex:1;display:flex;flex-direction:column;justify-content:center;position:relative;z-index:1;max-width:560px}
+.story-eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--primary-dark);letter-spacing:.04em;margin-bottom:22px}
+.login-story h1{font-size:clamp(30px,3.5vw,44px);line-height:1.24;letter-spacing:-.02em;font-weight:700}
+.login-story h1 em{font-style:normal;color:var(--primary);position:relative}
+.story-description{margin-top:16px;color:#6b6478;font-size:15.5px;max-width:430px}
+.math-scene{position:relative;margin:34px 0 26px}
+.graph-card{
+  background:rgba(255,255,255,.9);border:1px solid rgba(128,102,198,.14);border-radius:16px;
+  padding:16px 18px 14px;box-shadow:0 12px 34px rgba(106,80,176,.1);backdrop-filter:blur(6px);
+  max-width:452px;
+}
+.graph-heading{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px}
+.graph-heading span:first-child{display:inline-flex;align-items:center;gap:7px;color:var(--ink)}
+.math-graph{width:100%;height:auto;display:block}
+.graph-caption{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin-top:8px;padding-top:9px;border-top:1px dashed var(--line);
+  font-size:12.5px;color:var(--muted);
+}
+.floating-formula{
+  position:absolute;right:6px;top:-16px;background:#fff;border:1px solid var(--line);
+  border-radius:11px;padding:8px 13px;font-size:13.5px;box-shadow:var(--shadow);
+  font-family:ui-serif,Georgia,"Times New Roman",serif;font-style:italic;
+  animation:floaty 5.5s ease-in-out infinite;
+}
+.floating-formula b{font-style:normal;color:var(--primary-dark);font-weight:700}
+.floating-formula span{font-size:10.5px;color:var(--muted);font-style:normal;margin:0 2px}
+.floating-note{
+  position:absolute;left:-8px;bottom:-20px;display:flex;align-items:center;gap:10px;
+  background:#fff;border:1px solid var(--line);border-radius:12px;padding:9px 14px;box-shadow:var(--shadow);
+  animation:floaty 6.5s ease-in-out infinite reverse;
+}
+.floating-note div{font-size:13px;font-weight:600;line-height:1.35}
+.floating-note small{display:block;font-size:11px;color:var(--muted);font-weight:500}
+.check-icon{width:28px;height:28px;border-radius:9px;background:var(--green-soft);color:var(--green);display:flex;align-items:center;justify-content:center;flex:none}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.story-features{display:flex;gap:10px;flex-wrap:wrap;margin-top:34px}
+.story-features span{
+  display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.78);
+  border:1px solid rgba(128,102,198,.13);padding:7px 14px;border-radius:999px;
+  font-size:13px;font-weight:600;color:#5d5570;
+}
+.story-footer{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  font-size:12.5px;color:var(--muted);position:relative;z-index:1;padding-top:20px;
+  border-top:1px solid rgba(128,102,198,.12);
+}
+.login-panel{
+  padding:40px 52px;display:flex;flex-direction:column;background:#fff;
+  overflow-y:auto;
+}
+.login-top{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12.5px;color:var(--muted)}
+.version-chip{background:var(--primary-soft);color:var(--primary-dark);padding:4px 11px;border-radius:999px;font-size:11.5px;font-weight:700;letter-spacing:.03em}
+.login-box{flex:1;display:flex;flex-direction:column;justify-content:center;max-width:404px;width:100%;margin:0 auto;padding:26px 0}
+.login-heading-icon{
+  width:52px;height:52px;border-radius:15px;background:var(--primary-soft);color:var(--primary);
+  display:flex;align-items:center;justify-content:center;margin-bottom:18px;
+}
+.teacher-theme .login-heading-icon{background:var(--green-soft);color:var(--green)}
+.login-box h2{font-size:26px;letter-spacing:-.015em;font-weight:700;line-height:1.3}
+.login-box h2 .heading-dot{color:var(--primary)}
+.login-box .muted{margin-top:7px;font-size:14px}
+.role-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f5f4f9;padding:5px;border-radius:12px;margin:22px 0 20px}
+.role-tabs button{
+  display:flex;align-items:center;justify-content:center;gap:7px;padding:9px 8px;border-radius:9px;
+  font-weight:600;font-size:13.5px;color:var(--muted);transition:all .18s ease;
+}
+.role-tabs button.active{background:#fff;color:var(--primary-dark);box-shadow:0 2px 8px rgba(56,51,67,.09)}
+.teacher-theme .role-tabs button.active{color:var(--green)}
+.field-label{display:block;font-size:12.5px;font-weight:600;color:#6b6478;margin:14px 0 6px}
+.login-input{
+  display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:11px;
+  padding:0 12px;background:#fcfcfe;transition:border-color .16s,box-shadow .16s,background .16s;
+}
+.login-input:focus-within{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(128,102,198,.11)}
+.login-input svg{color:var(--muted);flex:none}
+.login-input input{flex:1;border:0;background:none;outline:none;padding:12px 0;min-width:0}
+.login-options{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:15px}
+.checkbox-label{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;color:#5d5570;cursor:pointer}
+.checkbox-label input{width:16px;height:16px;accent-color:var(--primary);cursor:pointer;margin:0}
+.remember-note{margin:10px 0 0;font-size:12.5px;color:var(--muted);background:#faf9fd;border-left:2px solid var(--primary);padding:7px 11px;border-radius:0 7px 7px 0}
+.form-error{
+  margin:14px 0 0;padding:10px 13px;border-radius:10px;background:var(--danger-soft);
+  color:var(--danger);font-size:13.5px;font-weight:500;
+}
+.login-submit{width:100%;margin-top:20px;padding:13px 20px}
+.demo-account{margin-top:24px;border:1px dashed rgba(128,102,198,.3);border-radius:13px;padding:14px 16px;background:#fdfcff}
+.demo-account-title{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;font-weight:600;color:#5d5570}
+.demo-account-title span{display:inline-flex;align-items:center;gap:7px}
+.demo-account-title .subtle-link{font-size:12.5px;padding:3px 6px}
+.demo-credentials{display:flex;gap:16px;flex-wrap:wrap;margin-top:9px;font-size:12.5px;color:var(--muted)}
+.login-footnote{display:flex;align-items:center;gap:7px;justify-content:center;margin:20px 0 0;font-size:12px;color:var(--muted)}
+.login-bottom{text-align:center;font-size:12.5px;color:var(--muted);padding-top:18px;border-top:1px solid var(--line)}
+.login-bottom strong{color:var(--ink);font-weight:700;letter-spacing:.04em;margin-right:7px}
+/* SECTION: shell */
+.app-shell{display:flex;min-height:100vh}
+.app-shell.teacher-theme{--primary:#4f9d7a;--primary-dark:#3d7f61;--primary-soft:#eaf5ef}
+.sidebar{
+  width:264px;flex:none;background:#fff;border-right:1px solid var(--line);
+  display:flex;flex-direction:column;padding:20px 16px;position:sticky;top:0;height:100vh;z-index:60;
+}
+.sidebar-brand{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 6px 18px}
+.sidebar-brand .brand-mark{width:36px;height:36px;font-size:15px;border-radius:11px}
+.sidebar-brand .brand-text strong{font-size:14.5px}
+.sidebar-brand .brand-text span{font-size:9.5px;letter-spacing:.13em}
+.workspace-label{
+  display:flex;align-items:center;gap:8px;margin:0 6px 16px;padding:8px 12px;
+  background:var(--primary-soft);color:var(--primary-dark);border-radius:10px;
+  font-size:12.5px;font-weight:600;
+}
+.nav-section-label{font-size:10.5px;letter-spacing:.15em;color:var(--muted);font-weight:700;text-transform:uppercase;padding:0 12px;margin-bottom:9px}
+.sidebar nav{display:flex;flex-direction:column;gap:3px;flex:1;overflow-y:auto}
+.sidebar nav button{
+  display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;
+  font-size:14px;font-weight:500;color:#6b6478;text-align:left;width:100%;
+  transition:background .15s,color .15s;position:relative;
+}
+.sidebar nav button:hover{background:#f7f6fa;color:var(--ink)}
+.sidebar nav button.active{background:var(--primary-soft);color:var(--primary-dark);font-weight:600}
+.sidebar nav button .nav-icon{width:19px;text-align:center;flex:none;font-size:15px}
+.sidebar nav button span:not(.nav-icon){flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-ai{
+  font-size:9.5px;font-weight:800;letter-spacing:.06em;background:var(--primary);color:#fff;
+  padding:2px 6px;border-radius:5px;flex:none !important;
+}
+.sidebar nav button.active .nav-ai{background:var(--primary-dark)}
+.nav-dot{position:absolute;right:11px;top:50%;transform:translateY(-50%);width:7px;height:7px;border-radius:50%;background:var(--peach);flex:none}
+.sidebar-bottom{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:12px}
+.sidebar-note{
+  position:relative;overflow:hidden;background:linear-gradient(140deg,#faf8fe,#f3eefb);
+  border:1px solid rgba(128,102,198,.13);border-radius:13px;padding:13px 14px;
+}
+.app-shell.teacher-theme .sidebar-note{background:linear-gradient(140deg,#f7fcf9,#eef7f2);border-color:rgba(79,157,122,.16)}
+.sidebar-note span{font-size:12.5px;font-weight:700;color:var(--primary-dark);display:block}
+.sidebar-note p{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.5}
+.sidebar-note em{position:absolute;right:9px;bottom:5px;font-size:24px;font-style:normal;opacity:.28}
+.help-link{
+  display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--muted);
+  padding:7px 10px;border-radius:9px;transition:background .15s,color .15s;
+}
+.help-link:hover{background:#f5f4f9;color:var(--primary-dark)}
+.sidebar-user{display:flex;align-items:center;gap:10px;padding:8px 6px 2px}
+.user-avatar{
+  width:36px;height:36px;border-radius:11px;flex:none;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--primary),#a48fdf);color:#fff;font-weight:700;font-size:15px;
+}
+.app-shell.teacher-theme .user-avatar{background:linear-gradient(135deg,var(--green),#7fc0a3)}
+.sidebar-user div{flex:1;min-width:0}
+.sidebar-user strong{display:block;font-size:13.5px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sidebar-user small{display:block;font-size:11px;color:var(--muted)}
+.app-body{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{
+  display:flex;align-items:center;gap:14px;padding:0 30px;height:62px;flex:none;
+  background:rgba(255,255,255,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:40;
+}
+.breadcrumb{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--muted);min-width:0}
+.breadcrumb i{font-style:normal;opacity:.6}
+.breadcrumb strong{color:var(--ink);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:12.5px;color:var(--muted);flex:none}
+.local-indicator{display:inline-flex;align-items:center;gap:7px;background:#f5f4f9;padding:5px 11px;border-radius:999px;font-weight:600}
+.topbar-divider{width:1px;height:16px;background:var(--line)}
+.main-content{flex:1;padding:30px;max-width:1320px;width:100%;margin:0 auto}
+.workspace-footer{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:22px 30px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);
+}
+.workspace-footer span{display:inline-flex;align-items:center;gap:7px}
+.nav-backdrop{position:fixed;inset:0;background:rgba(40,34,52,.42);z-index:55;backdrop-filter:blur(2px)}
+.mobile-only{display:none}
+/* SECTION: page-heading */
+.page-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:26px}
+.page-heading h1{font-size:clamp(24px,2.6vw,32px);letter-spacing:-.02em;font-weight:700;line-height:1.3;margin-top:8px}
+.page-heading h1 .greeting-sun{font-size:.72em;vertical-align:2px}
+.page-heading p{margin-top:8px;color:var(--muted);font-size:14.5px;max-width:620px}
+.date-chip{
+  display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);
+  padding:8px 15px;border-radius:11px;font-size:13px;color:var(--muted);font-weight:600;box-shadow:var(--shadow);
+}
+.heading-illustration{font-size:30px;opacity:.5}
+/* SECTION: panel */
+.panel{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:22px;box-shadow:var(--shadow);
+}
+.section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.section-heading h3{font-size:16.5px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:9px}
+.section-sub{font-size:10px;letter-spacing:.15em;color:var(--muted);font-weight:700}
+/* SECTION: hero */
+.hero-banner{
+  position:relative;overflow:hidden;border-radius:20px;padding:34px 36px;margin-bottom:24px;
+  background:linear-gradient(126deg,#f7f4fd 0%,#efe9fa 52%,#eae3f7 100%);
+  border:1px solid rgba(128,102,198,.14);
+  display:grid;grid-template-columns:1fr auto;gap:26px;align-items:center;
+}
+.hero-banner.teacher-hero{background:linear-gradient(126deg,#f2faf6 0%,#e8f5ee 52%,#e2f1e9 100%);border-color:rgba(79,157,122,.16)}
+.hero-copy{position:relative;z-index:2;max-width:520px}
+.hero-tag{
+  display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.85);
+  border:1px solid rgba(128,102,198,.16);padding:5px 13px;border-radius:999px;
+  font-size:12.5px;font-weight:600;color:var(--primary-dark);margin-bottom:16px;
+}
+.hero-banner.teacher-hero .hero-tag{border-color:rgba(79,157,122,.2);color:var(--green)}
+.hero-copy h2{font-size:clamp(23px,2.5vw,31px);line-height:1.32;letter-spacing:-.02em;font-weight:700}
+.hero-copy h2 span{color:var(--primary)}
+.hero-banner.teacher-hero .hero-copy h2 span{color:var(--green)}
+.hero-copy p{margin-top:13px;color:#6b6478;font-size:14.5px}
+.hero-copy .primary-button{margin-top:20px}
+.hero-copy small{display:block;margin-top:11px;font-size:12px;color:var(--muted)}
+.hero-art{position:relative;width:290px;height:200px;flex:none}
+.hero-art svg{width:100%;height:100%;overflow:visible}
+.art-ring{
+  position:absolute;right:-26px;top:-30px;width:150px;height:150px;border-radius:50%;
+  border:1.5px dashed rgba(128,102,198,.28);
+}
+.hero-banner.teacher-hero .art-ring{border-color:rgba(79,157,122,.3)}
+.floating-math{
+  position:absolute;left:2px;top:-6px;background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:6px 12px;font-size:13.5px;box-shadow:var(--shadow);font-family:ui-serif,Georgia,serif;font-style:italic;z-index:2;
+}
+.floating-math em{font-style:normal;color:var(--primary);font-weight:700}
+.art-caption{
+  position:absolute;left:0;bottom:-8px;background:rgba(255,255,255,.94);border:1px solid var(--line);
+  border-radius:11px;padding:8px 13px;font-size:12px;color:#6b6478;font-weight:600;box-shadow:var(--shadow);z-index:2;
+}
+.art-star{position:absolute;right:6px;bottom:22px;font-size:20px;color:var(--primary);opacity:.42}
+.teacher-art{position:relative;width:270px;height:200px;flex:none}
+.paper-card{
+  position:absolute;inset:14px 6px 14px 26px;background:#fff;border:1px solid var(--line);
+  border-radius:14px;padding:18px;box-shadow:var(--shadow-lg);
+}
+.paper-card.back{inset:6px 26px 22px 6px;background:rgba(255,255,255,.62);box-shadow:none;transform:rotate(-4deg)}
+.paper-card span:first-child{font-size:9.5px;letter-spacing:.16em;color:var(--muted);font-weight:700}
+.paper-card h3{font-size:19px;line-height:1.34;margin-top:9px;letter-spacing:-.015em}
+.paper-line{height:6px;border-radius:99px;background:#f0eef6;margin-top:13px}
+.paper-line.short{width:58%}
+.paper-equation{
+  display:block;margin-top:15px;font-family:ui-serif,Georgia,serif;font-style:italic;
+  font-size:14.5px;color:var(--green);font-weight:600;
+}
+.paper-card .cap-icon{position:absolute;right:14px;bottom:12px;font-size:30px;opacity:.2}
+/* SECTION: stats */
+.stats-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:24px}
+.stat-card{
+  background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:18px;
+  display:flex;align-items:center;gap:14px;box-shadow:var(--shadow);transition:transform .16s,box-shadow .16s;
+}
+.stat-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.stat-icon{
+  width:44px;height:44px;border-radius:13px;flex:none;display:flex;align-items:center;justify-content:center;font-size:19px;
+}
+.stat-icon.lilac{background:var(--primary-soft);color:var(--primary-dark)}
+.stat-icon.peach{background:var(--peach-soft);color:#c07f45}
+.stat-icon.green{background:var(--green-soft);color:var(--green)}
+.stat-card div{flex:1;min-width:0}
+.stat-card div span{display:block;font-size:12.5px;color:var(--muted);font-weight:600}
+.stat-card div strong{display:flex;align-items:baseline;gap:5px;font-size:25px;font-weight:700;letter-spacing:-.02em;margin-top:2px;line-height:1.2}
+.stat-card div strong small{font-size:12px;color:var(--muted);font-weight:500}
+.stat-detail{font-size:11.5px;color:var(--muted);background:#f7f6fa;padding:3px 9px;border-radius:999px;flex:none}
+/* SECTION: dashboard */
+.dashboard-grid{display:grid;grid-template-columns:minmax(0,1.62fr) minmax(0,1fr);gap:20px;align-items:start}
+.dashboard-main{display:flex;flex-direction:column;gap:20px;min-width:0}
+.dashboard-side{display:flex;flex-direction:column;gap:20px;min-width:0}
+.course-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.course-card{
+  text-align:left;background:linear-gradient(150deg,#fdfcff,#f8f5fe);border:1px solid var(--line);
+  border-radius:14px;padding:17px;display:flex;flex-direction:column;gap:9px;
+  transition:transform .16s,border-color .16s,box-shadow .16s;
+}
+.course-card.mint{background:linear-gradient(150deg,#fdfffe,#f3faf6);border-color:rgba(79,157,122,.16)}
+.course-card:hover{transform:translateY(-3px);border-color:var(--primary);box-shadow:var(--shadow-lg)}
+.course-card.mint:hover{border-color:var(--green)}
+.course-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.course-number{font-size:11.5px;font-weight:800;color:var(--muted);letter-spacing:.08em}
+.course-symbol{
+  font-family:ui-serif,Georgia,"Times New Roman",serif;font-style:italic;font-size:25px;
+  color:var(--primary-dark);font-weight:600;letter-spacing:-.01em;
+}
+.course-card.mint .course-symbol{color:var(--green)}
+.course-symbol small{font-size:12px;color:var(--muted);font-style:normal;margin-left:3px}
+.course-card h4{font-size:15.5px;font-weight:700;letter-spacing:-.01em}
+.course-card p{font-size:13px;color:var(--muted);line-height:1.55}
+.course-bottom{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:auto;
+  padding-top:11px;border-top:1px dashed var(--line);font-size:12px;color:var(--muted);
+}
+.circle-arrow{
+  width:30px;height:30px;border-radius:50%;background:#fff;border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:14px;flex:none;
+  transition:background .16s,color .16s,transform .16s;
+}
+.course-card:hover .circle-arrow{background:var(--primary);color:#fff;transform:rotate(45deg)}
+.daily-thought{
+  display:flex;align-items:center;gap:18px;background:linear-gradient(120deg,#fdfbff,#f6f2fd);
+  border-color:rgba(128,102,198,.16);
+}
+.thought-icon{
+  width:52px;height:52px;border-radius:15px;background:var(--primary-soft);color:var(--primary);
+  display:flex;align-items:center;justify-content:center;font-size:24px;flex:none;
+}
+.daily-thought>div{flex:1;min-width:0}
+.daily-thought h3{font-size:16px;font-weight:700;margin-top:5px;line-height:1.45}
+.daily-thought p{font-size:13px;color:var(--muted);margin-top:6px}
+.todo-item{
+  display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:11px 8px;
+  border-radius:11px;transition:background .15s;
+}
+.todo-item:hover{background:#f8f7fc}
+.todo-circle{width:17px;height:17px;border-radius:50%;border:2px solid var(--peach);flex:none}
+.todo-item div{flex:1;min-width:0}
+.todo-item strong{display:block;font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.todo-item small{display:block;font-size:11.5px;color:var(--muted);margin-top:1px}
+.todo-item .chev{color:var(--muted);font-size:14px;flex:none}
+.full-link{width:100%;justify-content:center;margin-top:8px;padding-top:11px;border-top:1px solid var(--line);border-radius:0}
+.activity-panel .chart-wrap{display:flex;align-items:flex-end;gap:7px;height:96px;padding-top:6px}
+.chart-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;height:100%;justify-content:flex-end}
+.chart-bar{
+  width:100%;max-width:26px;border-radius:6px 6px 3px 3px;min-height:3px;
+  background:linear-gradient(180deg,#a48fdf,var(--primary));transition:height .5s cubic-bezier(.22,1,.36,1);
+}
+.chart-bar.green{background:linear-gradient(180deg,#7fc0a3,var(--green))}
+.chart-bar.zero{background:#eeecf3}
+.chart-bar-label{font-size:10.5px;color:var(--muted);white-space:nowrap}
+.chart-bar-count{font-size:10.5px;font-weight:700;color:var(--primary-dark);min-height:14px}
+.chart-caption{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+  margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--muted);
+}
+.chart-caption span{font-weight:700;color:var(--primary-dark)}
+.gentle-note{
+  display:flex;align-items:center;gap:13px;padding:17px 19px;border-radius:var(--radius);
+  background:linear-gradient(130deg,#faf8fe,#f2edfb);border:1px solid rgba(128,102,198,.14);
+}
+.gentle-note .note-icon{font-size:20px;flex:none;opacity:.75}
+.gentle-note p{font-size:13.5px;color:#5d5570;line-height:1.6;font-weight:500}
+.teacher-assignment{
+  display:flex;align-items:center;gap:13px;padding:13px 8px;border-radius:12px;
+  border-bottom:1px solid var(--line);transition:background .15s;
+}
+.teacher-assignment:hover{background:#f8faf9}
+.teacher-assignment>div{flex:1;min-width:0}
+.teacher-assignment h4{font-size:14.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.teacher-assignment p{font-size:12px;color:var(--muted);margin-top:2px}
+.teaching-reminder{
+  margin-top:18px;padding:16px 18px;border-radius:13px;background:var(--green-soft);
+  border:1px solid rgba(79,157,122,.18);
+}
+.teaching-reminder h4{font-size:14px;font-weight:700;color:var(--green)}
+.teaching-reminder p{font-size:12.5px;color:#5d6b62;margin-top:6px;line-height:1.6}
+.teaching-reminder .subtle-link{margin-top:9px;color:var(--green);padding-left:0}
+.teaching-reminder .subtle-link:hover{background:rgba(79,157,122,.12);color:var(--green)}
+/* CSS-PART-2 */
+/* SECTION: agent */
+.agent-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:20px;align-items:start}
+.chat-panel{display:flex;flex-direction:column;padding:0;overflow:hidden;min-height:600px}
+.chat-header{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line);background:#fdfcfe}
+.agent-avatar{
+  width:38px;height:38px;border-radius:12px;flex:none;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--primary),#a48fdf);color:#fff;font-size:17px;
+  box-shadow:0 5px 14px rgba(128,102,198,.28);
+}
+.app-shell.teacher-theme .agent-avatar{background:linear-gradient(135deg,var(--green),#7fc0a3);box-shadow:0 5px 14px rgba(79,157,122,.26)}
+.chat-header div{flex:1;min-width:0}
+.chat-header strong{display:block;font-size:14.5px;font-weight:700}
+.chat-header small{display:block;font-size:11.5px;color:var(--muted)}
+.chat-body{flex:1;overflow-y:auto;padding:22px 20px;display:flex;flex-direction:column;gap:18px;background:#fcfcfe}
+.chat-welcome{text-align:center;padding:24px 10px;max-width:520px;margin:0 auto;width:100%}
+.welcome-symbol{
+  width:62px;height:62px;border-radius:19px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;
+  background:var(--primary-soft);color:var(--primary);font-size:27px;
+}
+.app-shell.teacher-theme .welcome-symbol{background:var(--green-soft);color:var(--green)}
+.chat-welcome h2{font-size:21px;font-weight:700;letter-spacing:-.015em}
+.chat-welcome p{margin-top:9px;color:var(--muted);font-size:14px;line-height:1.7}
+.prompt-list{display:flex;flex-direction:column;gap:9px;margin-top:22px;text-align:left}
+.prompt-list button{
+  display:flex;align-items:center;gap:11px;padding:13px 15px;border-radius:12px;
+  border:1px solid var(--line);background:#fff;font-size:13.5px;font-weight:500;color:#5d5570;
+  transition:border-color .16s,background .16s,transform .16s;
+}
+.prompt-list button:hover{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-dark);transform:translateX(3px)}
+.prompt-list button .p-icon{font-size:16px;flex:none}
+.prompt-list button span{flex:1;min-width:0}
+.prompt-list button .p-go{color:var(--muted);flex:none;font-size:14px}
+.user-message{align-self:flex-end;max-width:80%}
+.message-label{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);font-weight:600;margin-bottom:6px}
+.user-message .message-label{justify-content:flex-end}
+.user-message>div{
+  background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;
+  padding:12px 16px;border-radius:15px 15px 4px 15px;font-size:14.5px;line-height:1.65;
+  box-shadow:0 6px 18px rgba(128,102,198,.24);white-space:pre-wrap;word-break:break-word;
+}
+.agent-message{display:flex;gap:12px;align-self:flex-start;max-width:92%}
+.agent-message .agent-avatar{width:34px;height:34px;border-radius:11px;font-size:15px}
+.answer-content{flex:1;min-width:0;background:#fff;border:1px solid var(--line);border-radius:4px 15px 15px 15px;padding:15px 18px;box-shadow:var(--shadow)}
+.demo-label{
+  background:var(--peach-soft);color:#a9713a;padding:2px 9px;border-radius:999px;
+  font-size:10.5px;font-weight:700;letter-spacing:.02em;
+}
+.answer-content .md-body{font-size:14.5px;line-height:1.78}
+.save-answer{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);width:100%;justify-content:center}
+.save-answer.saved{color:var(--green)}
+.thinking{align-self:flex-start;display:flex;align-items:center;gap:3px;color:var(--muted);font-size:13.5px;padding:4px 6px}
+.thinking span{letter-spacing:2px;animation:blink 1.2s infinite}
+@keyframes blink{0%,100%{opacity:.25}50%{opacity:1}}
+.chat-compose{border-top:1px solid var(--line);padding:14px 20px 16px;background:#fff}
+.compose-topic{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--muted);margin-bottom:9px;flex-wrap:wrap}
+.compose-topic label{font-weight:600}
+.compose-topic select{
+  border:1px solid var(--line);border-radius:8px;padding:4px 9px;background:#fdfcfe;
+  font-size:12.5px;font-weight:600;color:var(--ink);outline:none;cursor:pointer;
+}
+.compose-topic select:focus{border-color:var(--primary)}
+.char-count{margin-left:auto;font-variant-numeric:tabular-nums}
+.chat-compose textarea{
+  width:100%;border:1px solid var(--line);border-radius:12px;padding:12px 14px;resize:vertical;
+  min-height:78px;outline:none;background:#fdfcfe;line-height:1.65;transition:border-color .16s,box-shadow .16s;
+}
+.chat-compose textarea:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(128,102,198,.1)}
+.compose-bottom{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px}
+.compose-bottom span{font-size:11.5px;color:var(--muted)}
+.send-button{
+  width:40px;height:40px;border-radius:12px;flex:none;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;font-size:17px;
+  box-shadow:0 6px 16px rgba(128,102,198,.3);transition:transform .16s,opacity .16s;
+}
+.send-button:hover:not(:disabled){transform:translateY(-2px)}
+.send-button:disabled{opacity:.42;cursor:not-allowed;box-shadow:none}
+.chat-disclaimer{margin:11px 20px 15px;font-size:11.5px;color:var(--muted);text-align:center}
+.agent-aside{display:flex;flex-direction:column;gap:16px;min-width:0}
+.side-tip{background:linear-gradient(150deg,#fdfcff,#f7f3fd);border-color:rgba(128,102,198,.15)}
+.side-tip .section-kicker{display:flex;align-items:center;gap:7px;color:var(--primary-dark)}
+.side-tip h3{font-size:16px;font-weight:700;margin-top:11px}
+.side-tip p{font-size:13px;color:var(--muted);margin-top:7px;line-height:1.65}
+.side-tip .quote{
+  margin-top:14px;padding:12px 15px;border-left:3px solid var(--primary);background:#fff;
+  border-radius:0 10px 10px 0;font-size:13px;color:#5d5570;line-height:1.65;font-style:italic;
+}
+.recent-question{
+  display:block;width:100%;text-align:left;padding:10px 8px;border-radius:10px;
+  border-bottom:1px solid var(--line);transition:background .15s;
+}
+.recent-question:last-of-type{border-bottom:0}
+.recent-question:hover{background:#f8f7fc}
+.recent-question span{display:block;font-size:13px;font-weight:500;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.recent-question small{display:block;font-size:11px;color:var(--muted);margin-top:3px}
+.coming-note{
+  border:1px dashed rgba(128,102,198,.28);border-radius:13px;padding:15px 17px;background:#fdfcff;text-align:center;
+}
+.coming-note span{font-size:12px;font-weight:700;color:var(--primary-dark);display:block}
+.coming-note p{font-size:13px;color:#5d5570;margin-top:7px;font-weight:500}
+.coming-note small{display:block;font-size:11px;color:var(--muted);margin-top:6px}
+/* SECTION: math */
+.md-body p{margin:0 0 10px}
+.md-body p:last-child{margin-bottom:0}
+.md-body ol,.md-body ul{margin:8px 0 10px;padding-left:22px}
+.md-body li{margin-bottom:5px}
+.math-inline{
+  font-family:ui-serif,Georgia,"Times New Roman",serif;font-style:italic;
+  color:var(--primary-dark);font-weight:500;padding:0 1px;white-space:nowrap;
+}
+.app-shell.teacher-theme .math-inline{color:var(--green)}
+.math-block{
+  display:block;text-align:center;margin:14px 0;padding:15px 12px;overflow-x:auto;
+  background:linear-gradient(140deg,#faf8fe,#f5f1fc);border:1px solid rgba(128,102,198,.13);border-radius:12px;
+}
+.app-shell.teacher-theme .math-block{background:linear-gradient(140deg,#f8fcfa,#f1f8f4);border-color:rgba(79,157,122,.15)}
+.math-block .mi{font-family:ui-serif,Georgia,"Times New Roman",serif;font-style:italic;font-size:19px;color:var(--ink)}
+.frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;font-size:.86em;line-height:1.25}
+.frac .num{padding:0 5px 2px;border-bottom:1.4px solid currentColor}
+.frac .den{padding:2px 5px 0}
+.limsub{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin-right:3px;font-size:.62em;line-height:1.15}
+.limsub .op{font-size:1.6em;font-style:normal;font-family:ui-serif,Georgia,serif}
+.sqrt{border-top:1.3px solid currentColor;padding:0 3px;margin-left:1px}
+.math-inline .mn,.math-block .mn{font-style:normal;font-family:var(--font);font-size:.94em}
+.math-inline .mfn,.math-block .mfn{font-style:normal;font-family:var(--font);margin-right:1px}
+.math-inline .mop,.math-block .mop{font-style:normal;font-family:var(--font);margin:0 2px}
+.math-inline sup,.math-inline sub,.math-block sup,.math-block sub{font-size:.68em;line-height:1}
+.limsub .op{font-family:ui-serif,Georgia,serif;font-style:normal}
+.md-tag{
+  display:inline-block;background:var(--peach-soft);color:#a9713a;font-weight:700;
+  font-size:12.5px;padding:4px 12px;border-radius:999px;margin-bottom:12px;letter-spacing:.02em;
+}
+.md-body .md-lead{font-weight:600;color:var(--ink)}
+.md-body .md-note{font-size:12.5px;color:var(--muted);border-left:2px solid var(--line);padding-left:11px;margin-top:12px}
+.mi{font-style:italic}
+.mrow{font-family:ui-serif,Georgia,"Times New Roman",serif;font-style:italic;font-size:19px;color:var(--ink);line-height:1.5}
+.mrow .mn,.mrow .mfn,.mrow .mop{font-style:normal;font-family:var(--font)}
+.mrow .mop{margin:0 3px}
+.login-page.teacher-theme{--primary:#4f9d7a;--primary-dark:#3d7f61;--primary-soft:#eaf5ef}
+.login-page.teacher-theme .login-story{background:linear-gradient(158deg,#f7fcf9 0%,#eef7f2 46%,#e7f3ec 100%)}
+.login-page.teacher-theme .story-eyebrow{color:var(--green)}
+.login-page.teacher-theme .tiny-dot{background:var(--green)}
+.login-page.teacher-theme .brand-mark{background:linear-gradient(135deg,var(--green),#7fc0a3);box-shadow:0 6px 16px rgba(79,157,122,.3)}
+/* SECTION: courses */
+.filter-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.filter-tabs button{
+  padding:8px 17px;border-radius:999px;border:1px solid var(--line);background:#fff;
+  font-size:13.5px;font-weight:600;color:var(--muted);transition:all .16s;
+}
+.filter-tabs button:hover{border-color:var(--primary);color:var(--primary-dark)}
+.filter-tabs button.active{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 5px 14px rgba(128,102,198,.26)}
+.lesson-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.lesson-card{display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden}
+.lesson-art{
+  position:relative;height:112px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#f6f2fd,#efe8fa);border-bottom:1px solid var(--line);
+}
+.lesson-card:nth-child(even) .lesson-art{background:linear-gradient(135deg,#f2faf6,#e8f5ee)}
+.lesson-art span{
+  font-family:ui-serif,Georgia,"Times New Roman",serif;font-style:italic;font-size:25px;
+  color:var(--primary-dark);font-weight:600;letter-spacing:-.01em;
+}
+.lesson-card:nth-child(even) .lesson-art span{color:var(--green)}
+.lesson-art small{
+  position:absolute;right:14px;top:12px;font-size:11px;font-weight:800;color:var(--muted);
+  letter-spacing:.1em;background:rgba(255,255,255,.8);padding:2px 8px;border-radius:999px;
+}
+.lesson-copy{padding:18px 20px 20px;display:flex;flex-direction:column;gap:8px;flex:1}
+.lesson-copy .section-kicker{color:var(--primary)}
+.lesson-copy .section-kicker span{color:var(--muted);font-weight:600}
+.lesson-copy h3{font-size:17px;font-weight:700;letter-spacing:-.015em;line-height:1.4}
+.lesson-copy p{font-size:13.5px;color:var(--muted);line-height:1.65}
+.lesson-copy .subtle-link{margin-top:auto;padding-left:0;align-self:flex-start}
+.course-note{
+  display:flex;align-items:center;gap:16px;margin-top:22px;padding:18px 22px;border-radius:var(--radius);
+  background:linear-gradient(120deg,#fdfcff,#f6f2fd);border:1px solid rgba(128,102,198,.15);
+}
+.course-note .note-icon{font-size:21px;flex:none}
+.course-note p{flex:1;font-size:13.5px;color:#5d5570;line-height:1.65}
+.course-note .sigma{font-size:25px;color:var(--primary);opacity:.4;flex:none;font-family:ui-serif,Georgia,serif}
+/* SECTION: assignments */
+.assignment-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px}
+.assignment-card{display:flex;flex-direction:column;gap:9px}
+.assignment-card .section-heading{margin-bottom:0}
+.assignment-card h3{font-size:16.5px;font-weight:700;letter-spacing:-.012em;line-height:1.4;margin-top:3px}
+.assignment-preview{
+  font-size:13.5px;color:var(--muted);line-height:1.65;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+}
+.assignment-footer{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:auto;
+  padding-top:13px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);
+}
+.assignment-footer>span{display:inline-flex;align-items:center;gap:6px}
+.empty-state{text-align:center;padding:52px 26px;grid-column:1/-1}
+.empty-state .empty-icon{font-size:38px;opacity:.32;display:block;margin-bottom:14px}
+.empty-state h3{font-size:17px;font-weight:700}
+.empty-state p{font-size:13.5px;color:var(--muted);margin-top:8px}
+.assignment-full{
+  margin-top:14px;padding:16px 18px;border-radius:12px;background:#faf9fd;border:1px solid var(--line);
+  font-size:14.5px;line-height:1.8;white-space:pre-wrap;word-break:break-word;
+}
+.submission-card{
+  border:1px solid var(--line);border-left:3px solid var(--green);border-radius:0 11px 11px 0;
+  padding:14px 16px;margin-top:12px;background:#fcfdfc;
+}
+.submission-card strong{font-size:14px;display:flex;align-items:center;gap:8px}
+.submission-card p{font-size:14px;line-height:1.75;margin-top:9px;white-space:pre-wrap;word-break:break-word}
+.submission-card small{display:block;margin-top:9px;font-size:11.5px;color:var(--muted)}
+/* SECTION: records */
+.records-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.search-box{
+  display:flex;align-items:center;gap:9px;flex:1;min-width:210px;max-width:380px;
+  border:1px solid var(--line);border-radius:11px;padding:0 13px;background:#fff;
+  transition:border-color .16s,box-shadow .16s;
+}
+.search-box:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px rgba(128,102,198,.1)}
+.search-box input{flex:1;border:0;outline:none;background:none;padding:10px 0;min-width:0}
+.search-box .s-icon{color:var(--muted);flex:none}
+.records-list{display:flex;flex-direction:column;gap:13px}
+.record-card{
+  display:flex;gap:14px;align-items:flex-start;background:#fff;border:1px solid var(--line);
+  border-radius:14px;padding:16px 18px;box-shadow:var(--shadow);transition:border-color .16s,transform .16s;
+}
+.record-card:hover{border-color:var(--primary);transform:translateY(-2px)}
+.record-main{flex:1;min-width:0}
+.record-top{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:7px}
+.record-card h4{font-size:15px;font-weight:600;line-height:1.55;word-break:break-word}
+.record-answer{
+  font-size:13px;color:var(--muted);line-height:1.65;margin-top:8px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.record-actions{display:flex;align-items:center;gap:5px;flex:none}
+.record-actions .icon-button{width:32px;height:32px}
+.fav-button.active{color:var(--accent)}
+/* SECTION: class */
+.class-student{
+  display:flex;align-items:center;gap:15px;padding:16px;border-radius:13px;
+  border:1px solid var(--line);background:#fcfdfc;flex-wrap:wrap;
+}
+.class-student>div:first-of-type{flex:1;min-width:150px}
+.class-student h3{font-size:15.5px;font-weight:700}
+.class-student .muted{font-size:12.5px;margin-top:2px}
+.class-student strong{font-size:19px;font-weight:700;color:var(--green);letter-spacing:-.01em}
+.class-student p.muted{font-size:11.5px;margin-top:1px}
+/* SECTION: dialog */
+.dialog-backdrop{
+  position:fixed;inset:0;background:rgba(40,34,52,.46);backdrop-filter:blur(3px);
+  z-index:100;display:flex;align-items:center;justify-content:center;padding:22px;
+  animation:fadeIn .18s ease;
+}
+.dialog{
+  background:#fff;border-radius:18px;width:100%;max-width:560px;max-height:88vh;
+  display:flex;flex-direction:column;box-shadow:0 28px 70px rgba(40,34,52,.28);
+  animation:popIn .22s cubic-bezier(.22,1,.36,1);
+}
+.dialog.wide{max-width:680px}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes popIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+.dialog-header{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:19px 22px;border-bottom:1px solid var(--line);flex:none;
+}
+.dialog-header h3{font-size:17px;font-weight:700;letter-spacing:-.012em}
+.dialog-body{padding:20px 22px 22px;overflow-y:auto;flex:1}
+.dialog-form{display:flex;flex-direction:column;gap:4px}
+.dialog-form>label,.form-field{display:block;font-size:12.5px;font-weight:600;color:#6b6478;margin-bottom:14px}
+.dialog-form input[type=text],.dialog-form input[type=date],.dialog-form select,.dialog-form textarea{
+  display:block;width:100%;margin-top:6px;border:1px solid var(--line);border-radius:10px;
+  padding:10px 13px;outline:none;background:#fdfcfe;font-weight:400;color:var(--ink);
+  transition:border-color .16s,box-shadow .16s;
+}
+.dialog-form textarea{resize:vertical;min-height:110px;line-height:1.7}
+.dialog-form input:focus,.dialog-form select:focus,.dialog-form textarea:focus{
+  border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(128,102,198,.1);
+}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:8px;padding-top:16px;border-top:1px solid var(--line)}
+.help-content p{font-size:14px;line-height:1.8;color:#5d5570;margin-bottom:12px}
+.help-content p:last-child{margin-bottom:0}
+.help-content strong{color:var(--ink)}
+.help-content ul{margin:6px 0 14px;padding-left:20px}
+.help-content li{font-size:13.5px;line-height:1.75;color:#5d5570;margin-bottom:4px}
+.help-badge{
+  display:inline-block;background:var(--peach-soft);color:#a9713a;padding:2px 9px;border-radius:999px;
+  font-size:11.5px;font-weight:700;margin-right:6px;
+}
+/* SECTION: toast */
+.toast-stack{
+  position:fixed;top:22px;right:22px;z-index:150;display:flex;flex-direction:column;gap:10px;
+  pointer-events:none;max-width:min(360px,calc(100vw - 44px));
+}
+.toast{
+  display:flex;align-items:flex-start;gap:11px;background:#fff;border:1px solid var(--line);
+  border-left:3px solid var(--green);border-radius:12px;padding:13px 16px;
+  box-shadow:0 12px 32px rgba(40,34,52,.16);font-size:13.5px;line-height:1.55;
+  animation:toastIn .26s cubic-bezier(.22,1,.36,1);pointer-events:auto;
+}
+.toast.error{border-left-color:var(--danger)}
+.toast.info{border-left-color:var(--primary)}
+.toast .t-icon{flex:none;font-size:15px;line-height:1.4}
+.toast.out{animation:toastOut .22s ease forwards}
+@keyframes toastIn{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
+@keyframes toastOut{to{opacity:0;transform:translateX(26px)}}
+/* SECTION: responsive */
+@media (max-width:1080px){
+  .dashboard-grid,.agent-layout{grid-template-columns:minmax(0,1fr)}
+  .hero-art,.teacher-art{display:none}
+  .hero-banner{grid-template-columns:minmax(0,1fr)}
+  .login-page{grid-template-columns:minmax(0,1fr)}
+  .login-story{display:none}
+  .login-panel{padding:32px 26px}
+}
+@media (max-width:860px){
+  .mobile-only{display:inline-flex}
+  .sidebar{
+    position:fixed;left:0;top:0;bottom:0;height:100dvh;width:min(280px,84vw);
+    transform:translateX(-102%);transition:transform .26s cubic-bezier(.22,1,.36,1);
+    box-shadow:var(--shadow-lg);
+  }
+  .sidebar.is-open{transform:none}
+  .main-content{padding:20px 16px}
+  .topbar{padding:0 16px;height:58px}
+  .topbar-right .topbar-divider,.topbar-right>span:last-child{display:none}
+  .stats-grid{grid-template-columns:minmax(0,1fr)}
+  .course-grid,.lesson-grid{grid-template-columns:minmax(0,1fr)}
+  .hero-banner{padding:24px 20px}
+  .page-heading{gap:14px}
+  .page-heading .primary-button{width:100%}
+  .daily-thought{flex-direction:column;align-items:flex-start;gap:12px}
+  .daily-thought .outline-button{width:100%;justify-content:center}
+  .user-message{max-width:92%}
+  .agent-message{max-width:100%}
+  .chat-panel{min-height:520px}
+  .form-row{grid-template-columns:minmax(0,1fr)}
+  .workspace-footer{padding:18px 16px;flex-direction:column;align-items:flex-start;gap:7px}
+  .toast-stack{top:14px;right:14px;left:14px;max-width:none}
+}
+@media (max-width:420px){
+  .stat-card{flex-wrap:wrap}
+  .stat-detail{margin-left:auto}
+  .assignment-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
+}
+</style>
+</head>
+<body>
+
+<!-- SECTION: boot -->
+<div class="boot-screen" id="bootScreen">
+  <div class="brand">
+    <span class="brand-mark">数</span>
+    <span class="brand-text"><strong>数伴 SHUBAN</strong><span>LEARNING COMPANION</span></span>
+  </div>
+  <div class="boot-spinner" aria-hidden="true"></div>
+  <span>正在打开你的空间…</span>
+</div>
+
+<!-- SECTION: login -->
+<div class="login-page hidden" id="loginView">
+  <section class="login-story">
+    <div class="brand">
+      <span class="brand-mark">数</span>
+      <span class="brand-text"><strong>数伴 SHUBAN</strong><span>LEARNING COMPANION</span></span>
+    </div>
+    <div class="story-content">
+      <div class="story-eyebrow"><span class="tiny-dot"></span><span id="storyEyebrow">你的高等数学学习伙伴</span></div>
+      <h1 id="storyTitle">每一步思考，<br>都有<em>回应。</em></h1>
+      <p class="story-description" id="storyDesc">把抽象变具体，把困惑变进步。和数伴一起，找到属于你的学习节奏。</p>
+      <div class="math-scene" aria-hidden="true">
+        <div class="graph-card">
+          <div class="graph-heading"><span><span class="tiny-dot"></span> 思考，正在发生</span><span>f(x)</span></div>
+          <svg class="math-graph" viewBox="0 0 420 230" role="img" aria-label="函数曲线示意">
+            <defs>
+              <pattern id="gridPattern" width="28" height="28" patternUnits="userSpaceOnUse">
+                <path d="M 28 0 L 0 0 0 28" fill="none" stroke="#e5dfef" stroke-width=".7"/>
+              </pattern>
+              <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#a794df" stop-opacity=".3"/>
+                <stop offset="100%" stop-color="#a794df" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <rect x="20" y="10" width="380" height="200" fill="url(#gridPattern)"/>
+            <path d="M30 180H400M105 215V15" stroke="#b4abc9" stroke-width="1"/>
+            <path d="M30 175C96 175 111 153 144 128S192 117 219 136S280 163 310 118S341 52 392 31V180H30Z" fill="url(#areaGrad)"/>
+            <path d="M30 175C96 175 111 153 144 128S192 117 219 136S280 163 310 118S341 52 392 31" fill="none" stroke="#8c73ce" stroke-width="3"/>
+            <path d="M229 212L361 41" stroke="#d3a66e" stroke-width="1.6" stroke-dasharray="5 5"/>
+            <circle cx="310" cy="118" r="7" fill="#fff" stroke="#8c73ce" stroke-width="3"/>
+            <text x="393" y="196" fill="#978bab" font-size="12">x</text>
+            <text x="87" y="20" fill="#978bab" font-size="12">y</text>
+          </svg>
+          <div class="graph-caption"><span>从一条曲线，理解变化的意义</span><span>↗</span></div>
+        </div>
+        <div class="floating-formula">lim<span>x → 0</span> <i>sin x</i><b> / x = 1</b></div>
+        <div class="floating-note">
+          <span class="check-icon">✓</span>
+          <div>不止于答案<small>理解，才是下一步</small></div>
+        </div>
+      </div>
+      <div class="story-features">
+        <span>📖 循序理解</span><span>✨ 伴随学习</span><span>🎓 教学相长</span>
+      </div>
+    </div>
+    <div class="story-footer"><span>让学习被理解，让成长被看见。</span><span>01 — 开始探索</span></div>
+  </section>
+
+  <section class="login-panel" id="loginPanel">
+    <div class="login-top"><span>高等数学 · 学习与教学空间</span><span class="version-chip">MVP 预览版</span></div>
+    <div class="login-box">
+      <div class="login-heading-icon" id="loginIcon" aria-hidden="true">🎓</div>
+      <h2 id="loginTitle">开启今天的学习<span class="heading-dot">.</span></h2>
+      <p class="muted" id="loginSubtitle">登录你的学习空间，从一个好问题开始。</p>
+      <div class="role-tabs" role="tablist" aria-label="登录身份">
+        <button role="tab" id="tabStudent" class="active" aria-selected="true">🎓 学生登录</button>
+        <button role="tab" id="tabTeacher" aria-selected="false">🏫 教师登录</button>
+      </div>
+      <form id="loginForm" novalidate>
+        <label class="field-label" for="username">学生账号</label>
+        <div class="login-input">
+          <span aria-hidden="true">👤</span>
+          <input id="username" name="username" autocomplete="username" maxlength="80" placeholder="请输入学生账号" required>
+        </div>
+        <label class="field-label" for="password">密码</label>
+        <div class="login-input">
+          <span aria-hidden="true">🔒</span>
+          <input id="password" name="password" type="password" autocomplete="current-password" maxlength="128" placeholder="请输入密码" required>
+          <button class="icon-button" type="button" id="togglePassword" aria-label="显示密码">👁</button>
+        </div>
+        <div class="login-options">
+          <label class="checkbox-label"><input type="checkbox" id="remember"> 记住密码</label>
+          <span class="muted small">当前版本暂不提供自助重置密码</span>
+        </div>
+        <p class="remember-note hidden" id="rememberNote">在此设备保留登录 7 天，不保存明文密码。</p>
+        <p class="form-error hidden" id="loginError" role="alert"></p>
+        <button class="primary-button login-submit" type="submit" id="loginSubmit" data-primary-action="login">
+          <span id="loginSubmitText">进入学习空间</span><span aria-hidden="true">→</span>
+        </button>
+      </form>
+      <div class="demo-account">
+        <div class="demo-account-title">
+          <span><span class="tiny-dot"></span> 先体验，再探索</span>
+          <button class="subtle-link" type="button" id="fillDemo">填入演示账号 ↗</button>
+        </div>
+        <div class="demo-credentials">
+          <span>账号 <code id="demoUser">student</code></span>
+          <span>密码 <code id="demoPass">Student123!</code></span>
+        </div>
+      </div>
+      <p class="login-footnote">🔒 本地体验环境 · 请使用演示账号</p>
+    </div>
+    <footer class="login-bottom"><strong>数伴 SHUBAN</strong><span>让每一步学习都有回应</span></footer>
+  </section>
+</div>
+
+<!-- SECTION: shell -->
+<div class="app-shell hidden" id="appShell">
+  <div class="nav-backdrop hidden" id="navBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand">
+        <span class="brand-mark">数</span>
+        <span class="brand-text"><strong>数伴 SHUBAN</strong><span>LEARNING COMPANION</span></span>
+      </div>
+      <button class="icon-button mobile-only" id="closeNav" aria-label="关闭导航">✕</button>
+    </div>
+    <div class="workspace-label"><span class="tiny-dot"></span><span id="workspaceLabel">学生学习空间</span></div>
+    <div class="nav-section-label" id="navSectionLabel">我的学习空间</div>
+    <nav id="navList"></nav>
+    <div class="sidebar-bottom">
+      <div class="sidebar-note">
+        <span>一点好奇，一点进步。</span>
+        <p>数伴陪你，把每一步走扎实。</p>
+        <em aria-hidden="true">✨</em>
+      </div>
+      <button class="help-link" id="openHelp">ⓘ 体验说明 ↗</button>
+      <div class="sidebar-user">
+        <span class="user-avatar" id="userAvatar">林</span>
+        <div><strong id="userName">林同学</strong><small id="userRole">学生 · 演示账号</small></div>
+        <button class="icon-button" id="logoutBtn" aria-label="退出登录" title="退出登录">⎋</button>
+      </div>
+    </div>
+  </aside>
+  <div class="app-body">
+    <header class="topbar">
+      <button class="icon-button mobile-only" id="openNav" aria-label="打开导航">☰</button>
+      <div class="breadcrumb"><span>工作台</span><i aria-hidden="true">›</i><strong id="crumbCurrent">学习概览</strong></div>
+      <div class="topbar-right">
+        <span class="local-indicator"><span class="tiny-dot"></span> 本地体验版</span>
+        <span class="topbar-divider"></span>
+        <span>🎓 高等数学</span>
+      </div>
+    </header>
+    <main class="main-content" id="mainContent"></main>
+  </div>
+</div>
+
+<!-- SECTION: dialog -->
+<div class="dialog-backdrop hidden" id="dialogBackdrop">
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+    <header class="dialog-header">
+      <h3 id="dialogTitle">标题</h3>
+      <button class="icon-button" id="dialogClose" aria-label="关闭">✕</button>
+    </header>
+    <div class="dialog-body" id="dialogBody"></div>
+  </div>
+</div>
+
+<!-- SECTION: toast -->
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+<script>
+/* SECTION: data-source
+   数伴演示数据。账号、页面文案、课程条目、示例问题与预设讲解回复
+   均取自项目现有前端页面（frontend/src）与后端演示逻辑（backend/app/ai/service.py）。
+   所有回复为固定示例，不代表真实模型能力。 */
+(function () {
+  'use strict';
+
+  /* SECTION: users */
+  var USERS = [
+    { id: 'u-student', username: 'student', password: 'Student123!', name: '林同学', role: 'student', avatar: '林' },
+    { id: 'u-teacher', username: 'teacher', password: 'Teacher123!', name: '陈老师', role: 'teacher', avatar: '陈' }
+  ];
+
+  /* SECTION: navigation */
+  var NAV_STUDENT = [
+    { id: 'dashboard', label: '学习概览', icon: '▦' },
+    { id: 'agent', label: '数伴智能体', icon: '✦', ai: true },
+    { id: 'courses', label: '课程探索', icon: '📖' },
+    { id: 'assignments', label: '我的作业', icon: '📋', dot: true },
+    { id: 'favorites', label: '复习收藏', icon: '🔖' },
+    { id: 'records', label: '学习记录', icon: '🕘' }
+  ];
+  var NAV_TEACHER = [
+    { id: 'dashboard', label: '教学概览', icon: '▦' },
+    { id: 'agent', label: '教学助手', icon: '✦', ai: true },
+    { id: 'assignments', label: '作业管理', icon: '📋' },
+    { id: 'students', label: '我的班级', icon: '👥' },
+    { id: 'records', label: '对话记录', icon: '🕘' }
+  ];
+
+  /* SECTION: courses */
+  var LESSONS = [
+    {
+      chapter: '函数与极限', number: '01', title: '无限接近，意味着什么？',
+      text: '从直觉出发，建立函数极限的初步认识。', formula: 'lim f(x)',
+      prompt: '如何理解函数极限？', label: '概念探索'
+    },
+    {
+      chapter: '函数与极限', number: '02', title: '一个重要的极限',
+      text: '从 sin(x)/x 入手，学习夹逼思想。', formula: 'sin x / x',
+      prompt: '如何理解 sin(x)/x 在 x→0 时的极限？', label: '预设例题'
+    },
+    {
+      chapter: '导数与微分', number: '03', title: '让变化，有一个刻度',
+      text: '从割线到切线，用定义理解导数。', formula: 'f′(x)',
+      prompt: '用定义求 x² 的导数', label: '预设例题'
+    },
+    {
+      chapter: '导数与微分', number: '04', title: '讲给另一个人听',
+      text: '尝试解释导数，用讲解梳理你的理解。', formula: 'Δy / Δx',
+      prompt: '我想用费曼学习法解释导数', label: '费曼练习'
+    }
+  ];
+
+  /* SECTION: prompts */
+  var PROMPTS_STUDENT = [
+    { icon: 'Σ', text: '如何理解 sin(x)/x 在 x→0 时的极限？' },
+    { icon: '💡', text: '用定义求 x² 的导数' },
+    { icon: '📖', text: '我想用费曼学习法解释导数' }
+  ];
+  var PROMPTS_TEACHER = [
+    { icon: 'Σ', text: '帮我设计一节导数概念微课' },
+    { icon: '💡', text: '如何用例题解释瞬时变化率？' },
+    { icon: '📖', text: '设计一道课后反思问题' }
+  ];
+
+  /* SECTION: demo-replies
+     与 backend/app/ai/service.py 的 demo_reply 分支一一对应。 */
+  var REPLY_TEACHER =
+    '【教学设计示例 · 未连接真实模型】\n\n' +
+    '可以先围绕“概念 → 例题 → 迁移”组织一节微课：\n' +
+    '1. 用曲线在一点的切线，引入瞬时变化率。\n' +
+    '2. 让学生解释割线斜率为什么要取极限。\n' +
+    '3. 以 $f(x)=x^2$ 为例，用定义推导 $f\'(x)=2x$。\n' +
+    '4. 用一道变式题收集反馈，再决定是否补讲。\n\n' +
+    '这是固定教学示例，并未对你的具体要求进行模型分析。你可以前往“作业管理”发布自己的练习。';
+
+  var REPLY_FEYNMAN =
+    '【费曼练习示例 · 未评分】\n\n' +
+    '试着把“导数”讲给第一次接触它的同学：\n' +
+    '① 它描述什么？\n② 割线与切线有什么关系？\n③ 生活中有哪些瞬时变化的例子？\n\n' +
+    '参考表达：导数描述函数在某一点的瞬时变化率，也对应曲线在该点的切线斜率。\n' +
+    '目前只展示固定追问，还不能评价你的讲解质量。';
+
+  var REPLY_SIN_LIMIT =
+    '【固定例题演示】\n\n' +
+    '你可以先看这个经典极限：\n' +
+    '$$\\lim_{x\\to 0}\\frac{\\sin x}{x}=1$$\n' +
+    '这里 $x$ 使用弧度制。\n\n' +
+    '1. 直接代入会得到 $0/0$，它是不定式，不是答案。\n' +
+    '2. 当 $0<x<\\pi/2$ 时，有 $\\cos x<\\sin x/x<1$。\n' +
+    '3. 两侧都趋于 1；再结合偶函数性质，可得双侧极限为 1。\n\n' +
+    '试一试：$\\lim_{x\\to 0}\\sin(3x)/x$ 是多少？\n' +
+    '这段回复是预设例题说明，不是对任意输入的自动诊断。';
+
+  var REPLY_DERIVATIVE =
+    '【固定例题演示】\n\n' +
+    '以 $f(x)=x^2$ 为例，从定义理解导数：\n' +
+    "$$f'(x)=\\lim_{h\\to0}\\frac{(x+h)^2-x^2}{h}=\\lim_{h\\to0}(2x+h)=2x$$\n" +
+    '1. 写出函数增量 $(x+h)^2-x^2$。\n' +
+    '2. 展开并约去 $h$，注意取极限前 $h\\ne0$。\n' +
+    '3. 令 $h$ 趋近于 0，得到 $2x$。\n\n' +
+    '你能解释为什么不能在约分前直接令 $h=0$ 吗？\n' +
+    '这是固定例题，尚未接入自动解题或数学工具校验。';
+
+  var REPLY_FALLBACK =
+    '【交互演示 · 未连接真实模型】\n\n' +
+    '你的问题已保存。当前版本先验证提问、反馈和历史记录的完整流程，还不能生成针对这个问题的解答。\n\n' +
+    '可以点击示例问题，体验“求 sin(x)/x 的极限”或“用定义求 x² 的导数”的预设讲解。\n' +
+    '未来将在这里接入课程检索、分层提示与步骤诊断。';
+
+  /* SECTION: seed-assignment
+     预置一份作业，使师生作业闭环开箱即可体验。 */
+  function seedAssignments() {
+    var due = new Date();
+    due.setDate(due.getDate() + 3);
+    return [{
+      id: 'a-seed-1',
+      title: '导数定义与几何意义',
+      content: '请用导数定义推导 f(x)=x² 的导数，并说明每一步为什么成立。\n\n要求：\n1. 写出函数增量与差商；\n2. 说明取极限前 h 为什么不能等于 0；\n3. 用一句话解释 f′(2)=4 的几何意义。\n\n鼓励写下你的思考过程，本版本不自动评分。',
+      topic: '导数与微分',
+      due_date: isoDate(due),
+      created_at: new Date().toISOString(),
+      submissions: []
+    }];
+  }
+
+  function isoDate(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  window.SHUBAN = {
+    USERS: USERS,
+    NAV_STUDENT: NAV_STUDENT,
+    NAV_TEACHER: NAV_TEACHER,
+    LESSONS: LESSONS,
+    PROMPTS_STUDENT: PROMPTS_STUDENT,
+    PROMPTS_TEACHER: PROMPTS_TEACHER,
+    REPLY_TEACHER: REPLY_TEACHER,
+    REPLY_FEYNMAN: REPLY_FEYNMAN,
+    REPLY_SIN_LIMIT: REPLY_SIN_LIMIT,
+    REPLY_DERIVATIVE: REPLY_DERIVATIVE,
+    REPLY_FALLBACK: REPLY_FALLBACK,
+    seedAssignments: seedAssignments,
+    isoDate: isoDate
+  };
+})();
+
+</script>
+<script>
+/* SECTION: app-core
+   数伴前端演示 · 交互逻辑。
+   数据保存在当前浏览器 localStorage，不连接后端；
+   智能体回复为固定示例，页面明确标注未接入真实模型。 */
+(function () {
+  'use strict';
+
+  var D = window.SHUBAN;
+  var STORE_KEY = 'shuban-demo-v1';
+
+  /* SECTION: utils */
+  function $(sel, root) { return (root || document).querySelector(sel); }
+  function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+  function el(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+  function esc(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function uid(prefix) {
+    return prefix + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+  }
+  function formatDateTime(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return (d.getMonth() + 1) + '/' + d.getDate() + ' ' +
+      String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+  function todayISO() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function greetingDate() {
+    return new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
+  }
+
+  /* SECTION: store */
+  var store = {
+    data: null,
+    load: function () {
+      var raw = null;
+      try { raw = localStorage.getItem(STORE_KEY); } catch (e) { raw = null; }
+      if (raw) {
+        try {
+          var parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') { this.data = this.normalize(parsed); return; }
+        } catch (e) { /* fall through to seed */ }
+      }
+      this.data = this.seed();
+      this.save();
+    },
+    normalize: function (parsed) {
+      return {
+        session: parsed.session && parsed.session.userId ? parsed.session : null,
+        remember: !!parsed.remember,
+        conversations: Array.isArray(parsed.conversations) ? parsed.conversations : {},
+        assignments: Array.isArray(parsed.assignments) ? parsed.assignments : D.seedAssignments(),
+        submissions: parsed.submissions && typeof parsed.submissions === 'object' ? parsed.submissions : {}
+      };
+    },
+    seed: function () {
+      return {
+        session: null,
+        remember: false,
+        conversations: {},
+        assignments: D.seedAssignments(),
+        submissions: {}
+      };
+    },
+    save: function () {
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(this.data)); } catch (e) { /* storage unavailable */ }
+    },
+    reset: function () {
+      this.data = this.seed();
+      this.save();
+    }
+  };
+
+  /* SECTION: state */
+  var state = {
+    user: null,
+    page: 'dashboard',
+    records: [],
+    assignments: [],
+    initialQuestion: '',
+    selectedId: '',
+    createRequested: false,
+    mobileNav: false,
+    courseFilter: '全部章节',
+    recordQuery: '',
+    busy: false
+  };
+
+  function currentUser() { return state.user; }
+  function isTeacher() { return !!(state.user && state.user.role === 'teacher'); }
+
+  function recordsOf(userId) {
+    var list = store.data.conversations[userId];
+    return Array.isArray(list) ? list.slice() : [];
+  }
+  function persistRecords(userId, list) {
+    store.data.conversations[userId] = list;
+    store.save();
+  }
+  function submissionOf(assignmentId, userId) {
+    var bag = store.data.submissions[assignmentId];
+    return bag && typeof bag === 'object' ? bag[userId] || null : null;
+  }
+  function setSubmission(assignmentId, userId, answer) {
+    if (!store.data.submissions[assignmentId]) store.data.submissions[assignmentId] = {};
+    store.data.submissions[assignmentId][userId] = {
+      student_name: state.user.name,
+      answer: answer,
+      created_at: new Date().toISOString()
+    };
+    store.save();
+  }
+  function submissionsOf(assignmentId) {
+    var bag = store.data.submissions[assignmentId];
+    if (!bag) return [];
+    return Object.keys(bag).map(function (k) { return bag[k]; })
+      .sort(function (a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+  }
+
+  /* 组装带提交态与提交列表的作业视图（与后端 Assignment 字段对齐） */
+  function assignmentsView() {
+    var uidKey = state.user ? state.user.id : '';
+    return store.data.assignments.map(function (a) {
+      var mine = submissionOf(a.id, uidKey);
+      return {
+        id: a.id,
+        title: a.title,
+        content: a.content,
+        topic: a.topic,
+        due_date: a.due_date,
+        created_at: a.created_at,
+        submitted: !!mine,
+        answer: mine ? mine.answer : '',
+        submissions: submissionsOf(a.id)
+      };
+    }).sort(function (x, y) { return new Date(y.created_at) - new Date(x.created_at); });
+  }
+
+  /* SECTION: toast */
+  var toastStack = null;
+  function toast(message, kind) {
+    if (!toastStack) toastStack = $('#toastStack');
+    if (!toastStack) return;
+    var icons = { success: '✓', error: '⚠', info: '✦' };
+    var node = el('div', 'toast ' + (kind || 'success'));
+    node.innerHTML = '<span class="t-icon" aria-hidden="true">' + (icons[kind || 'success'] || '✓') + '</span><span>' + esc(message) + '</span>';
+    toastStack.appendChild(node);
+    setTimeout(function () {
+      node.classList.add('out');
+      setTimeout(function () { if (node.parentNode) node.parentNode.removeChild(node); }, 240);
+    }, 3200);
+  }
+
+  /* SECTION: dialog */
+  var dialogBackdrop = null, dialogBody = null, dialogTitle = null, dialogLastFocus = null;
+  function openDialog(title, bodyNode, opts) {
+    dialogBackdrop = $('#dialogBackdrop');
+    dialogBody = $('#dialogBody');
+    dialogTitle = $('#dialogTitle');
+    if (!dialogBackdrop || !dialogBody) return;
+    dialogLastFocus = document.activeElement;
+    dialogTitle.textContent = title;
+    dialogBody.innerHTML = '';
+    dialogBody.appendChild(bodyNode);
+    dialogBackdrop.classList.remove('hidden');
+    var wide = $('.dialog', dialogBackdrop);
+    if (wide) wide.classList.toggle('wide', !!(opts && opts.wide));
+    var focusTarget = $('input,textarea,select,button.primary-button', dialogBody);
+    if (focusTarget) setTimeout(function () { focusTarget.focus(); }, 60);
+  }
+  function closeDialog() {
+    if (dialogBackdrop) dialogBackdrop.classList.add('hidden');
+    if (dialogBody) dialogBody.innerHTML = '';
+    if (dialogLastFocus && dialogLastFocus.focus) { try { dialogLastFocus.focus(); } catch (e) {} }
+  }
+
+  /* SECTION: math
+     轻量行内/块级公式渲染，覆盖演示回复中出现的 LaTeX 子集，不引入外部库。 */
+  var SYMBOLS = {
+    'ne': '≠', 'le': '≤', 'ge': '≥', 'pm': '±', 'times': '×', 'cdot': '·',
+    'infty': '∞', 'pi': 'π', 'alpha': 'α', 'beta': 'β', 'theta': 'θ',
+    'Delta': 'Δ', 'delta': 'δ', 'to': '→', 'rightarrow': '→', 'quad': ' ',
+    'sin': 'sin', 'cos': 'cos', 'tan': 'tan', 'lim': 'lim', 'log': 'log'
+  };
+  var FUNCTIONS = ['sin', 'cos', 'tan', 'log', 'ln', 'lim', 'max', 'min'];
+
+  function renderLatex(src) {
+    var out = '';
+    var i = 0;
+    var n = src.length;
+    while (i < n) {
+      var ch = src[i];
+      if (ch === '\\') {
+        var m = /^\\([a-zA-Z]+)/.exec(src.slice(i));
+        if (m) {
+          var name = m[1];
+          i += m[0].length;
+          if (name === 'frac') {
+            var num = readGroup(src, i); i = num.next;
+            var den = readGroup(src, i); i = den.next;
+            out += '<span class="frac"><span class="num">' + renderLatex(num.body) + '</span><span class="den">' + renderLatex(den.body) + '</span></span>';
+          } else if (name === 'lim') {
+            var sub = readSubscript(src, i); i = sub.next;
+            out += '<span class="limsub"><span class="op">lim</span>' +
+              (sub.body ? '<span>' + renderLatex(sub.body) + '</span>' : '') + '</span>';
+          } else if (name === 'sqrt') {
+            var body = readGroup(src, i); i = body.next;
+            out += '<span class="mop">√</span><span class="sqrt">' + renderLatex(body.body) + '</span>';
+          } else if (SYMBOLS[name] != null) {
+            var sym = SYMBOLS[name];
+            var isFn = FUNCTIONS.indexOf(name) >= 0;
+            out += isFn ? '<span class="mfn">' + sym + '</span>' : '<span class="mop">' + sym + '</span>';
+          } else {
+            out += '<span class="mi">' + esc(name) + '</span>';
+          }
+          continue;
+        }
+        var sym2 = /^\\([^a-zA-Z])/.exec(src.slice(i));
+        if (sym2) { i += sym2[0].length; out += '<span class="mop">' + esc(sym2[1]) + '</span>'; continue; }
+        i++; continue;
+      }
+      if (ch === '^' || ch === '_') {
+        i++;
+        var sup = readGroup(src, i); i = sup.next;
+        out += (ch === '^' ? '<sup>' : '<sub>') + renderLatex(sup.body) + (ch === '^' ? '</sup>' : '</sub>');
+        continue;
+      }
+      if (ch === '{' || ch === '}') { i++; continue; }
+      if (/[0-9]/.test(ch)) {
+        var digits = /^[0-9.]+/.exec(src.slice(i))[0];
+        i += digits.length;
+        out += '<span class="mn">' + digits + '</span>';
+        continue;
+      }
+      if (/[+\-=*/<>(),\[\]!|]/.test(ch)) { i++; out += '<span class="mop">' + esc(ch) + '</span>'; continue; }
+      if (/\s/.test(ch)) { i++; out += ' '; continue; }
+      i++;
+      out += '<span class="mi">' + esc(ch) + '</span>';
+    }
+    return out;
+  }
+
+  function readGroup(src, i) {
+    while (i < src.length && /\s/.test(src[i])) i++;
+    if (src[i] === '{') {
+      var depth = 0, start = i + 1;
+      for (var j = i; j < src.length; j++) {
+        if (src[j] === '{') depth++;
+        else if (src[j] === '}') { depth--; if (depth === 0) return { body: src.slice(start, j), next: j + 1 }; }
+      }
+      return { body: src.slice(start), next: src.length };
+    }
+    var m = /^\\[a-zA-Z]+/.exec(src.slice(i));
+    if (m) return { body: m[0], next: i + m[0].length };
+    if (i < src.length) return { body: src[i], next: i + 1 };
+    return { body: '', next: i };
+  }
+
+  function readSubscript(src, i) {
+    while (i < src.length && /\s/.test(src[i])) i++;
+    if (src[i] === '_') return readGroup(src, i + 1);
+    return { body: '', next: i };
+  }
+
+  /* 单行渲染：先切出行内公式（原始 LaTeX），文本部分再转义，避免二次转义 */
+  function renderLineWithMath(line) {
+    var out = '';
+    var re = /\$([^$]+)\$/g;
+    var last = 0;
+    var m;
+    while ((m = re.exec(line)) !== null) {
+      out += esc(line.slice(last, m.index));
+      out += '<span class="math-inline">' + renderLatex(m[1]) + '</span>';
+      last = m.index + m[0].length;
+    }
+    out += esc(line.slice(last));
+    return out;
+  }
+
+  /* 把预设回复文本转成安全 HTML：先抽出 $$块$$，再逐行处理 $行内$、有序列表与标签 */
+  function renderAnswer(text) {
+    var blocks = [];
+    var withBlocks = String(text).replace(/\$\$([\s\S]+?)\$\$/g, function (_, tex) {
+      var idx = blocks.push('<span class="math-block"><span class="mrow">' + renderLatex(tex) + '</span></span>') - 1;
+      return '\u0000B' + idx + '\u0000';
+    });
+    function restore(str) {
+      return str.replace(/\u0000B(\d+)\u0000/g, function (_, idx) { return blocks[Number(idx)]; });
+    }
+    var html = '';
+    var listBuffer = [];
+    function flushList() {
+      if (!listBuffer.length) return;
+      html += '<ol>' + listBuffer.map(function (li) { return '<li>' + li + '</li>'; }).join('') + '</ol>';
+      listBuffer = [];
+    }
+    withBlocks.split('\n').forEach(function (line) {
+      var olItem = /^(\d+)\.\s+(.*)$/.exec(line.trim());
+      if (olItem) { listBuffer.push(renderLineWithMath(olItem[2])); return; }
+      flushList();
+      if (!line.trim()) return;
+      var tagMatch = /^【(.+)】$/.exec(line.trim());
+      if (tagMatch) { html += '<span class="md-tag">' + esc(tagMatch[1]) + '</span>'; return; }
+      html += '<p>' + restore(renderLineWithMath(line)) + '</p>';
+    });
+    flushList();
+    return html;
+  }
+
+  window.SHUBAN_APP = {
+    D: D, store: store, state: state, $: $, $$: $$, el: el, esc: esc, uid: uid,
+    formatDateTime: formatDateTime, todayISO: todayISO, greetingDate: greetingDate,
+    currentUser: currentUser, isTeacher: isTeacher,
+    recordsOf: recordsOf, persistRecords: persistRecords,
+    assignmentsView: assignmentsView, submissionsOf: submissionsOf, setSubmission: setSubmission,
+    toast: toast, openDialog: openDialog, closeDialog: closeDialog, renderAnswer: renderAnswer
+  };
+})();
+
+</script>
+<script>
+/* SECTION: views
+   数伴前端演示 · 页面视图与启动逻辑。
+   文案与交互取自项目现有 Vue 页面，公式渲染在 app.js 中完成。 */
+(function () {
+  'use strict';
+
+  var A = window.SHUBAN_APP;
+  var D = A.D, store = A.store, state = A.state;
+  var $ = A.$, $$ = A.$$, el = A.el, esc = A.esc, uid = A.uid;
+  var toast = A.toast, openDialog = A.openDialog, closeDialog = A.closeDialog;
+
+  /* SECTION: login-view */
+  var loginRole = 'student';
+
+  function paintLogin() {
+    var teacher = loginRole === 'teacher';
+    $('#loginView').classList.toggle('teacher-theme', teacher);
+    $('#storyEyebrow').textContent = teacher ? '为每一次有效教学' : '你的高等数学学习伙伴';
+    $('#storyTitle').innerHTML = teacher
+      ? '看见每一步成长，<br>让教学<em>有据可依。</em>'
+      : '每一步思考，<br>都有<em>回应。</em>';
+    $('#storyDesc').textContent = teacher
+      ? '从课堂任务到学习反馈，连接教师的洞察与学生的进步。'
+      : '把抽象变具体，把困惑变进步。和数伴一起，找到属于你的学习节奏。';
+    $('#loginIcon').textContent = teacher ? '🏫' : '🎓';
+    $('#loginTitle').innerHTML = (teacher ? '欢迎回来，老师' : '开启今天的学习') + '<span class="heading-dot">.</span>';
+    $('#loginSubtitle').textContent = teacher
+      ? '登录教学空间，陪伴每一次进步。'
+      : '登录你的学习空间，从一个好问题开始。';
+    $('#loginSubmitText').textContent = teacher ? '进入教学空间' : '进入学习空间';
+    $('label[for=username]').textContent = teacher ? '教师账号' : '学生账号';
+    $('#username').placeholder = teacher ? '请输入教师账号' : '请输入学生账号';
+    $('#tabStudent').classList.toggle('active', !teacher);
+    $('#tabStudent').setAttribute('aria-selected', String(!teacher));
+    $('#tabTeacher').classList.toggle('active', teacher);
+    $('#tabTeacher').setAttribute('aria-selected', String(teacher));
+    $('#demoUser').textContent = teacher ? 'teacher' : 'student';
+    $('#demoPass').textContent = teacher ? 'Teacher123!' : 'Student123!';
+    $('#loginError').classList.add('hidden');
+  }
+
+  function switchRole(role) {
+    if (loginRole === role) return;
+    loginRole = role;
+    $('#username').value = '';
+    $('#password').value = '';
+    $('#remember').checked = false;
+    $('#rememberNote').classList.add('hidden');
+    paintLogin();
+  }
+
+  function doLogin(evt) {
+    evt.preventDefault();
+    var username = $('#username').value.trim();
+    var password = $('#password').value;
+    var errBox = $('#loginError');
+    function fail(msg) {
+      errBox.textContent = msg;
+      errBox.classList.remove('hidden');
+    }
+    if (!username || !password) { fail('请填写账号与密码后重试。'); return; }
+    var found = D.USERS.filter(function (u) { return u.username === username && u.password === password; })[0];
+    if (!found) { fail('账号或密码不正确，可点击「填入演示账号」快速体验。'); return; }
+    if (found.role !== loginRole) {
+      fail('该账号属于' + (found.role === 'teacher' ? '教师' : '学生') + '身份，请切换到对应标签后登录。');
+      return;
+    }
+    errBox.classList.add('hidden');
+    var btn = $('#loginSubmit');
+    btn.disabled = true;
+    $('#loginSubmitText').textContent = '正在验证账号…';
+    setTimeout(function () {
+      btn.disabled = false;
+      $('#loginSubmitText').textContent = loginRole === 'teacher' ? '进入教学空间' : '进入学习空间';
+      store.data.session = { userId: found.id, at: Date.now() };
+      store.data.remember = $('#remember').checked;
+      store.save();
+      enterApp(found);
+    }, 420);
+  }
+
+  /* SECTION: shell */
+  function navItems() { return A.isTeacher() ? D.NAV_TEACHER : D.NAV_STUDENT; }
+
+  function enterApp(user) {
+    state.user = user;
+    state.page = 'dashboard';
+    state.records = A.recordsOf(user.id);
+    state.assignments = A.assignmentsView();
+    state.initialQuestion = '';
+    state.selectedId = '';
+    state.createRequested = false;
+    state.courseFilter = '全部章节';
+    state.recordQuery = '';
+    $('#loginView').classList.add('hidden');
+    $('#appShell').classList.remove('hidden');
+    $('#appShell').classList.toggle('teacher-theme', user.role === 'teacher');
+    $('#workspaceLabel').textContent = user.role === 'teacher' ? '教师教学空间' : '学生学习空间';
+    $('#navSectionLabel').textContent = user.role === 'teacher' ? '教学工作台' : '我的学习空间';
+    $('#userName').textContent = user.name;
+    $('#userRole').textContent = (user.role === 'teacher' ? '教师' : '学生') + ' · 演示账号';
+    $('#userAvatar').textContent = user.avatar;
+    paintNav();
+    render();
+    window.scrollTo(0, 0);
+  }
+
+  function paintNav() {
+    var list = $('#navList');
+    list.innerHTML = '';
+    var pending = state.assignments.some(function (a) { return !a.submitted; });
+    navItems().forEach(function (item) {
+      var btn = el('button');
+      if (item.id === state.page) btn.className = 'active';
+      btn.type = 'button';
+      btn.setAttribute('data-nav', item.id);
+      var icon = el('span', 'nav-icon');
+      icon.textContent = item.icon;
+      icon.setAttribute('aria-hidden', 'true');
+      btn.appendChild(icon);
+      btn.appendChild(el('span', null, item.label));
+      if (item.ai) btn.appendChild(el('span', 'nav-ai', 'AI'));
+      if (item.dot && !A.isTeacher() && pending) btn.appendChild(el('span', 'nav-dot'));
+      btn.addEventListener('click', function () { navigate(item.id); });
+      list.appendChild(btn);
+    });
+  }
+
+  function navigate(id) {
+    state.page = id;
+    closeMobileNav();
+    if (id !== 'agent') { state.initialQuestion = ''; state.selectedId = ''; }
+    if (id !== 'assignments') state.createRequested = false;
+    paintNav();
+    render();
+    window.scrollTo(0, 0);
+  }
+
+  function ask(question) {
+    state.initialQuestion = question;
+    state.selectedId = '';
+    navigate('agent');
+  }
+
+  function openRecord(id) {
+    state.initialQuestion = '';
+    state.selectedId = id;
+    navigate('agent');
+  }
+
+  function refreshData() {
+    state.records = A.recordsOf(state.user.id);
+    state.assignments = A.assignmentsView();
+  }
+
+  function openMobileNav() {
+    state.mobileNav = true;
+    $('#sidebar').classList.add('is-open');
+    $('#navBackdrop').classList.remove('hidden');
+  }
+  function closeMobileNav() {
+    state.mobileNav = false;
+    $('#sidebar').classList.remove('is-open');
+    $('#navBackdrop').classList.add('hidden');
+  }
+
+  /* SECTION: render-root */
+  function render() {
+    var main = $('#mainContent');
+    var item = navItems().filter(function (n) { return n.id === state.page; })[0];
+    $('#crumbCurrent').textContent = item ? item.label : '工作台';
+    main.innerHTML = '';
+    var view = VIEWS[state.page];
+    if (!view) view = VIEWS.dashboard;
+    main.appendChild(view());
+    var footer = el('footer', 'workspace-footer');
+    footer.innerHTML = '<span>数伴 · 让每一步学习都有回应</span><span>MVP 0.1 <span class="tiny-dot"></span> 持续生长中</span>';
+    main.appendChild(footer);
+  }
+
+  /* SECTION: shared-blocks */
+  function pageHeading(eyebrow, title, subtitle, rightNode) {
+    var wrap = el('div', 'page-heading');
+    var left = el('div');
+    left.appendChild(el('div', 'eyebrow', eyebrow));
+    var h1 = el('h1');
+    h1.innerHTML = title;
+    left.appendChild(h1);
+    if (subtitle) left.appendChild(el('p', null, subtitle));
+    wrap.appendChild(left);
+    if (rightNode) wrap.appendChild(rightNode);
+    return wrap;
+  }
+
+  function panel(cls) { return el('section', 'panel' + (cls ? ' ' + cls : '')); }
+
+  function sectionHeading(title, sub, rightNode) {
+    var head = el('div', 'section-heading');
+    var h3 = el('h3');
+    h3.innerHTML = esc(title) + (sub ? ' <span class="section-sub">' + esc(sub) + '</span>' : '');
+    head.appendChild(h3);
+    if (rightNode) head.appendChild(rightNode);
+    return head;
+  }
+
+  function statCard(iconCls, icon, label, value, unit, detail, actionLabel, onAction) {
+    var card = el('div', 'stat-card');
+    var badge = el('span', 'stat-icon ' + iconCls);
+    badge.textContent = icon;
+    badge.setAttribute('aria-hidden', 'true');
+    card.appendChild(badge);
+    var body = el('div');
+    body.appendChild(el('span', null, label));
+    var strong = el('strong');
+    strong.appendChild(document.createTextNode(String(value)));
+    if (unit) strong.appendChild(el('small', null, unit));
+    body.appendChild(strong);
+    card.appendChild(body);
+    if (detail) card.appendChild(el('span', 'stat-detail', detail));
+    if (actionLabel) {
+      var btn = el('button', 'icon-button');
+      btn.type = 'button';
+      btn.setAttribute('aria-label', actionLabel);
+      btn.title = actionLabel;
+      btn.textContent = '↗';
+      btn.addEventListener('click', onAction);
+      card.appendChild(btn);
+    }
+    return card;
+  }
+
+  function activityChart(isoList, green) {
+    var wrap = el('div', 'chart-wrap');
+    var days = [];
+    for (var i = 6; i >= 0; i--) {
+      var d = new Date();
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - i);
+      days.push(d);
+    }
+    var counts = days.map(function (day) {
+      var key = day.getFullYear() + '-' + String(day.getMonth() + 1).padStart(2, '0') + '-' + String(day.getDate()).padStart(2, '0');
+      return isoList.filter(function (iso) { return String(iso).slice(0, 10) === key; }).length;
+    });
+    var max = Math.max.apply(null, counts.concat([1]));
+    days.forEach(function (day, idx) {
+      var col = el('div', 'chart-bar-col');
+      col.appendChild(el('span', 'chart-bar-count', counts[idx] ? String(counts[idx]) : ''));
+      var bar = el('div', 'chart-bar' + (green ? ' green' : '') + (counts[idx] ? '' : ' zero'));
+      bar.style.height = counts[idx] ? Math.max(10, Math.round(counts[idx] / max * 62)) + 'px' : '3px';
+      bar.title = (day.getMonth() + 1) + '/' + day.getDate() + '：' + counts[idx] + ' 次';
+      col.appendChild(bar);
+      col.appendChild(el('span', 'chart-bar-label', (day.getMonth() + 1) + '/' + day.getDate()));
+      wrap.appendChild(col);
+    });
+    return wrap;
+  }
+
+  function gentleNote(icon, lines) {
+    var box = el('div', 'gentle-note');
+    var ic = el('span', 'note-icon');
+    ic.textContent = icon;
+    ic.setAttribute('aria-hidden', 'true');
+    box.appendChild(ic);
+    var p = el('p');
+    p.innerHTML = lines;
+    box.appendChild(p);
+    return box;
+  }
+
+  /* SECTION: view-student-home */
+  function studentHome() {
+    var frag = document.createDocumentFragment();
+    var todo = state.assignments.filter(function (a) { return !a.submitted; });
+    var done = state.assignments.filter(function (a) { return a.submitted; }).length;
+    var favs = state.records.filter(function (r) { return r.favorite; }).length;
+
+    var chip = el('div', 'date-chip');
+    chip.innerHTML = '🕒 ' + esc(A.greetingDate());
+    frag.appendChild(pageHeading('A LITTLE PROGRESS, EVERY DAY',
+      '你好，' + esc(state.user.name) + ' <span class="greeting-sun">☀</span>',
+      '不必一下子弄懂所有，从今天的一小步开始。', chip));
+
+    /* hero */
+    var hero = el('section', 'hero-banner');
+    var copy = el('div', 'hero-copy');
+    copy.innerHTML =
+      '<span class="hero-tag">✨ 你的专属学习伙伴</span>' +
+      '<h2>有点难的高数，<br>我们一起<span>慢慢懂。</span></h2>' +
+      '<p>从概念理解到解题思路，数伴陪你走好每一步。</p>';
+    var heroBtn = el('button', 'primary-button', null);
+    heroBtn.type = 'button';
+    heroBtn.innerHTML = '和数伴聊一聊 <span aria-hidden="true">↗</span>';
+    heroBtn.addEventListener('click', function () { navigate('agent'); });
+    copy.appendChild(heroBtn);
+    copy.appendChild(el('small', null, '当前为交互演示，真实 AI 能力即将接入'));
+    hero.appendChild(copy);
+
+    var art = el('div', 'hero-art');
+    art.setAttribute('aria-hidden', 'true');
+    art.innerHTML =
+      '<div class="art-ring"></div><div class="floating-math">f′(x) = <em>2x</em></div>' +
+      '<svg viewBox="0 0 280 190" role="img" aria-label="函数曲线示意">' +
+      '<path d="M30 156H257M83 179V13" stroke="#afa0d0" stroke-width="1"/>' +
+      '<path d="M33 51Q135 261 248 32" stroke="#9579d3" stroke-width="3" fill="none"/>' +
+      '<path d="M138 150L255 62" stroke="#d7b381" stroke-width="1.5" stroke-dasharray="5 5"/>' +
+      '<circle cx="209" cy="96" r="6" fill="white" stroke="#9579d3" stroke-width="3"/>' +
+      '<text x="243" y="175" fill="#a194b6" font-size="13">x</text></svg>' +
+      '<div class="art-caption">✨ 每一次「为什么」，都是进步的开始。</div><span class="art-star">✧</span>';
+    hero.appendChild(art);
+    frag.appendChild(hero);
+
+    /* stats */
+    var stats = el('div', 'stats-grid');
+    stats.appendChild(statCard('lilac', '💬', '与数伴的探索', state.records.length, '次提问', '真实记录'));
+    stats.appendChild(statCard('peach', '🔖', '我的复习收藏', favs, '条记录', null, '查看复习收藏', function () { navigate('favorites'); }));
+    stats.appendChild(statCard('green', '✎', '已完成的作业', done, '/ ' + state.assignments.length + ' 份', '继续加油'));
+    frag.appendChild(stats);
+
+    /* grid */
+    var grid = el('div', 'dashboard-grid');
+    var mainCol = el('div', 'dashboard-main');
+
+    var pathPanel = panel();
+    var allLink = el('button', 'subtle-link');
+    allLink.type = 'button';
+    allLink.innerHTML = '全部章节 <span aria-hidden="true">→</span>';
+    allLink.addEventListener('click', function () { navigate('courses'); });
+    pathPanel.appendChild(sectionHeading('从这里，继续学习', 'LEARNING PATH', allLink));
+
+    var courseGrid = el('div', 'course-grid');
+    var courses = [
+      { n: '01', pill: '基础篇', sym: 'lim', sub: 'x → a', title: '函数与极限', desc: '从无限接近，理解确定的值', foot: '概念入门 · 例题探索', q: '如何理解 sin(x)/x 在 x→0 时的极限？', mint: false },
+      { n: '02', pill: '进阶篇', sym: 'f′(x)', sub: '', title: '导数与微分', desc: '看见变化，认识瞬时的力量', foot: '几何直觉 · 定义推导', q: '用定义求 x² 的导数', mint: true }
+    ];
+    courses.forEach(function (c) {
+      var card = el('button', 'course-card' + (c.mint ? ' mint' : ''));
+      card.type = 'button';
+      card.innerHTML =
+        '<div class="course-top"><span class="course-number">' + c.n + '</span><span class="small-pill">' + esc(c.pill) + '</span></div>' +
+        '<div class="course-symbol">' + esc(c.sym) + (c.sub ? ' <small>' + esc(c.sub) + '</small>' : '') + '</div>' +
+        '<h4>' + esc(c.title) + '</h4><p>' + esc(c.desc) + '</p>' +
+        '<div class="course-bottom"><span>' + esc(c.foot) + '</span><span class="circle-arrow" aria-hidden="true">↗</span></div>';
+      card.addEventListener('click', function () { ask(c.q); });
+      courseGrid.appendChild(card);
+    });
+    pathPanel.appendChild(courseGrid);
+    mainCol.appendChild(pathPanel);
+
+    /* daily thought */
+    var thought = panel('daily-thought');
+    var tIcon = el('div', 'thought-icon');
+    tIcon.textContent = 'Σ';
+    tIcon.setAttribute('aria-hidden', 'true');
+    thought.appendChild(tIcon);
+    var tBody = el('div');
+    tBody.innerHTML = '<span class="section-kicker">今日一问</span>' +
+      '<h3>函数在一点有极限，就一定在这一点有定义吗？</h3>' +
+      '<p>先写下你的直觉，再用一个例子验证它。</p>';
+    thought.appendChild(tBody);
+    var tBtn = el('button', 'outline-button');
+    tBtn.type = 'button';
+    tBtn.innerHTML = '想一想 <span aria-hidden="true">↗</span>';
+    tBtn.addEventListener('click', function () { ask('函数在一点有极限，就一定在这一点有定义吗？'); });
+    thought.appendChild(tBtn);
+    mainCol.appendChild(thought);
+    grid.appendChild(mainCol);
+
+    /* side */
+    var side = el('aside', 'dashboard-side');
+    var todoPanel = panel();
+    todoPanel.appendChild(sectionHeading('待办学习', null, el('span', 'count-badge', String(todo.length))));
+    if (!todo.length) {
+      todoPanel.appendChild(el('p', 'empty-small', '今天的作业都完成啦，去探索新问题吧。'));
+    } else {
+      todo.slice(0, 3).forEach(function (a) {
+        var item = el('button', 'todo-item');
+        item.type = 'button';
+        item.innerHTML = '<span class="todo-circle"></span><div><strong>' + esc(a.title) + '</strong><small>' +
+          esc(a.due_date) + ' 截止</small></div><span class="chev" aria-hidden="true">›</span>';
+        item.addEventListener('click', function () { navigate('assignments'); });
+        todoPanel.appendChild(item);
+      });
+    }
+    var todoLink = el('button', 'subtle-link full-link');
+    todoLink.type = 'button';
+    todoLink.innerHTML = '查看我的作业 <span aria-hidden="true">→</span>';
+    todoLink.addEventListener('click', function () { navigate('assignments'); });
+    todoPanel.appendChild(todoLink);
+    side.appendChild(todoPanel);
+
+    var actPanel = panel('activity-panel');
+    actPanel.appendChild(sectionHeading('学习的足迹', null, el('span', 'muted small', '近 7 天')));
+    actPanel.appendChild(activityChart(state.records.map(function (r) { return r.created_at; }), false));
+    var cap = el('p', 'chart-caption');
+    cap.innerHTML = '每一个问题，都算数。<span>实际提问次数</span>';
+    actPanel.appendChild(cap);
+    side.appendChild(actPanel);
+
+    side.appendChild(gentleNote('📖', '学习不是一场竞赛，<br>理解比速度更重要。'));
+    grid.appendChild(side);
+    frag.appendChild(grid);
+    return frag;
+  }
+
+  /* SECTION: view-teacher-home */
+  function teacherHome() {
+    var frag = document.createDocumentFragment();
+    var totalSubs = state.assignments.reduce(function (s, a) { return s + a.submissions.length; }, 0);
+
+    var pubBtn = el('button', 'primary-button');
+    pubBtn.type = 'button';
+    pubBtn.innerHTML = '<span aria-hidden="true">＋</span> 发布新作业';
+    pubBtn.setAttribute('data-primary-action', 'create-assignment');
+    pubBtn.addEventListener('click', function () { state.createRequested = true; navigate('assignments'); });
+    frag.appendChild(pageHeading('TEACH WITH INSIGHT',
+      esc(state.user.name) + '，今天也一起启发思考。',
+      '连接课堂、练习与反馈，让每一次教学都有迹可循。', pubBtn));
+
+    var hero = el('section', 'hero-banner teacher-hero');
+    var copy = el('div', 'hero-copy');
+    copy.innerHTML =
+      '<span class="hero-tag">✨ 数伴 · 教学助手</span>' +
+      '<h2>把更多时间，<br>留给<span>真正的启发。</span></h2>' +
+      '<p>整理教学思路，发布课堂任务，查看学生的作答。</p>';
+    var heroBtn = el('button', 'primary-button');
+    heroBtn.type = 'button';
+    heroBtn.innerHTML = '打开教学助手 <span aria-hidden="true">↗</span>';
+    heroBtn.addEventListener('click', function () { navigate('agent'); });
+    copy.appendChild(heroBtn);
+    copy.appendChild(el('small', null, '教学建议为预设示例，使用前请自行复核'));
+    hero.appendChild(copy);
+    var art = el('div', 'teacher-art');
+    art.setAttribute('aria-hidden', 'true');
+    art.innerHTML =
+      '<div class="paper-card back"></div>' +
+      '<div class="paper-card"><span>LESSON NOTES</span><h3>从「知道」<br>到「理解」</h3>' +
+      '<div class="paper-line"></div><div class="paper-line short"></div>' +
+      '<span class="paper-equation">Δy / Δx → f′(x)</span><span class="cap-icon">🎓</span></div>' +
+      '<span class="art-star">✧</span>';
+    hero.appendChild(art);
+    frag.appendChild(hero);
+
+    var stats = el('div', 'stats-grid');
+    stats.appendChild(statCard('green', '👥', '演示班级学生', 1, '人', '预设账号'));
+    stats.appendChild(statCard('lilac', '📋', '已发布作业', state.assignments.length, '份'));
+    stats.appendChild(statCard('peach', '✓', '收到学生作答', totalSubs, '份', '实际提交'));
+    frag.appendChild(stats);
+
+    var grid = el('div', 'dashboard-grid');
+    var mainCol = el('div', 'dashboard-main');
+    var listPanel = panel();
+    var allLink = el('button', 'subtle-link');
+    allLink.type = 'button';
+    allLink.innerHTML = '全部作业 <span aria-hidden="true">→</span>';
+    allLink.addEventListener('click', function () { navigate('assignments'); });
+    listPanel.appendChild(sectionHeading('最近发布的作业', null, allLink));
+
+    if (!state.assignments.length) {
+      listPanel.appendChild(el('p', 'empty-small', '还没有发布作业，点击右上角「发布新作业」开启教学闭环。'));
+    } else {
+      state.assignments.slice(0, 4).forEach(function (a) {
+        var row = el('div', 'teacher-assignment');
+        var badge = el('span', 'stat-icon green');
+        badge.textContent = '📋';
+        badge.setAttribute('aria-hidden', 'true');
+        row.appendChild(badge);
+        var body = el('div');
+        body.innerHTML = '<h4>' + esc(a.title) + '</h4><p>' + esc(a.topic) + ' · 截止 ' + esc(a.due_date) + '</p>';
+        row.appendChild(body);
+        row.appendChild(el('span', 'small-pill', a.submissions.length + ' 份提交'));
+        var go = el('button', 'icon-button');
+        go.type = 'button';
+        go.textContent = '↗';
+        go.setAttribute('aria-label', '查看' + a.title);
+        go.addEventListener('click', function () { navigate('assignments'); });
+        row.appendChild(go);
+        listPanel.appendChild(row);
+      });
+    }
+
+    var remind = el('div', 'teaching-reminder');
+    remind.innerHTML = '<h4>让反馈成为下一次教学的起点</h4>' +
+      '<p>当前演示班级仅包含预设学生账号。真实班级导入、知识点掌握度与反馈复核将在后续版本接入。</p>';
+    var remindLink = el('button', 'subtle-link');
+    remindLink.type = 'button';
+    remindLink.innerHTML = '查看演示班级 <span aria-hidden="true">→</span>';
+    remindLink.addEventListener('click', function () { navigate('students'); });
+    remind.appendChild(remindLink);
+    listPanel.appendChild(remind);
+    mainCol.appendChild(listPanel);
+    grid.appendChild(mainCol);
+
+    var side = el('aside', 'dashboard-side');
+    var actPanel = panel('activity-panel');
+    actPanel.appendChild(sectionHeading('我的教学探索', null, el('span', 'muted small', '近 7 天')));
+    actPanel.appendChild(activityChart(state.records.map(function (r) { return r.created_at; }), true));
+    actPanel.appendChild(el('p', 'chart-caption', '与教学助手的实际对话次数'));
+    side.appendChild(actPanel);
+    side.appendChild(gentleNote('✨', '一个好的问题，<br>往往比答案更有力量。'));
+    grid.appendChild(side);
+    frag.appendChild(grid);
+    return frag;
+  }
+
+  /* SECTION: view-agent */
+  function agentView() {
+    var frag = document.createDocumentFragment();
+    var teacher = A.isTeacher();
+    frag.appendChild(pageHeading('THINK TOGETHER',
+      teacher ? '教学灵感，从对话开始' : '把困惑说出来，一起想明白',
+      '数伴智能体 · 你的高数' + (teacher ? '教学' : '学习') + '伙伴',
+      (function () {
+        var pill = el('span', 'status-pill');
+        pill.innerHTML = '<span class="tiny-dot"></span> 演示模式';
+        return pill;
+      })()));
+
+    var layout = el('div', 'agent-layout');
+    var chat = panel('chat-panel');
+
+    var header = el('header', 'chat-header');
+    var av = el('div', 'agent-avatar');
+    av.textContent = '✦';
+    av.setAttribute('aria-hidden', 'true');
+    header.appendChild(av);
+    var hInfo = el('div');
+    hInfo.innerHTML = '<strong>数伴 AI</strong><small>耐心听你说，陪你一步步探索</small>';
+    header.appendChild(hInfo);
+    var newBtn = el('button', 'subtle-link');
+    newBtn.type = 'button';
+    newBtn.innerHTML = '<span aria-hidden="true">＋</span> 新问题';
+    newBtn.addEventListener('click', function () {
+      state.selectedId = '';
+      state.initialQuestion = '';
+      render();
+    });
+    header.appendChild(newBtn);
+    chat.appendChild(header);
+
+    var body = el('div', 'chat-body');
+    body.setAttribute('aria-live', 'polite');
+    var active = state.selectedId
+      ? state.records.filter(function (r) { return r.id === state.selectedId; })[0] || null
+      : null;
+
+    if (!active) {
+      var welcome = el('div', 'chat-welcome');
+      var sym = el('div', 'welcome-symbol');
+      sym.textContent = '✦';
+      sym.setAttribute('aria-hidden', 'true');
+      welcome.appendChild(sym);
+      welcome.appendChild(el('h2', null, '你好，' + state.user.name + ' 👋'));
+      var wIntro = el('p');
+      wIntro.innerHTML = '不用急着得到答案。<br>我们可以先从你最想理解的那一步开始。';
+      welcome.appendChild(wIntro);
+      var prompts = el('div', 'prompt-list');
+      (teacher ? D.PROMPTS_TEACHER : D.PROMPTS_STUDENT).forEach(function (p) {
+        var b = el('button');
+        b.type = 'button';
+        b.innerHTML = '<span class="p-icon" aria-hidden="true">' + esc(p.icon) + '</span><span>' + esc(p.text) + '</span><span class="p-go" aria-hidden="true">↑</span>';
+        b.addEventListener('click', function () {
+          state.initialQuestion = p.text;
+          render();
+          var ta = $('#agentInput');
+          if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+        });
+        prompts.appendChild(b);
+      });
+      welcome.appendChild(prompts);
+      body.appendChild(welcome);
+    } else {
+      var userMsg = el('div', 'user-message');
+      userMsg.innerHTML = '<span class="message-label">' + esc(state.user.name) + ' · ' + esc(A.formatDateTime(active.created_at)) + '</span>' +
+        '<div>' + esc(active.question) + '</div>';
+      body.appendChild(userMsg);
+
+      var agentMsg = el('div', 'agent-message');
+      var av2 = el('div', 'agent-avatar');
+      av2.textContent = '✦';
+      av2.setAttribute('aria-hidden', 'true');
+      agentMsg.appendChild(av2);
+      var content = el('div', 'answer-content');
+      content.innerHTML = '<div class="message-label">数伴 AI <span class="demo-label">预设演示回复</span></div>';
+      var mdBody = el('div', 'md-body');
+      mdBody.innerHTML = A.renderAnswer(active.answer);
+      content.appendChild(mdBody);
+      var favBtn = el('button', 'subtle-link save-answer' + (active.favorite ? ' saved' : ''));
+      favBtn.type = 'button';
+      favBtn.innerHTML = (active.favorite ? '✓ 已收藏到复习本' : '🔖 收藏到复习本');
+      favBtn.addEventListener('click', function () {
+        toggleFavorite(active.id);
+      });
+      content.appendChild(favBtn);
+      agentMsg.appendChild(content);
+      body.appendChild(agentMsg);
+    }
+    chat.appendChild(body);
+
+    /* compose */
+    var compose = el('form', 'chat-compose');
+    var topicRow = el('div', 'compose-topic');
+    topicRow.innerHTML = '<span class="tiny-dot"></span><label for="topicSelect">本次主题</label>';
+    var select = el('select', null);
+    select.id = 'topicSelect';
+    ['函数与极限', '导数与微分', '费曼练习'].concat(teacher ? ['教学设计'] : []).forEach(function (t) {
+      var opt = el('option', null, t);
+      opt.value = t;
+      select.appendChild(opt);
+    });
+    select.value = guessTopic(state.initialQuestion, teacher);
+    topicRow.appendChild(select);
+    var charCount = el('span', 'char-count', '0/2000');
+    topicRow.appendChild(charCount);
+    compose.appendChild(topicRow);
+
+    var ta = el('textarea');
+    ta.id = 'agentInput';
+    ta.maxLength = 2000;
+    ta.rows = 3;
+    ta.setAttribute('aria-label', teacher ? '向教学助手提问' : '向数伴提问');
+    ta.placeholder = '写下你的问题或思考，让我们一起探索…';
+    ta.value = state.initialQuestion || '';
+    charCount.textContent = ta.value.length + '/2000';
+    ta.addEventListener('input', function () { charCount.textContent = ta.value.length + '/2000'; updateSendState(); });
+    ta.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submitQuestion(); }
+    });
+    compose.appendChild(ta);
+
+    var bottom = el('div', 'compose-bottom');
+    bottom.appendChild(el('span', null, 'Enter 发送 · Shift + Enter 换行'));
+    var sendBtn = el('button', 'send-button');
+    sendBtn.type = 'submit';
+    sendBtn.textContent = '↑';
+    sendBtn.setAttribute('aria-label', '发送问题');
+    sendBtn.setAttribute('data-primary-action', 'ask-agent');
+    bottom.appendChild(sendBtn);
+    compose.appendChild(bottom);
+
+    var errLine = el('p', 'form-error hidden');
+    errLine.setAttribute('role', 'alert');
+    compose.appendChild(errLine);
+
+    compose.addEventListener('submit', function (e) { e.preventDefault(); submitQuestion(); });
+    chat.appendChild(compose);
+    chat.appendChild(el('p', 'chat-disclaimer', '当前回复为固定示例，未接入真实模型；请结合教材核对。'));
+    layout.appendChild(chat);
+
+    function updateSendState() {
+      sendBtn.disabled = state.busy || !ta.value.trim();
+    }
+
+    function submitQuestion() {
+      var text = ta.value.trim();
+      if (!text) {
+        errLine.textContent = '请先输入问题，或点击左侧示例问题。';
+        errLine.classList.remove('hidden');
+        return;
+      }
+      errLine.classList.add('hidden');
+      state.busy = true;
+      updateSendState();
+      var topic = select.value;
+      var thinking = el('div', 'thinking');
+      thinking.innerHTML = '正在读取演示反馈<span>···</span>';
+      body.appendChild(thinking);
+      body.scrollTop = body.scrollHeight;
+      setTimeout(function () {
+        if (thinking.parentNode) thinking.parentNode.removeChild(thinking);
+        var record = {
+          id: uid('c'),
+          question: text,
+          answer: demoReply(text, topic, state.user.role),
+          topic: topic,
+          favorite: false,
+          created_at: new Date().toISOString(),
+          mode: 'demo'
+        };
+        var list = A.recordsOf(state.user.id);
+        list.unshift(record);
+        A.persistRecords(state.user.id, list);
+        state.busy = false;
+        state.initialQuestion = '';
+        state.selectedId = record.id;
+        refreshData();
+        paintNav();
+        render();
+        toast('已保存这次提问，可在「学习记录」中查看。', 'success');
+      }, 520);
+    }
+
+    /* aside */
+    var aside = el('aside', 'agent-aside');
+    var tip = panel('side-tip');
+    tip.innerHTML = '<div class="section-kicker">💡 好问题的小提示</div><h3>让思考更进一步</h3>' +
+      '<p>告诉数伴你正在学什么、尝试过什么，以及具体卡在哪里。</p>' +
+      '<div class="quote">“我知道导数的公式，<br>但为什么要用极限定义它？”</div>';
+    aside.appendChild(tip);
+
+    var recentPanel = panel();
+    recentPanel.appendChild(sectionHeading('最近的问题', null, (function () {
+      var s = el('span'); s.textContent = '💬'; return s;
+    })()));
+    if (!state.records.length) {
+      recentPanel.appendChild(el('p', 'empty-small', '还没有提问，从左边开始吧。'));
+    } else {
+      state.records.slice(0, 5).forEach(function (r) {
+        var b = el('button', 'recent-question');
+        b.type = 'button';
+        b.innerHTML = '<span>' + esc(r.question) + '</span><small>' + esc(A.formatDateTime(r.created_at)) + '</small>';
+        b.addEventListener('click', function () { openRecord(r.id); });
+        recentPanel.appendChild(b);
+      });
+    }
+    aside.appendChild(recentPanel);
+
+    var coming = el('div', 'coming-note');
+    coming.innerHTML = '<span>接下来，我们还会…</span><p>拍照识题 · 课程引用 · 分层提示</p><small>这些能力正在规划中</small>';
+    aside.appendChild(coming);
+    layout.appendChild(aside);
+    frag.appendChild(layout);
+
+    setTimeout(function () { updateSendState(); if (!active && ta) ta.focus(); }, 30);
+    return frag;
+  }
+
+  function guessTopic(question, teacher) {
+    if (teacher) return '教学设计';
+    var q = String(question || '');
+    if (q.indexOf('费曼') >= 0) return '费曼练习';
+    if (q.indexOf('导数') >= 0 || q.indexOf('微分') >= 0) return '导数与微分';
+    return '函数与极限';
+  }
+
+  /* 与 backend demo_reply 相同的分支顺序 */
+  function demoReply(question, topic, role) {
+    if (role === 'teacher') return D.REPLY_TEACHER;
+    if (topic === '费曼练习') return D.REPLY_FEYNMAN;
+    var q = String(question).toLowerCase();
+    if (q.indexOf('sin') >= 0 && (question.indexOf('极限') >= 0 || q.indexOf('lim') >= 0)) return D.REPLY_SIN_LIMIT;
+    if (question.indexOf('x^2') >= 0 || question.indexOf('x²') >= 0 || question.indexOf('导数') >= 0) return D.REPLY_DERIVATIVE;
+    return D.REPLY_FALLBACK;
+  }
+
+  function toggleFavorite(id) {
+    var list = A.recordsOf(state.user.id);
+    var hit = list.filter(function (r) { return r.id === id; })[0];
+    if (!hit) return;
+    hit.favorite = !hit.favorite;
+    A.persistRecords(state.user.id, list);
+    refreshData();
+    render();
+    toast(hit.favorite ? '已收藏到复习本。' : '已从复习本移除。', hit.favorite ? 'success' : 'info');
+  }
+
+  /* SECTION: view-courses */
+  function coursesView() {
+    var frag = document.createDocumentFragment();
+    frag.appendChild(pageHeading('LEARN AT YOUR OWN PACE', '循着好奇，走进高数',
+      '当前提供概念入口与预设例题，完整课程知识库将在后续接入。',
+      (function () { var s = el('span', 'heading-illustration'); s.textContent = '📖'; return s; })()));
+
+    var tabs = el('div', 'filter-tabs');
+    ['全部章节', '函数与极限', '导数与微分'].forEach(function (tab) {
+      var b = el('button', state.courseFilter === tab ? 'active' : '', tab);
+      b.type = 'button';
+      b.addEventListener('click', function () { state.courseFilter = tab; render(); });
+      tabs.appendChild(b);
+    });
+    frag.appendChild(tabs);
+
+    var grid = el('div', 'lesson-grid');
+    var shown = D.LESSONS.filter(function (l) {
+      return state.courseFilter === '全部章节' || l.chapter === state.courseFilter;
+    });
+    shown.forEach(function (lesson) {
+      var card = el('article', 'panel lesson-card');
+      var art = el('div', 'lesson-art');
+      art.innerHTML = '<span>' + esc(lesson.formula) + '</span><small>' + esc(lesson.number) + '</small>';
+      card.appendChild(art);
+      var copy = el('div', 'lesson-copy');
+      copy.innerHTML = '<div class="section-kicker">' + esc(lesson.chapter) + ' <span>· ' + esc(lesson.label) + '</span></div>' +
+        '<h3>' + esc(lesson.title) + '</h3><p>' + esc(lesson.text) + '</p>';
+      var go = el('button', 'subtle-link');
+      go.type = 'button';
+      go.innerHTML = '带着问题去探索 <span aria-hidden="true">↗</span>';
+      go.addEventListener('click', function () { ask(lesson.prompt); });
+      copy.appendChild(go);
+      card.appendChild(copy);
+      grid.appendChild(card);
+    });
+    if (!shown.length) {
+      var empty = panel('empty-state');
+      empty.innerHTML = '<span class="empty-icon">📖</span><h3>该章节还没有内容</h3><p>试试切换到「全部章节」。</p>';
+      grid.appendChild(empty);
+    }
+    frag.appendChild(grid);
+
+    var note = el('div', 'course-note');
+    note.innerHTML = '<span class="note-icon" aria-hidden="true">💡</span>' +
+      '<p>先理解概念，再练习迁移。数伴不会仅凭一次对话就认定你已经掌握。</p>' +
+      '<span class="sigma" aria-hidden="true">Σ</span>';
+    frag.appendChild(note);
+    return frag;
+  }
+
+  /* SECTION: view-assignments */
+  function assignmentsView() {
+    var frag = document.createDocumentFragment();
+    var teacher = A.isTeacher();
+    var right = null;
+    if (teacher) {
+      right = el('button', 'primary-button');
+      right.type = 'button';
+      right.innerHTML = '<span aria-hidden="true">＋</span> 发布新作业';
+      right.setAttribute('data-primary-action', 'create-assignment');
+      right.addEventListener('click', function () { openCreateDialog(); });
+    }
+    frag.appendChild(pageHeading('PRACTICE & REFLECTION',
+      teacher ? '让课堂的思考继续' : '把理解，写进练习里',
+      teacher ? '发布给演示班级的作业，并查看学生的实际提交。' : '完成老师的课堂任务，留下你的解题过程。',
+      right));
+
+    var grid = el('div', 'assignment-grid');
+    if (!state.assignments.length) {
+      var empty = panel('empty-state');
+      empty.innerHTML = '<span class="empty-icon">📋</span><h3>还没有作业</h3><p>' +
+        esc(teacher ? '发布第一份练习，开启教学闭环。' : '老师发布后，作业会出现在这里。') + '</p>';
+      grid.appendChild(empty);
+    } else {
+      state.assignments.forEach(function (a) { grid.appendChild(assignmentCard(a, teacher)); });
+    }
+    frag.appendChild(grid);
+    if (state.createRequested && teacher) { state.createRequested = false; setTimeout(openCreateDialog, 60); }
+    return frag;
+  }
+
+  function assignmentCard(a, teacher) {
+    var card = el('article', 'panel assignment-card');
+    var head = el('div', 'section-heading');
+    var badge = el('span', 'stat-icon ' + (a.submitted ? 'green' : 'lilac'));
+    badge.textContent = a.submitted ? '✓' : '📋';
+    badge.setAttribute('aria-hidden', 'true');
+    head.appendChild(badge);
+    var pillText, pillCls;
+    if (teacher) {
+      pillText = a.submissions.length + ' 份提交';
+      pillCls = a.submissions.length ? 'success' : 'neutral';
+    } else if (a.submitted) {
+      pillText = '已提交';
+      pillCls = 'success';
+    } else if (a.due_date < A.todayISO()) {
+      pillText = '已截止';
+      pillCls = 'neutral';
+    } else {
+      pillText = '待完成';
+      pillCls = 'warn';
+    }
+    var pill = el('span', 'small-pill ' + pillCls, pillText);
+    head.appendChild(pill);
+    card.appendChild(head);
+    card.appendChild(el('span', 'section-kicker', a.topic));
+    card.appendChild(el('h3', null, a.title));
+    card.appendChild(el('p', 'assignment-preview', a.content));
+
+    var foot = el('div', 'assignment-footer');
+    foot.innerHTML = '<span>📅 ' + esc(a.due_date) + '</span>';
+    var btn = el('button', 'subtle-link');
+    btn.type = 'button';
+    btn.innerHTML = esc(teacher ? '查看作答' : (a.submitted ? '查看 / 修改' : '开始作答')) + ' <span aria-hidden="true">→</span>';
+    btn.addEventListener('click', function () { openAssignmentDialog(a); });
+    foot.appendChild(btn);
+    card.appendChild(foot);
+    return card;
+  }
+
+  function openCreateDialog() {
+    var form = el('form', 'dialog-form');
+    form.innerHTML =
+      '<p class="muted">发布至「高等数学 · 演示班级」，预设学生可立即查看。</p>' +
+      '<label>作业标题<input type="text" id="fTitle" maxlength="100" placeholder="例如：导数定义与几何意义" required></label>' +
+      '<div class="form-row"><label>所属章节<select id="fTopic"><option>函数与极限</option><option>导数与微分</option></select></label>' +
+      '<label>截止日期<input type="date" id="fDue" required></label></div>' +
+      '<label>题目与要求<textarea id="fContent" rows="5" maxlength="3000" placeholder="写下题目，鼓励学生展示思考过程。" required></textarea></label>';
+    var err = el('p', 'form-error hidden');
+    err.setAttribute('role', 'alert');
+    form.appendChild(err);
+    var actions = el('div', 'dialog-actions');
+    var cancel = el('button', 'outline-button', '取消');
+    cancel.type = 'button';
+    cancel.addEventListener('click', closeDialog);
+    var ok = el('button', 'primary-button');
+    ok.type = 'submit';
+    ok.innerHTML = '<span aria-hidden="true">➤</span> 确认发布';
+    actions.appendChild(cancel);
+    actions.appendChild(ok);
+    form.appendChild(actions);
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var title = $('#fTitle', form).value.trim();
+      var content = $('#fContent', form).value.trim();
+      var due = $('#fDue', form).value;
+      if (!title || !content || !due) {
+        err.textContent = '请完整填写标题、题目要求与截止日期。';
+        err.classList.remove('hidden');
+        return;
+      }
+      if (due < A.todayISO()) {
+        err.textContent = '截止日期不能早于今天。';
+        err.classList.remove('hidden');
+        return;
+      }
+      store.data.assignments.push({
+        id: uid('a'),
+        title: title,
+        content: content,
+        topic: $('#fTopic', form).value,
+        due_date: due,
+        created_at: new Date().toISOString(),
+        submissions: []
+      });
+      store.save();
+      closeDialog();
+      refreshData();
+      paintNav();
+      render();
+      toast('作业已发布，学生端现在可以查看。', 'success');
+    });
+    openDialog('发布新作业', form, { wide: false });
+    setTimeout(function () {
+      var due = $('#fDue', form);
+      if (due) {
+        var d = new Date();
+        d.setDate(d.getDate() + 7);
+        due.min = A.todayISO();
+        due.value = D.isoDate(d);
+      }
+    }, 40);
+  }
+
+  function openAssignmentDialog(a) {
+    var wrap = el('div');
+    wrap.appendChild(el('span', 'small-pill', a.topic + ' · ' + a.due_date + ' 截止'));
+    var full = el('div', 'assignment-full', a.content);
+    wrap.appendChild(full);
+
+    if (A.isTeacher()) {
+      var subHead = el('h4', null, '学生作答（' + a.submissions.length + '）');
+      subHead.style.marginTop = '20px';
+      wrap.appendChild(subHead);
+      if (!a.submissions.length) {
+        wrap.appendChild(el('p', 'empty-small', '暂未收到提交。可退出后使用学生账号体验作答流程。'));
+      } else {
+        a.submissions.forEach(function (s) {
+          var card = el('div', 'submission-card');
+          card.innerHTML = '<strong><span class="tiny-dot"></span> ' + esc(s.student_name) + '</strong>' +
+            '<p>' + esc(s.answer) + '</p><small class="muted">' + esc(A.formatDateTime(s.created_at)) + '</small>';
+          wrap.appendChild(card);
+        });
+      }
+      var note = el('p', 'muted small');
+      note.style.marginTop = '14px';
+      note.textContent = '本版本只记录提交，不自动评分，也不推断知识点掌握程度。';
+      wrap.appendChild(note);
+    } else {
+      var expired = a.due_date < A.todayISO();
+      var form = el('form', 'dialog-form');
+      var label = el('label', null, '我的作答');
+      var ta = el('textarea');
+      ta.rows = 7;
+      ta.maxLength = 5000;
+      ta.placeholder = '写出你的答案与推理步骤…';
+      ta.value = a.answer || '';
+      if (expired) ta.disabled = true;
+      label.appendChild(ta);
+      form.appendChild(label);
+      form.appendChild(el('p', 'muted small', expired
+        ? '作业已过截止日期，作答已锁定，仍可查看此前提交的内容。'
+        : '提交后仍可在截止前修改；本版本不自动评分。'));
+      var err = el('p', 'form-error hidden');
+      err.setAttribute('role', 'alert');
+      form.appendChild(err);
+      var actions = el('div', 'dialog-actions');
+      var cancel = el('button', 'outline-button', '关闭');
+      cancel.type = 'button';
+      cancel.addEventListener('click', closeDialog);
+      var ok = el('button', 'primary-button');
+      ok.type = 'submit';
+      ok.textContent = a.submitted ? '保存修改' : '提交作答';
+      ok.setAttribute('data-primary-action', 'submit-answer');
+      ok.disabled = expired;
+      if (expired) ok.textContent = '作业已截止';
+      actions.appendChild(cancel);
+      actions.appendChild(ok);
+      form.appendChild(actions);
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var text = ta.value.trim();
+        if (!text) {
+          err.textContent = '请先写下你的作答内容。';
+          err.classList.remove('hidden');
+          return;
+        }
+        A.setSubmission(a.id, state.user.id, text);
+        closeDialog();
+        refreshData();
+        paintNav();
+        render();
+        toast('作答已保存，老师可以查看你的思考。', 'success');
+      });
+      wrap.appendChild(form);
+    }
+    openDialog(a.title, wrap, { wide: true });
+  }
+
+  /* SECTION: view-records */
+  function recordsView(favoritesOnly) {
+    var frag = document.createDocumentFragment();
+    var list = state.records.filter(function (r) { return !favoritesOnly || r.favorite; });
+    var q = state.recordQuery.trim().toLowerCase();
+    if (q) {
+      list = list.filter(function (r) {
+        return r.question.toLowerCase().indexOf(q) >= 0 || r.answer.toLowerCase().indexOf(q) >= 0;
+      });
+    }
+    frag.appendChild(pageHeading(favoritesOnly ? 'KEEP FOR REVIEW' : 'YOUR LEARNING TRACE',
+      favoritesOnly ? '值得再看一遍的思考' : '每一次提问，都留在这里',
+      favoritesOnly
+        ? '收藏是你在对话中主动标记的记录，不自动判定为错题。'
+        : '这里保存你与数伴的真实对话，按时间倒序排列。'));
+
+    var toolbar = el('div', 'records-toolbar');
+    var search = el('div', 'search-box');
+    search.innerHTML = '<span class="s-icon" aria-hidden="true">🔍</span>';
+    var input = el('input');
+    input.type = 'search';
+    input.placeholder = favoritesOnly ? '搜索收藏的问题或讲解…' : '搜索你的问题或讲解…';
+    input.value = state.recordQuery;
+    input.setAttribute('aria-label', '搜索记录');
+    input.addEventListener('input', function () {
+      state.recordQuery = input.value;
+      var box = $('#recordsList');
+      if (box && box.parentNode) {
+        var next = buildList();
+        box.parentNode.replaceChild(next, box);
+        var q2 = input.value.trim().toLowerCase();
+        var n = state.records.filter(function (r) {
+          if (favoritesOnly && !r.favorite) return false;
+          if (!q2) return true;
+          return r.question.toLowerCase().indexOf(q2) >= 0 || r.answer.toLowerCase().indexOf(q2) >= 0;
+        }).length;
+        count.textContent = n + ' 条记录';
+      }
+    });
+    search.appendChild(input);
+    toolbar.appendChild(search);
+    var count = el('span', 'small-pill neutral', list.length + ' 条记录');
+    toolbar.appendChild(count);
+    var clearBtn = el('button', 'outline-button', '清空搜索');
+    clearBtn.type = 'button';
+    clearBtn.addEventListener('click', function () { state.recordQuery = ''; render(); });
+    if (state.recordQuery) toolbar.appendChild(clearBtn);
+    frag.appendChild(toolbar);
+
+    function buildList() {
+      var q2 = state.recordQuery.trim().toLowerCase();
+      var rows = state.records.filter(function (r) { return !favoritesOnly || r.favorite; });
+      if (q2) {
+        rows = rows.filter(function (r) {
+          return r.question.toLowerCase().indexOf(q2) >= 0 || r.answer.toLowerCase().indexOf(q2) >= 0;
+        });
+      }
+      var box = el('div', 'records-list');
+      box.id = 'recordsList';
+      if (!rows.length) {
+        var empty = panel('empty-state');
+        empty.innerHTML = '<span class="empty-icon">' + (favoritesOnly ? '🔖' : '🕘') + '</span><h3>' +
+          (q2 ? '没有匹配的记录' : (favoritesOnly ? '复习收藏还是空的' : '还没有学习记录')) + '</h3><p>' +
+          (q2 ? '换个关键词试试，或清空搜索查看全部。'
+            : (favoritesOnly ? '在对话中点击「收藏到复习本」，重要的讲解就会出现在这里。' : '去数伴智能体提出第一个问题吧。')) + '</p>';
+        if (!q2) {
+          var go = el('button', 'primary-button');
+          go.type = 'button';
+          go.style.marginTop = '16px';
+          go.innerHTML = '和数伴聊一聊 <span aria-hidden="true">↗</span>';
+          go.addEventListener('click', function () { navigate('agent'); });
+          empty.appendChild(go);
+        }
+        box.appendChild(empty);
+        return box;
+      }
+      rows.forEach(function (r) {
+        var card = el('div', 'record-card');
+        var main = el('div', 'record-main');
+        var top = el('div', 'record-top');
+        top.appendChild(el('span', 'small-pill', r.topic));
+        top.appendChild(el('span', 'small-pill neutral', '演示回复'));
+        top.appendChild(el('span', 'muted small', A.formatDateTime(r.created_at)));
+        main.appendChild(top);
+        main.appendChild(el('h4', null, r.question));
+        var preview = el('div', 'record-answer');
+        preview.textContent = r.answer.replace(/\n+/g, ' ').replace(/【|】/g, '');
+        main.appendChild(preview);
+        card.appendChild(main);
+
+        var actions = el('div', 'record-actions');
+        var fav = el('button', 'icon-button fav-button' + (r.favorite ? ' active' : ''));
+        fav.type = 'button';
+        fav.textContent = r.favorite ? '★' : '☆';
+        fav.setAttribute('aria-label', r.favorite ? '取消收藏' : '收藏到复习本');
+        fav.title = r.favorite ? '取消收藏' : '收藏到复习本';
+        fav.addEventListener('click', function () { toggleFavorite(r.id); });
+        actions.appendChild(fav);
+        var open = el('button', 'icon-button');
+        open.type = 'button';
+        open.textContent = '↗';
+        open.setAttribute('aria-label', '查看完整对话');
+        open.title = '查看完整对话';
+        open.addEventListener('click', function () { openRecord(r.id); });
+        actions.appendChild(open);
+        card.appendChild(actions);
+        box.appendChild(card);
+      });
+      return box;
+    }
+    frag.appendChild(buildList());
+    return frag;
+  }
+
+  /* SECTION: view-students */
+  function studentsView() {
+    var frag = document.createDocumentFragment();
+    var submittedCount = state.assignments.filter(function (a) { return a.submissions.length; }).length;
+    var pill = el('span', 'status-pill', '1 位学生');
+    frag.appendChild(pageHeading('GROW TOGETHER', '看见每一位同学',
+      '高等数学 · 演示班级，当前只有一名预设学生。', pill));
+
+    var p = panel();
+    p.appendChild(sectionHeading('班级成员', null, el('span', 'muted small', '账号与作业数据')));
+    var row = el('div', 'class-student');
+    var av = el('span', 'user-avatar', '林');
+    row.appendChild(av);
+    var info = el('div');
+    info.innerHTML = '<h3>林同学</h3><p class="muted">student · 学生演示账号</p>';
+    row.appendChild(info);
+    var stat = el('div');
+    stat.innerHTML = '<strong>' + submittedCount + ' / ' + state.assignments.length + '</strong><p class="muted">已提交作业</p>';
+    row.appendChild(stat);
+    var go = el('button', 'outline-button');
+    go.type = 'button';
+    go.innerHTML = '查看作业 <span aria-hidden="true">↗</span>';
+    go.addEventListener('click', function () { navigate('assignments'); });
+    row.appendChild(go);
+    p.appendChild(row);
+
+    var remind = el('div', 'teaching-reminder');
+    remind.innerHTML = '<h4>先观察，再判断</h4><p>本版仅记录作业提交，不推断知识点掌握程度。多班级管理、成员邀请、学情诊断和反馈复核尚未开放。</p>';
+    p.appendChild(remind);
+    frag.appendChild(p);
+    return frag;
+  }
+
+  /* SECTION: views-map */
+  var VIEWS = {
+    dashboard: function () { return A.isTeacher() ? teacherHome() : studentHome(); },
+    agent: agentView,
+    courses: function () { return A.isTeacher() ? teacherHome() : coursesView(); },
+    assignments: assignmentsView,
+    favorites: function () { return recordsView(true); },
+    records: function () { return recordsView(false); },
+    students: function () { return A.isTeacher() ? studentsView() : studentHome(); }
+  };
+
+  /* SECTION: help-dialog */
+  function openHelp() {
+    var wrap = el('div', 'help-content');
+    wrap.innerHTML =
+      '<p>这是一个高数教学与学习的最小可行版本前端演示。</p>' +
+      '<p><strong>已经可以体验：</strong></p><ul>' +
+      '<li>学生 / 教师登录与身份校验，勾选「记住密码」后刷新仍保持登录</li>' +
+      '<li>课程探索与章节筛选，点卡片即带着问题进入对话</li>' +
+      '<li>演示问答、公式渲染、收藏与历史记录、按账号隔离</li>' +
+      '<li>教师发布作业 → 学生提交作答 → 教师查看实际作答</li>' +
+      '<li>近 7 天提问次数统计，只计算真实发生的提问</li></ul>' +
+      '<p><strong>当前尚未接入：</strong></p><ul>' +
+      '<li>真实 AI 模型、拍照识题、语音、课程检索（RAG）、自动评分与多班级管理</li></ul>' +
+      '<p><span class="help-badge">数据说明</span>对话、作业与作答保存在当前浏览器，不连接后端；智能体回复为固定示例，页面会明确标注。</p>' +
+      '<p><span class="help-badge">演示账号</span>学生 student / Student123!；教师 teacher / Teacher123!。账号切换请先退出登录。</p>';
+    openDialog('欢迎体验数伴', wrap, { wide: false });
+  }
+
+  /* SECTION: boot */
+  function logout() {
+    store.data.session = null;
+    store.data.remember = false;
+    store.save();
+    state.user = null;
+    state.page = 'dashboard';
+    state.records = [];
+    state.assignments = [];
+    state.initialQuestion = '';
+    state.selectedId = '';
+    state.createRequested = false;
+    state.mobileNav = false;
+    $('#appShell').classList.add('hidden');
+    $('#sidebar').classList.remove('is-open');
+    $('#navBackdrop').classList.add('hidden');
+    $('#username').value = '';
+    $('#password').value = '';
+    $('#remember').checked = false;
+    $('#rememberNote').classList.add('hidden');
+    loginRole = 'student';
+    paintLogin();
+    $('#loginView').classList.remove('hidden');
+    toast('已退出登录，本次会话已撤销。', 'info');
+  }
+
+  function bindEvents() {
+    $('#tabStudent').addEventListener('click', function () { switchRole('student'); });
+    $('#tabTeacher').addEventListener('click', function () { switchRole('teacher'); });
+    $('#loginForm').addEventListener('submit', doLogin);
+    $('#fillDemo').addEventListener('click', function () {
+      $('#username').value = loginRole === 'teacher' ? 'teacher' : 'student';
+      $('#password').value = loginRole === 'teacher' ? 'Teacher123!' : 'Student123!';
+      $('#loginError').classList.add('hidden');
+      $('#username').focus();
+    });
+    $('#togglePassword').addEventListener('click', function () {
+      var input = $('#password');
+      var show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      this.textContent = show ? '🙈' : '👁';
+      this.setAttribute('aria-label', show ? '隐藏密码' : '显示密码');
+    });
+    $('#remember').addEventListener('change', function () {
+      $('#rememberNote').classList.toggle('hidden', !this.checked);
+    });
+    $('#openNav').addEventListener('click', openMobileNav);
+    $('#closeNav').addEventListener('click', closeMobileNav);
+    $('#navBackdrop').addEventListener('click', closeMobileNav);
+    $('#logoutBtn').addEventListener('click', logout);
+    $('#openHelp').addEventListener('click', openHelp);
+    $('#dialogClose').addEventListener('click', closeDialog);
+    $('#dialogBackdrop').addEventListener('click', function (e) {
+      if (e.target === this) closeDialog();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        if (!$('#dialogBackdrop').classList.contains('hidden')) closeDialog();
+        else if (state.mobileNav) closeMobileNav();
+      }
+    });
+  }
+
+  function boot() {
+    store.load();
+    bindEvents();
+    paintLogin();
+    var session = store.data.session;
+    var resumed = null;
+    if (session && session.userId) {
+      resumed = D.USERS.filter(function (u) { return u.id === session.userId; })[0] || null;
+      var maxAge = store.data.remember ? 7 * 24 * 3600 * 1000 : 8 * 3600 * 1000;
+      if (resumed && Date.now() - Number(session.at || 0) > maxAge) {
+        store.data.session = null;
+        store.save();
+        resumed = null;
+      }
+    }
+    $('#bootScreen').classList.add('hidden');
+    if (resumed) {
+      loginRole = resumed.role;
+      enterApp(resumed);
+    } else {
+      $('#loginView').classList.remove('hidden');
+    }
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+</script>
+</body>
+</html>
