@@ -181,3 +181,22 @@ GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：
 - 验证通过：远端功能树9bada338c6cc302abff34ca7c8769f515d3d4ef6与本地f332f59的文件树相同；fetch后git diff退出码0，65个文件逐项一致。接口创建提交使提交ID不同，文件内容未变；本地分支已关联远端，原本地提交保留在reflog。
 - 文档同步：AGENTS、README、架构、C简报、合并评估和本日志更新完成状态；接口、迁移、配置、原始材料及目录树已核对无变化。这些结果记录属于同一次已确认上传的文档范围，上传前再次检查。无业务变更，沿用19项测试、构建及浏览器验收结果。
 - 下一步：在独立集成分支处理B/C冲突及已记录兼容问题，验收后另行审核合并；本次未执行合并。
+
+
+## 2026-09-18 / Windows免安装测试包与启动诊断
+
+- 负责人 / AI：Codex。用户反馈其他电脑双击失败，截图明确为Frontend dependencies missing；根因是源码分发不携带node_modules及Python运行环境，原启动器要求开发环境。截图不证明Node或Python一定未安装，只证明前端依赖检查未通过。
+- 分支/范围：从已上传C分支创建codex/portable-windows。新增根目录build-portable.py、backend/app/platform/portable.py、docs/portable-windows.md、tests/check_portable.py，修改start.ps1、health可选实例字段及忽略规则。未与B整合、未上传GitHub。无新增维护目录；dist和.tmp为已有忽略规则覆盖的构建/验收产物。
+- 实现：开发机校验Python锁定包版本并构建前端，按允许列表打包CPython3.11.15完整运行时/标准库/原生DLL/依赖及许可证、前端静态资源、启动脚本和说明。运行时以_pth隔离系统Python和用户扩展，不复制.venv；测试端无需Node、pip或联网安装。仅复制应用.py和必要构建文件，不携带本机.env、数据库/会话、日志、Git、原始附件、PCL.exe或node_modules。
+- 启动：有portable-manifest.json时使用包内runtime，默认127.0.0.1:8765（-Port可调），后台启动FastAPI并托管静态页面；校验本目录instance_id、页面和端口，文件锁防并发、重复启动复用，冲突明确报错且不结束别的进程。固定本包backend/demo.db，避免继承系统DATABASE_URL。源码模式仍使用8000/5173，缺依赖时提示测试者改用便携包。
+- 纠正：初查曾怀疑main.py的静态路径；按实际父目录层级复核后确认原parents[2]正确，保留原实现，未作路径修复。
+- 验证通过：TypeScript检查、生产构建；后端19项测试通过（2条既有弃用警告）；内置解释器导入检查。实际ZIP解压至中文/空格路径，在移除Python/Node的子进程PATH并设置无效PYTHONHOME/PYTHONPATH、外来DATABASE_URL后，逐文件哈希、无数据库/.env、首次启动、静态资源、登录、草稿保存、结束并重启服务后恢复、重复启动复用及外部端口占用拒绝全部通过。测试只结束自己创建的后端进程，不触碰原8000服务或本地demo.db。
+- 曾失败及处理：首轮pytest受C盘剩余空间为0影响，出现SQLite database or disk is full；将当前测试进程TEMP/TMP改为D盘已忽略.tmp后，19项全部通过。未清理用户文件或修改全局环境变量。
+- 产物：dist/shuban-windows-x64-20260918-082545.zip，29,513,315字节（约28.1MiB），SHA256为2921093b9809c8efe59170aee433f981608d165239ae9d5afeee64c5cddd7c39。配套.sha256文件和包内portable-manifest.json记录版本、来源提交/未提交状态及每个文件哈希。验收使用ZIP副本，原ZIP没有运行数据。
+- 文档同步：AGENTS更新状态与目录文件登记，README新增测试者分发方式，architecture登记运行机制，contracts登记health可选字段，portable-windows说明构建、测试、端口和升级。迁移说明、配置模板、C简报、历史合并评估和原始资料已核对无变化：数据模型/业务范围/B-C整合状态均未变，历史报告不重写。
+- 限制：当前验证为本机隔离环境模拟未安装开发工具，并非另一台干净Windows实机；Windows10/11 x64为目标，ARM/Mac/Linux及学校管理策略未验证。包是当前C版，B未集成；无真实AI或跨电脑数据同步。GitHub源码ZIP仍不含运行环境，需要把此便携ZIP作为测试分发物另行发送/发布。
+
+- 追加修正：第一版ZIP在CMD复验中发现Windows预留8728–8827导致8765/8768绑定报10013。已改为自动模式优先18080、记住成功端口，并在占用/系统保留时使用系统分配可用端口；显式指定不可用端口则明确报错。无需关闭其他应用或更改系统预留规则。
+- 第一版082545包已被083356最终候选替代，勿分发旧包。最终候选dist/shuban-windows-x64-20260918-083356.zip为29,513,577字节，SHA256：4da7edc6d91defe396aa37a24abf0fbe50cbafd78701a0b857ab467f1c8719b9。应用/前端/启动脚本常见令牌私钥模式无匹配；ZIP清单无.env、数据库、日志或.git。第三方运行时未做逆向/隐写审计。
+
+- 最终验收通过：对083356 ZIP重新执行tests/check_portable.py，含此前全部场景及自动换端口、记住端口、实际CMD入口复用，全部通过；前端再次构建和包内导入通过。Python语法检查、git diff --check、文档相对链接及忽略规则核验通过。最终可交付上述083356包；源代码保持本地未提交、未上传。

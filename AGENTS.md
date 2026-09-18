@@ -1,6 +1,6 @@
 # AI 协作规范与项目记忆
 
-最后更新：2026-09-17。适用于所有团队成员及其使用的 AI 工具。
+最后更新：2026-09-18。适用于所有团队成员及其使用的 AI 工具。
 
 ## 1. 每次协作前必须完整阅读
 
@@ -19,6 +19,7 @@
 - 第一轮闭环已验证：提交示例题 → 明确标注的演示反馈 → 保存记录 → 刷新与重登后查看；教师发布 → 学生提交 → 教师查看也已跑通。0.2 已进一步验证题库→草稿→发布→提交→人工反馈→学生修改→新版复核→归档；演示数据保留，本轮无真实 AI。
 - 本地运行：frontend 5173 端口，backend 8000 端口；入口、安装、启动及公开演示凭据见 README.md。数据库为被忽略的 backend/demo.db。首次未登录显示登录页；有效 Cookie 会话恢复工作台。“记住密码”保留七天会话，不存储明文密码；退出撤销会话。
 - 启动入口：根目录一键启动.cmd 可直接双击，调用 start.ps1，检查服务、隐藏启动前后端并在就绪后打开浏览器；重复运行复用服务，同时点击由互斥锁防止重复启动。缺少依赖需按 README 安装；端口冲突或启动失败明确报错。不打开浏览器可用 start.ps1 -NoBrowser。
+- Windows便携包（2026-09-18）：在新分支codex/portable-windows为当前C版增加build-portable.py和platform/portable.py。开发机预构建前端并打包CPython 3.11.15、锁定后端依赖与许可，测试者无需安装Node/Python；完整解压后仍双击一键启动.cmd，默认18080端口。源码启动保留8000/5173；运行产物位于已忽略dist，不新增维护目录。无数据库、.env或日志随包分发，尚未上传此次修改。最终包dist/shuban-windows-x64-20260918-083356.zip约28.1MiB；19项后端测试、前端构建和实际ZIP隔离验收（含CMD、重启持久化与自动选端口）通过，尚待其他电脑实测。默认18080不可用时自动换端口并记住。验收结果与限制见开发日志和docs/portable-windows.md。
 - 师生招募、组织试用及依赖试用的效果验证均为暂定，不得写成已落实安排或真实效果。
 - 历史依据：关联任务“分析教育智能体优秀案例”及原始素材中的建设计划书。此前素材清理已留日志；2026-09-17 本轮检查发现原始素材目录已恢复（含 PDF、案例汇编和三套图示），本轮已实际读取建设计划书第 4 页确认技术路线，并保留素材原位。历史材料中的建议不等于已完成实现。
 - 本轮本地开发状态：用户已确认先完善本地教师流程，将正式账号、多班级、PostgreSQL 和云端部署后置。本轮分支 codex/c-local-teaching，保留此前报告及文档修改，已按用户要求上传独立分支，功能提交955bbbe，远端文件树与本地一致；尚未与B集成。
@@ -39,7 +40,8 @@
 ├─ .gitignore                    # 本地配置、缓存与敏感文件忽略规则
 ├─ .env.example                  # 配置占位模板，禁止真实密钥
 ├─ 一键启动.cmd                  # Windows 双击启动入口
-├─ start.ps1                     # 服务检查、后台启动、就绪检测与打开浏览器
+├─ start.ps1                     # 源码/便携模式识别与启动
+├─ build-portable.py            # 生成Windows x64便携测试ZIP
 ├─ PCL.exe                       # 远端原有文件，原样保留，不参与数伴运行
 ├─ b4c83b8f47127b5aca665db31ea2be423546788405446779.png@290w_270h_1s.avif # 远端原有图片
 ├─ frontend/
@@ -60,7 +62,7 @@
 │  ├─ requirements.lock.txt     # 本轮验证的完整依赖版本
 │  └─ app/
 │     ├─ main.py                 # FastAPI、初始化与路由
-│     ├─ platform/               # C：auth.py、database.py
+│     ├─ platform/               # C：auth.py、database.py、portable.py（便携启动）
 │     ├─ teaching/               # C：routes.py（题库、作业、反馈与统计）
 │     └─ ai/                     # B：service.py（演示问答与历史）
 ├─ migrations/
@@ -69,7 +71,8 @@
 │  └─ restore.py                 # 验证备份并恢复至新数据库路径
 ├─ tests/
 │  ├─ test_api.py                # 认证、权限、题库、作业和反馈闭环测试
-│  └─ test_migrations.py         # 旧库迁移、幂等、失败回滚与恢复测试
+│  ├─ test_migrations.py         # 旧库迁移、幂等、失败回滚与恢复测试
+│  └─ check_portable.py          # 便携ZIP隔离环境与持久化验收
 ├─ 原始素材/                     # 本轮开工时已恢复；保留原位
 │  └─ output/
 │     ├─ pdf/
@@ -79,6 +82,7 @@
    ├─ development-log.md        # 每次开发记录及文档同步清单
    ├─ c-role-status-report.md   # C 负责人任务与项目现状简报
    ├─ merge-feasibility.md      # B/C 合并核验、冲突与兼容问题
+   ├─ portable-windows.md       # 便携包使用、构建和限制
    └─ contracts/
       └─ README.md              # 接口约定登记入口
 ```

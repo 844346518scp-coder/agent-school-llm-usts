@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from datetime import date, timedelta, datetime, timezone
 from pathlib import Path
+import os
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -57,7 +58,10 @@ app.include_router(teaching_router)
 
 @app.get('/api/health')
 def health():
-    return {'status': 'ok', 'agent_mode': 'demo', 'version': '0.2.0'}
+    result = {'status': 'ok', 'agent_mode': 'demo', 'version': '0.2.0'}
+    if os.getenv('SHUBAN_INSTANCE_ID'):
+        result['instance_id'] = os.environ['SHUBAN_INSTANCE_ID']
+    return result
 
 
 DIST = Path(__file__).resolve().parents[2] / 'frontend' / 'dist'

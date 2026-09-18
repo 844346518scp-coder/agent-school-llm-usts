@@ -28,6 +28,8 @@ coverage/
 *.db-journal
 *.db-wal
 *.db-shm
+backend/launcher.lock
+backend/launcher-port.txt
 tmp/
 .tmp/
 
