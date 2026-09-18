@@ -19,14 +19,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--no-browser', action='store_true')
     parser.add_argument('--serve', action='store_true')
+    parser.add_argument('--source', action='store_true')
     parser.add_argument('--port', type=int, default=0)
     args = parser.parse_args()
     if args.port != 0 and not 1024 <= args.port <= 65535:
         raise ValueError('Port must be between 1024 and 65535.')
     os.chdir(ROOT)
     # A portable demo must not inherit another application's database or secrets.
-    os.environ['DATABASE_URL'] = 'sqlite:///' + (ROOT / 'backend/demo.db').as_posix()
-    os.environ['COOKIE_SECURE'] = 'false'
+    if not args.source:
+        os.environ['DATABASE_URL'] = 'sqlite:///' + (ROOT / 'backend/demo.db').as_posix()
+        os.environ['COOKIE_SECURE'] = 'false'
     os.environ['SHUBAN_INSTANCE_ID'] = hashlib.sha256(str(ROOT).casefold().encode()).hexdigest()[:24]
     instance = os.environ['SHUBAN_INSTANCE_ID']
     if args.serve:
@@ -48,6 +50,7 @@ def main():
             with opener.open(url, timeout=1) as response:
                 page = response.read()
             return (health.get('status') == 'ok' and health.get('instance_id') == instance
+                    and (not args.source or health.get('agent_version') == '0.2.0')
                     and b'<html' in page and b'/assets/' in page)
         except (OSError, ValueError):
             return False
@@ -85,8 +88,10 @@ def main():
                         args.port = sock.getsockname()[1]
                         url = f'http://127.0.0.1:{args.port}/'
                 with (ROOT / 'backend/server.out.log').open('ab') as out, (ROOT / 'backend/server.err.log').open('ab') as err:
-                    child = subprocess.Popen([sys.executable, '-B', str(Path(__file__).resolve()),
-                                              '--serve', '--port', str(args.port)], cwd=ROOT,
+                    child_args = [sys.executable, '-B', str(Path(__file__).resolve()), '--serve', '--port', str(args.port)]
+                    if args.source:
+                        child_args.append('--source')
+                    child = subprocess.Popen(child_args, cwd=ROOT,
                                              stdout=out, stderr=err, stdin=subprocess.DEVNULL,
                                              creationflags=subprocess.CREATE_NO_WINDOW)
                 deadline = time.monotonic() + 45

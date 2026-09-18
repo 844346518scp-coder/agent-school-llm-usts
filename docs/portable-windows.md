@@ -1,3 +1,5 @@
+> 当前默认方案已改为“普通源码下载后自动初始化”，见[source-startup.md](source-startup.md)。本文为可选便携工具及此前C版ZIP的说明；旧ZIP不含本次B/C集成，不是本次交付。
+
 # Windows 免安装测试包
 
 适用：Windows 10/11、Intel/AMD 64 位电脑，普通用户权限，可写的本地目录。暂未验证 Windows ARM、Mac、Linux 或 Windows 7。包内是当前 C 教师工作流版本，尚未整合 B。

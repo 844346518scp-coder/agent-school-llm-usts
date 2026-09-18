@@ -96,7 +96,7 @@ def build():
                         'license': info.get('license'), 'notices': texts})
     (output / 'THIRD-PARTY.json').write_text(json.dumps(notices, ensure_ascii=False, indent=2), encoding='utf-8')
     manifest = {'platform': 'windows-x64', 'python': sys.version, 'version': '0.2.0',
-                'scope': 'C local teaching demo; B not integrated',
+                'scope': 'B/C integrated local MVP; real model validation pending',
                 'packages': {d.metadata['Name']: d.version for d in packages},
                 'source_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
                 'source_dirty': bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT)),

@@ -17,6 +17,46 @@ from backend.app.platform.auth import token_hash
 HEADERS = {'X-Requested-With': 'shuban-web'}
 
 
+def test_demo_disables_recognition_even_with_credentials(client, monkeypatch):
+    from backend.app.ai import service
+    monkeypatch.setenv('AGENT_MODE', 'demo')
+    monkeypatch.setenv('MODEL_BASE_URL', 'https://example.invalid/v1')
+    monkeypatch.setenv('MODEL_API_KEY', 'synthetic-key')
+    monkeypatch.setenv('MODEL_NAME', 'test-model')
+    def must_not_call(*args, **kwargs):
+        raise AssertionError('Demo mode must never call the model')
+    monkeypatch.setattr(service, 'chat', must_not_call)
+    login(client)
+    assert client.get('/api/agent/status').json()['capabilities']['recognize'] is False
+    assert client.post('/api/agent/recognize', json={'image_base64': 'a' * 16}).status_code == 503
+
+
+def test_live_reply_fallback_history_and_health(client, monkeypatch):
+    from backend.app.ai import service
+    from backend.app.ai.llm import ModelCallFailed
+    monkeypatch.setenv('AGENT_MODE', 'live')
+    monkeypatch.setenv('MODEL_BASE_URL', 'https://example.invalid/v1')
+    monkeypatch.setenv('MODEL_API_KEY', 'synthetic-key')
+    monkeypatch.setenv('MODEL_NAME', 'test-model')
+    monkeypatch.setattr(service, 'chat', lambda *a, **kw: '模型模拟返回：这里提及“未连接真实模型”只是引用，不改变来源。')
+    login(client)
+    assert client.get('/api/health').json()['agent_mode'] == 'live'
+    live = client.post('/api/conversations', json={'question': '可导与连续'}).json()
+    assert live['mode'] == 'live' and live['references']
+    assert not live['references'][0]['verified']
+    def unavailable(*args, **kwargs):
+        raise ModelCallFailed('网络连接失败或超时。')
+    monkeypatch.setattr(service, 'chat', unavailable)
+    fallback = client.post('/api/conversations', json={'question': '用定义求导数'}).json()
+    assert fallback['mode'] == 'demo' and fallback['notice']
+    client.post('/api/auth/logout')
+    login(client)
+    history = client.get('/api/conversations').json()
+    saved = next(x for x in history if x['id'] == fallback['id'])
+    assert saved['mode'] == 'demo' and '调用提示' in saved['answer']
+    assert next(x for x in history if x['id'] == live['id'])['mode'] == 'live'
+
+
 @pytest.fixture(scope='session', autouse=True)
 def cleanup_database():
     yield

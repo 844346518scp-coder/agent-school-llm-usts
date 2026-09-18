@@ -9,7 +9,8 @@ from fastapi.staticfiles import StaticFiles
 
 from .platform.database import Base, engine, SessionLocal, User, Assignment
 from .platform.auth import router as auth_router, hash_password
-from .ai.service import router as agent_router
+from .ai.config import load_settings
+from .ai.service import agent_router as agent_core_router, router as agent_router
 from .teaching.routes import router as teaching_router
 from migrations.upgrade import upgrade
 
@@ -53,12 +54,13 @@ async def request_guard(request: Request, call_next):
 
 app.include_router(auth_router)
 app.include_router(agent_router)
+app.include_router(agent_core_router)
 app.include_router(teaching_router)
 
 
 @app.get('/api/health')
 def health():
-    result = {'status': 'ok', 'agent_mode': 'demo', 'version': '0.2.0'}
+    result = {'status': 'ok', 'agent_mode': load_settings().resolved_mode, 'version': '0.2.0', 'agent_version': '0.2.0'}
     if os.getenv('SHUBAN_INSTANCE_ID'):
         result['instance_id'] = os.environ['SHUBAN_INSTANCE_ID']
     return result

@@ -10,6 +10,7 @@ secrets.json
 # Dependencies and caches
 node_modules/
 .venv/
+.runtime/
 venv/
 __pycache__/
 *.py[cod]
@@ -38,3 +39,6 @@ tmp/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# 本地冒烟输出（B 模块）
+tests/_smoke_out.txt

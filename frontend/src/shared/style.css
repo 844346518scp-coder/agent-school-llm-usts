@@ -63,3 +63,6 @@ summary { cursor:pointer; color:#527564; padding:6px 0; }
 .el-dialog__body { overflow-wrap:anywhere; }
 .el-dialog .section-heading { flex-wrap:wrap; gap:8px; }
 @media (max-width:700px) { .question-grid { grid-template-columns:1fr; } .work-toolbar { padding:14px; } .work-toolbar > * { max-width:100%; } .dialog-actions { flex-wrap:wrap; } .extension-form { align-items:stretch; } .page-heading > .action-row { margin-top:12px; } }
+
+.answer-references { margin-top: 16px; padding: 12px; background: var(--bg, #f7f5fa); border-radius: 10px; font-size: 12px; overflow-wrap: anywhere; }
+.answer-references small { display: block; color: #7c6c90; }

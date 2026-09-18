@@ -1,5 +1,5 @@
 # Double-click the CMD launcher, or run ./start.ps1 [-NoBrowser].
-param([switch]$NoBrowser, [int]$Port = 0)
+param([switch]$NoBrowser, [int]$Port = 0, [switch]$Dev, [switch]$SetupOnly)
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -14,6 +14,19 @@ if (Test-Path -LiteralPath (Join-Path $taskRoot 'portable-manifest.json')) {
     if ($NoBrowser) { $taskPortableArgs += '--no-browser' }
     & $taskPortablePython @taskPortableArgs
     exit $LASTEXITCODE
+}
+if (-not $Dev) {
+    try {
+        & (Join-Path $taskRoot 'bootstrap.ps1')
+        if ($SetupOnly) { exit 0 }
+        $taskSourceArgs = @('-B', (Join-Path $taskRoot 'backend/app/platform/portable.py'), '--source', '--port', "$Port")
+        if ($NoBrowser) { $taskSourceArgs += '--no-browser' }
+        & (Join-Path $taskRoot '.runtime/python-3.13.13/python.exe') @taskSourceArgs
+        exit $LASTEXITCODE
+    } catch {
+        Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
+    }
 }
 $taskPython = Join-Path $taskRoot '.venv/Scripts/python.exe'
 $taskFrontend = Join-Path $taskRoot 'frontend'
@@ -32,7 +45,7 @@ function Test-TaskHealth([string]$Url) {
     try {
         $taskResponse = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 2
         $taskHealth = $taskResponse.Content | ConvertFrom-Json
-        return ($taskHealth.status -eq 'ok' -and $taskHealth.agent_mode -eq 'demo' -and $taskHealth.version -eq '0.2.0')
+        return ($taskHealth.status -eq 'ok' -and $taskHealth.agent_mode -in @('demo', 'live') -and $taskHealth.version -eq '0.2.0' -and $taskHealth.agent_version -eq '0.2.0')
     } catch { return $false }
 }
 

@@ -34,3 +34,7 @@
 核对 recovered.db 后，可在被忽略的根目录 `.env` 设置 `DATABASE_URL=sqlite:///D:/AI/project/学校-agent项目/backend/recovered.db`，再启动服务。路径需按实际电脑修改。若恢复的是0.1备份，0.2应用会再次执行迁移。恢复前后的代码版本应匹配；如需回退旧代码，必须同时使用对应旧库，不让旧服务写入升级后的库。
 
 没有自动定时备份、跨机器恢复、PostgreSQL 迁移或公网灾备保证；这些属于后续部署阶段。
+
+## 源码自动启动补充（2026-09-18）
+
+start.ps1现在默认自动准备项目环境并启动同源页面，使用项目.runtime内Python；原.venv/8000/5173方式改为-Dev。既有服务需先确认归属并停止，不能假定同为0.2.0就含B。可在自动准备完成后用`.runtime/python-3.13.13/python.exe -m migrations.upgrade`或`-m migrations.restore`执行上述命令。数据库版本仍为2，本次整合不新增字段。

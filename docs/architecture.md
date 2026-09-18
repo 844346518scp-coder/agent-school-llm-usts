@@ -4,11 +4,11 @@
 
 当前为数伴 0.2 本地 MVP：Vue 3 + TypeScript + Vite 6，Element Plus 提供弹窗等基础交互；KaTeX 渲染公式，ECharts 绘制实际提问量；FastAPI + SQLAlchemy 提供账号、会话、对话和作业接口。完整依赖版本见锁文件。
 
-此前已从恢复的建设计划书确认技术路线，本轮沿用。正式方案采用 PostgreSQL / pgvector、百炼、Tavily、SymPy、worker 与 Docker Compose。本版为方便本地立即体验，默认 SQLite，0.2 版本化迁移仅支持 SQLite，PostgreSQL 暂不开放启动并待后续实连与迁移验证。其余外部能力均未接入，不承诺计划中的完整能力。
+此前已从恢复的建设计划书确认技术路线，本轮沿用。正式方案采用 PostgreSQL / pgvector、百炼、Tavily、SymPy、worker 与 Docker Compose。本版为方便本地立即体验，默认 SQLite，0.2 版本化迁移仅支持 SQLite，PostgreSQL 暂不开放启动并待后续实连与迁移验证。模型兼容接口已集成但未进行真实外部模型实连验证，不承诺计划中的完整能力。
 
 学生端与教师端调用后端接口；平台模块负责身份、权限、文件与持久化；教学模块负责题库、作业及复核；AI 模块负责识别、检索、诊断与学习策略。AI 输出通过平台保存，前端负责呈现，不直接调用需要秘密凭据的模型服务。
 
-后续目标：AI 返回圈注坐标和解释，学生端显示；AI 决定记忆更新策略，平台存储并控制访问；教师端提供 AI 反馈复核入口，AI 使用复核结果修正后续反馈。上述 AI 能力本版尚未实现；当前新增的教师人工评语只针对学生作答，不驱动 AI。
+后续目标：AI 返回圈注坐标和解释，学生端显示；AI 决定记忆更新策略，平台存储并控制访问；教师端提供 AI 反馈复核入口，AI 使用复核结果修正后续反馈。上述圈注/记忆/教师AI复核能力本版尚未实现；当前新增的教师人工评语只针对学生作答，不驱动 AI。
 
 首轮闭环“示例题提交、模拟反馈、页面展示、记录保存与重新查看”已打通，并完成教师发布、学生提交及教师查看作答。模拟内容明确标记，不可作为真实模型评测结果。
 
@@ -18,7 +18,7 @@
 - 身份：预设学生、教师各一个账号，密码使用 PBKDF2-HMAC-SHA256（260000 次、随机盐）；随机会话令牌通过 HttpOnly、SameSite=Strict Cookie 发送，数据库仅存令牌 SHA-256 摘要。remember=true 保留七天，否则为浏览器会话 Cookie、服务端八小时有效；重登替换当前令牌，退出即撤销。
 - 请求：本地 Vite 将 /api 代理到 FastAPI；写请求要求 X-Requested-With 自定义头，不开放跨域 CORS；浏览器不得持有服务端模型密钥。部署 HTTPS 时需配置 COOKIE_SECURE=true。本地公开演示账号不具备正式账号管理、登录限流或公网部署保障。
 - 数据：users、sessions、conversations、assignments、submissions、questions、reviews、schema_migrations。数据库默认 backend/demo.db，重启保留。个人对话按 user_id 隔离；教师只看自己的作业，学生只拿自己的答案。所有演示学生共享单一班级，不伪装成已实现多班级授权。
-- 问答：基于关键词选择有限的固定示例，unknown 明确提示暂不能解答；不调用模型、不做自动评分。收藏只是用户标记。图表仅统计实际记录，不推断掌握度。当前是单问题记录，不提供多轮推理上下文。
+- 问答：B模型兼容接口+本地BM25课程检索，未配置/调用失败时使用明确标注的固定示例；不做自动评分。收藏只是用户标记。图表仅统计实际记录，不推断掌握度。当前是单问题记录，不提供多轮推理上下文。
 - 作业：draft→published→archived。草稿可不完整、仅本人可见；发布验证全部字段及日期，随后仅能延长截止日期。归档不可逆且只读。题库生成作业时复制题干快照，不复制参考答案。
 - 反馈：学生保存作答递增 version；review 唯一对应 submission_id + version，保留 answer_snapshot。当前版本无反馈即待批改；学生修改不沿用旧结论。教师提交版本过期返回409。同版评语允许修改，旧版反馈保留。SQLite 写事务使用 BEGIN IMMEDIATE，使状态检查和写入串行化；截止当天可提交，归档后提交/批改均409。
 - 统计：仅计算本人已发布且未归档作业的当前提交，按当前 review 分为 pending、needs_improvement、completed；不作自动评分或掌握度推断。学生端区分提交与教师确认完成。
@@ -59,3 +59,29 @@ start.ps1根据portable-manifest.json识别测试包并调用platform/portable.p
 构建目录与ZIP在已忽略dist内；只新增现有目录内普通源码/说明/验收文件，不新增业务目录。不打包用户数据库、.env、日志、Git、PCL.exe、原始素材；随包保留Python及依赖许可、版本和逐文件哈希。Windows其他架构和受管电脑策略仍需实机验收；B/C集成另行进行。
 
 端口补充：默认优先18080，记住上次成功端口；自动模式遇到占用或Windows预留端口时改用系统分配的可用端口，显式-Port遇冲突则报错。持久化文件backend/launcher-port.txt与锁文件都被忽略，不含会话信息。
+
+## 智能体（B）处理流水线（2026-09-17 追加）
+
+目的：把“演示问答”升级为可接真实模型的骨架，同时保证没有模型密钥时流程仍然完整、且不把预设文案冒充模型输出。
+
+流水线：
+
+1. **配置**：`backend/app/ai/config.py` 读取 `AGENT_MODE` 与 `MODEL_*`，得出 `resolved_mode`（`demo` / `live`）；`live` 缺凭据时如实降级为 `demo`。
+2. **检索**：`knowledge.py` 对 `KNOWLEDGE_POINTS` 建本地 BM25 索引（中文按字 bigram），返回带出处（`source`）与命中词（`matched`）的片段，因此引用可解释、可复核。
+3. **提示词**：`prompts.py` 组装分层提示（概念层 → 例题层 → 迁移层），要求只依据片段作答并在句末标注 `[n]` 编号。
+4. **调用**：`llm.py` 用 httpx 调 OpenAI 兼容 Chat Completions（含流式），把失败统一翻译成 `ModelUnavailable` / `ModelCallFailed`。
+5. **组装与降级**：`service.py#compose_answer` 决定走 live 还是 demo；模型失败时回退 demo，并在 `notice` 里写明原因。
+6. **诊断与步骤反馈**：`diagnosis.py` 规则优先（结论可追溯：命中哪些关键词）；live 模式下模型只润色学情总结或判断单步，规则结论始终保留。
+
+模块边界：B 只产出结构化结果，不实现权限与持久化；鉴权与存储仍走 `platform`（C）。B 未新增数据库列，历史记录的 `mode` 由答案文本中的演示标记反推。
+
+升级路径：把 `knowledge.retrieve()` 换成向量检索、把 `llm.chat()` 换成多模型路由，都不需要改动路由层与前端。
+
+
+## 2026-09-18 / 当前源码自举与B/C集成（优先于此前阶段描述）
+
+用户明确要求普通源码文件夹下载后直接启动；此前便携分发仅保留为可选工具。start.ps1默认走bootstrap.ps1项目私有安装，首次联网取得固定版本和SHA256校验的Python/Node/pip，安装锁定依赖并预构建页面，交由FastAPI同源托管；无管理员/全局PATH变更。-Dev才走原Vite方式。源码模式保留.env与数据库语义，便携模式仍固定包内数据库。详细机制见source-startup.md。
+
+origin/main(4bd8519)已包含B，用户提供main ZIP逐文件与该提交一致。在codex/source-bootstrap-integration合入其历史，保留C教师流程、schema版本2及备份恢复，保留main删除PCL.exe。共享入口保留C迁移、B路由/动态模式和目录实例标识；当前未上传远端。
+
+前端普通问答支持demo/live、调用失败提示及待复核引用；AI请求等待90秒、模型网络阶段超时1–60秒，禁止自动重试。回答来源前缀和降级提示随正文持久化，无数据库结构变更；旧记录兼容读取。步骤关键词不能确定错误，一律unclear；demo识别不外调，模型错误正文不回显秘密，流式网络异常规范降级。课程资料仍待复核，模拟live测试不等于真实服务验收。

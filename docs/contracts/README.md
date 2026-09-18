@@ -24,7 +24,7 @@
 
 | 方法与路径 | 请求 | 响应 / 权限 |
 |---|---|---|
-| GET /api/health | 无 | status、agent_mode=demo、version；公开 |
+| GET /api/health | 无 | status、agent_mode（当前生效模式 demo/live）、version；公开 |
 | POST /api/auth/login | username、password、role(student/teacher)、remember(bool，默认 false) | id、username、name、role；设置 Cookie；身份不匹配也拒绝 |
 | GET /api/auth/me | 无 | 当前用户公共字段；未登录 401 |
 | POST /api/auth/logout | 无 | ok=true；撤销当前会话并清除 Cookie |
@@ -35,14 +35,77 @@
 | POST /api/assignments | title(1—100)、content(1—3000)、topic(1—40)、due_date | 201，作业；仅教师，日期不得早于今天 |
 | PUT /api/assignments/{id}/submission | answer(1—5000，非空白) | 修改后作业；仅学生，截止日后或归档后拒绝 |
 
-问答记录字段：id、question、answer、topic、favorite、created_at、mode（恒为 demo）。topic 可选“函数与极限”“导数与微分”“费曼练习”“教学设计”，默认“函数与极限”。每次提交是独立问题，不实现多轮上下文推理；除收藏外不可修改原问答。教师不能查看学生私人对话。
+问答记录字段：id、question、answer、topic、favorite、created_at、mode（demo或live）。topic 可选“函数与极限”“导数与微分”“费曼练习”“教学设计”，默认“函数与极限”。每次提交是独立问题，不实现多轮上下文推理；除收藏外不可修改原问答。教师不能查看学生私人对话。
 
 作业保留原字段 id、title、content、topic、due_date、created_at、submitted、answer，并增加上述 status/submission/submissions 及版本化反馈结构。学生只收到自己的提交和反馈；教师仅可查看自己创建的作业。当前所有预设学生在同一演示班级，多班级权限尚未实现。相同学生对同一作业使用 PUT 更新，不新增重复提交，不自动评分。
 
 错误格式为 FastAPI 的 `detail`：业务错误为字符串，422 字段验证为明细数组。401 表示未登录或凭据错误；403 表示角色或请求来源校验失败；404 表示记录不可见或不存在；409 表示作业截止、生命周期不允许或作答版本冲突。所有 /api 响应带 Cache-Control: no-store。
 
-真实模型流式输出、OCR 上传与确认、诊断任务状态、语音、RAG 引用及异步任务接口仍待定义。改接口先更新此文档并协调调用方；新增子目录依照 [协作规范](../../AGENTS.md) 先确认。
+B智能体接口已定义并在本轮集成，见下文；语音、异步任务和完整上传流程仍待实现。
 
 ## 便携启动健康标识（2026-09-18）
 
 `GET /api/health`原有字段保持；便携启动设置`SHUBAN_INSTANCE_ID`时额外返回`instance_id`（由本地路径哈希生成，非会话/认证凭据），供启动器识别本目录服务，避免误复用另一份测试包。此字段不授予访问权限。便携包网页与API同源于127.0.0.1:18080（可换端口），其余接口不变。
+
+真实模型与流式输出、RAG 引用、诊断已于 2026-09-17 由 B 模块给出接口（见下节“智能体接口 v0.2”）。仍待定义：拍照识别的上传与确认流程细节、诊断任务状态（异步）、语音、长期记忆与异步任务队列。改接口先更新此文档并协调调用方；新增子目录依照 [协作规范](../../AGENTS.md) 先确认。
+
+## 2026-09-17 · 智能体接口 v0.2（B 模块）
+
+状态：2026-09-18已与C本地集成，普通问答页面已接入模式、降级提示和引用；其他AI页面入口后续接入。
+
+模式约定：所有回答都带 `mode` 字段。`demo` 表示预设演示内容，`live` 表示真实模型输出；缺少模型凭据或调用失败时一律回退为 `demo`，并在 `notice` 中说明原因。**不允许把演示文案冒充模型输出**。
+
+### 新增公共能力探针
+
+| 方法 / 路径 | 是否鉴权 | 响应要点 |
+| --- | --- | --- |
+| GET /api/agent/status | 公开 | version、mode、requested_mode、model{ready,name,vision_name,endpoint,timeout_seconds}、knowledge{engine,points,topics,verified_points,pending_review}、capabilities{qa,qa_stream,references,diagnosis,recognize,memory,recommendation}、notes；不返回任何密钥 |
+
+### 新增问答 / 反馈 / 诊断接口（需登录会话 + `X-Requested-With: shuban-web`）
+
+| 方法 / 路径 | 请求 | 响应要点 |
+| --- | --- | --- |
+| POST /api/agent/ask | question（1–2000 字）、topic（默认“函数与极限”）、role（student/teacher） | answer、mode、notice、references、persisted=false；不写入学习记录，便于联调与评测 |
+| POST /api/agent/ask/stream | 同 /ask | `text/event-stream`，事件 meta → delta → done；模型失败时先发 fallback 再发演示文本 |
+| POST /api/agent/feedback | question、step（本次提交的一步）、steps[]（已写步骤）、topic | mode、notice、verdict（`correct` / `incorrect` / `unclear`）、hint、next_question、flagged[]、references、method |
+| POST /api/agent/diagnosis | question、answer、wrong_points[]、topic（均可选） | mode、notice、weak_points[]{id,title,topic,reason,confidence,source}、related_points[]{index,id,title,source,score,matched}、suggested_practice[]{point_id,title,prompt,source}、summary、next_step、method |
+| POST /api/agent/recognize | image_base64、media_type（默认 image/png）、hint | mode=live 时返回 text、confidence、warnings、**requires_confirmation=true**、suggested_topic、confirm_endpoint；未配置模型时返回 503 并说明原因（不返回编造结果） |
+
+### 最小版核心流程（9/20 交付：提问 → 确认 → 反馈 → 保存 → 再次学习）
+
+1. **提问**：`POST /api/agent/ask` 先看结果与引用（不落库，便于试错）；确认要保存时调用 `POST /api/conversations`。
+2. **引用**：响应 `references[i].index` 与正文中的 `[1]`、`[2]` 一一对应；`source` 是资料出处，`verified=false` 表示待课程资料复核。demo 模式的答案正文会附一行“本轮检索到的课程资料（未经模型解读）”，避免误认为已由资料生成。
+3. **拍照识别与确认**：`POST /api/agent/recognize` 只返回草稿（`requires_confirmation=true` + `suggested_topic`）；学生在界面校对/修正后，用确认后的题目调用 `POST /api/conversations` 保存并生成回答。识别接口不会自动入库，也不会代替学生确认。
+4. **步骤反馈**：`POST /api/agent/feedback` 只判断学生本次提交的这一步，`steps[]` 传已写步骤作为上下文；不返回整题答案。demo模式命中关键词也只返回`unclear`，提供待复核提示，不确定对错。
+5. **保存与再次学习**：`GET /api/conversations` 取历史，`PATCH /api/conversations/{id}` 收藏错题（既有接口，未变）。
+
+### 既有接口的增量字段（向后兼容）
+
+| 方法 / 路径 | 变化 |
+| --- | --- |
+| POST /api/conversations | 响应新增 `mode`、`notice`、`references`；live 模式答案末尾附“资料来源”编号列表，因此历史记录自带引用，无需改表 |
+| GET /api/conversations | 新记录由后端写入固定来源前缀并据此前缀返回mode；旧记录兼容原演示标记识别，存储结构未变 |
+
+### 字段与降级约定
+
+- 前端如需显示“AI 模式”角标，请以 `mode` 字段为准，不要根据答案长度或关键词猜测。
+- 课程知识点内容位于 `backend/app/ai/knowledge.py`（当前 7 个知识点，全部 `verified=false`，待课程资料复核后置为 True）。
+- 检索当前为本地 BM25（中文按字 bigram），`retrieve()` 签名保持不变，后续可替换为向量检索。
+
+### 仍待 B 模块后续定义（不属于 9/20 最小版）
+
+- 诊断任务状态与异步任务队列、长任务进度。
+- 长期记忆读写策略、跨会话画像。
+- 语音输入输出、资源检索与总结评价（9/21–24 功能扩展版）。
+- 拍照识别的多题切分与公式人工修正细节（当前只有单次转录 + 确认）。
+
+
+## 2026-09-18 集成修正
+
+- health增加agent_version=0.2.0识别集成B后的服务；agent_mode动态为demo/live；可选instance_id用于目录识别，不是认证凭据。默认源码模式与可选便携模式均同源提供页面/API。
+- 新问答正文持久保存“回复来源：模型/演示”前缀与失败提示，确保刷新/重登、收藏后来源稳定；老记录按已有演示标记兼容识别。references结构在POST返回，历史的引用保存在正文，无结构化引用字段迁移。
+- demo模式即使填写凭据也不调用问答/识别模型；recognize返回503，status.capabilities.recognize/qa_stream按生效live模式报告。
+- MODEL_TIMEOUT_SECONDS限制1–60秒（默认30），AI前端等待90秒，普通请求15秒。无自动重试；接收失败先查历史。httpx超时为网络阶段超时，不能承诺远端整个任务硬性在该秒数结束。
+- SSE fallback包含replace=true；使用流式接口的客户端必须丢弃此前未完成的模型文本，再展示演示回复，不能拼接为同一答案。当前网页未使用流式接口。
+- 模型网络异常及非2xx响应不会原样向学生输出远端错误正文/URL，避免泄露凭据；status只显示endpoint的scheme/hostname。
+- 诊断confidence为规则匹配启发值，未经学习效果校准，不是可靠掌握度；规则步骤verdict统一unclear。模型批改同样需复核，不自动写入教师反馈或错题确定标签。

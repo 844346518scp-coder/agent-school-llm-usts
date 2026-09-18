@@ -200,3 +200,50 @@ GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：
 - 第一版082545包已被083356最终候选替代，勿分发旧包。最终候选dist/shuban-windows-x64-20260918-083356.zip为29,513,577字节，SHA256：4da7edc6d91defe396aa37a24abf0fbe50cbafd78701a0b857ab467f1c8719b9。应用/前端/启动脚本常见令牌私钥模式无匹配；ZIP清单无.env、数据库、日志或.git。第三方运行时未做逆向/隐写审计。
 
 - 最终验收通过：对083356 ZIP重新执行tests/check_portable.py，含此前全部场景及自动换端口、记住端口、实际CMD入口复用，全部通过；前端再次构建和包内导入通过。Python语法检查、git diff --check、文档相对链接及忽略规则核验通过。最终可交付上述083356包；源代码保持本地未提交、未上传。
+
+## 2026-09-17 · B 模块（智能体）最小版：真实模型接入 + 课程检索引用 + 步骤反馈 + 基础诊断
+
+- 日期 / 任务：2026-09-17 / 对齐 9/20 最小版：课程问答 · RAG 引用 · 拍照识别与确认 · 步骤反馈 · 错题收藏 · 历史记录。
+- 负责人 / AI 工具：B 模块成员（待填）/ Chatbox。
+- 开发了什么与原因：
+  - 把只有固定演示文案的问答升级为“配置 → 课程检索 → 分层提示 → 模型调用 → 如实降级”的骨架；没有模型密钥时仍走完整流程，但只返回演示内容并标注 `mode=demo`。
+  - 新增课程检索（本地 BM25，中文按字 bigram）与引用编号，解决“回答没有资料来源”的问题；知识点全部标记 `verified=false`，待课程资料复核。
+  - 新增步骤反馈接口：只判断学生本次提交的一步，不返回整题答案；demo 模式只标错、不说“正确”。
+  - 新增基础诊断接口：规则给出薄弱知识点与变式练习，结论可追溯到命中的关键词。
+  - 新增能力探针 `/api/agent/status`，便于前端与测试脚本判断当前是 demo 还是 live。
+- 修改文件：
+  - 新增 `backend/app/ai/config.py`、`knowledge.py`、`prompts.py`、`llm.py`、`diagnosis.py`。
+  - 修改 `backend/app/ai/service.py`（保留原演示文案与既有响应结构，新增 `/api/agent/*`）。
+  - 修改 `backend/app/main.py`（注册 `agent_router`；`/api/health` 的 `agent_mode` 改为如实反映生效模式）。
+  - 新增 `tests/test_agent.py`、`tests/smoke_agent.py`。
+  - 修改 `.env.example`（新增 `AGENT_MODE`、`MODEL_VISION_NAME`、超时与检索参数，全部为空值或默认值）；修改 `.gitignore`（忽略冒烟输出）。
+- 验证命令或方式 / 结果（通过、失败、未执行）：
+  - `python -m pytest -q` → **40 passed**（含原有 11 项 API 测试全部通过）。
+  - `python tests/smoke_agent.py` → **通过**：登录、`/api/agent/status`、`/api/agent/ask`、`/api/agent/feedback`、`/api/agent/diagnosis`、`/api/agent/ask/stream`（SSE 3 帧）行为符合预期；`/api/agent/recognize` 按设计返回 503（未配置模型，不返回编造结果）。
+- 目录结构变更 / 用户确认依据：**无新增目录**，只在既有 `backend/app/ai/` 与 `tests/` 下新增文件。
+- 文档同步清单（逐项写已更新，或已核对无变化及原因）：
+  - AGENTS.md 项目记忆与目录：已追加“B 模块（智能体）实现说明（2026-09-17）”。
+  - README.md：已核对无变化（本次不涉及启动方式与仓库总览）。
+  - docs/architecture.md：已追加“智能体（B）处理流水线（2026-09-17 追加）”。
+  - docs/contracts/ 下全部约定：已更新 `/api/health` 行与“仍待定义”段，并追加“智能体接口 v0.2（B 模块）”。
+  - 其他相关说明、配置模板、计划与图示：已更新 `.env.example`、`.gitignore`；无新增图示。
+- GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：**未上传**；新增配置项全部为空值或默认值，仓库内无真实密钥，`.env` 未入库。
+- 遗留问题与下一步：
+  1. 课程知识点内容需课程资料复核，复核后把 `knowledge.py` 中对应 `verified` 置为 True。
+  2. 配置真实模型（`MODEL_BASE_URL` / `MODEL_API_KEY` / `MODEL_NAME`）后重跑 `tests/smoke_agent.py`，确认 live 链路与超时降级。
+  3. 前端（A）按 `docs/contracts/README.md` 的 v0.2 接入 `mode`、`references`、`/api/agent/feedback`、识别确认流程。
+  4. 9/21–24 再补：长期记忆、推荐练习的个性化、资源检索与总结评价、语音。
+
+## 2026-09-18 / 普通源码自动初始化与 B/C 本地集成完成
+
+- 负责人 / AI：Codex。用户明确纠正为“其他人下载原本文件夹即可运行，而不是打包版”，并要求合并B、处理兼容性与更新文档。本条替代前一便携包方案作为默认分发方式；历史便携工具和记录保留。
+- 基线：用户提供的agent-school-llm-usts-main.zip与origin/main提交4bd8519的64个Git文件逐字节一致；main已包含B提交721b3e2。先把既有便携工作保存为本地40df412，再建codex/source-bootstrap-integration，合入origin/main。保留C全部教师功能与数据迁移，保留远端PCL.exe删除；入口、架构、接口和日志冲突合并双方内容。本次只保存本地合并提交，没有push或改动远端main。
+- 启动修复：新增根目录bootstrap.ps1，项目内下载并SHA256校验固定Python3.13.13、Node22.23.2、pip26.2.1；安装后端锁定依赖与npm ci，按源码指纹构建前端。start.ps1默认自动初始化后同源启动，-Dev保留原开发模式，-SetupOnly仅准备环境。首次联网、缓存复用，无管理员、系统PATH或全局开发工具要求。全部运行环境、缓存和临时文件位于已忽略生成目录；未新增维护目录。
+- 兼容修复：main同时保留C数据库初始化和B路由，health支持demo/live及agent_version；启动器不误复用旧C服务。前端AI等待90秒，模型网络超时限制1–60秒；错误不自动重试。问答和历史按每条回复来源标识模型/演示，显示引用、待复核与降级原因；来源前缀避免模型引用演示字样时被误判。demo禁止识别/模型调用，关键词步骤反馈仅unclear；SSE中途失败以replace标记替换未完成输出。模型错误不回显提供商响应体/凭据。数据库版本仍为2，无新迁移。
+- 涉及文件：bootstrap.ps1、start.ps1、platform/portable.py、main.py、B模块config/llm/diagnosis/service及其合入文件，前端App/StudentHome/AgentView/RecordsView/api/style，tests/check_source.py/test_api.py/test_agent.py/smoke_agent.py，build-portable.py及下列文档/忽略配置。冒烟脚本改为独立临时库且强制demo，避免改动实际数据或调用用户模型。
+- 验证通过：原C19项+B29项共48项首先通过；新增9项兼容回归后，在自动下载的Python3.13环境完整57项通过（2条既有弃用警告，268.91秒）。来源前缀最后调整后针对性回归1项通过。独立B冒烟覆盖登录、状态、问答、反馈、诊断、SSE三帧与识别预期503通过。TypeScript及Vite生产构建通过。
+- 源码验收通过：tests/check_source.py从受版本管理源码建立不含.env/数据/依赖/构建的新副本，在无Python/Node的PATH及无效PYTHONHOME/PYTHONPATH下，真实下载安装构建、登录、私有题库、草稿发布、学生提交、教师反馈、B演示问答引用、静态资源、重复启动复用、重启持久化均通过；禁用网络代理后缓存启动通过，live使用本地假模型验证。最终bootstrap再复制到中文/空格验收目录，以实际一键启动.cmd复验成功并核验health，结束该验收自身PID。未对其他电脑实机作已验证声明。
+- 浏览器验收通过：本地18080页面登录、问答、公式、引用待复核、刷新保留登录及历史来源标记正常；保留原数据库记录，并新增一条明确的集成验收演示问答。源代码服务继续在18080供用户体验，原8000后端未终止。旧Vite/esbuild因占用本项目依赖，核对所属PID后停止并重新安装；不终止无关进程。
+- 失败与修正：npm ci曾因本项目旧esbuild锁定报EPERM，停止所属开发服务后重装成功；首次隔离冷启动因继承PSModulePath导致Windows PowerShell找不到Get-FileHash，改为进程内补全系统模块路径后通过。嵌入式Python相对_pth导致pytest无法导入backend，改为每次生成UTF-8绝对项目/依赖路径，导入及针对性测试通过。冒烟新增断言曾误将创建记录的201当作200，按既有接口约定修正后通过。C盘无剩余空间，所有本轮安装/测试临时目录使用项目盘，未清理用户文件。
+- 文档同步：AGENTS（状态、目录、下一步）、README（源码使用与边界）、docs/source-startup（新）、architecture、contracts、merge-feasibility、c-role-status-report、portable-windows、migrations/README、.env.example和本日志均已更新；.gitignore覆盖生成物。其他原始PDF/DOCX/图示已核对无变化，属于历史依据，不改写为当前实现。B原始日志“关键词标错/薄弱结论”等为历史行为，以本条unclear/候选复核说明为现行规则；原smoke真实模型建议已被当前隔离演示脚本替代。文档相对链接、冲突标记、PowerShell语法、差异格式与忽略规则在提交前核对。
+- 限制/下一步：尚未执行另一台Windows实机、真实模型效果、正式身份/多班级、PostgreSQL或云部署验收。首次需要可访问下载源且项目目录可写；Windows10/11 x64是自动启动目标，其他系统未支持。此次未做新的完整上传凭据审计、未上传；现有GitHub旧ZIP不会自动修复，后续确认上传范围并履行凭据检查/确认后才发布。当前本地可运行与远端main状态须区分。

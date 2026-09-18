@@ -12,17 +12,18 @@
 
 - 项目方向：教育智能体，以高等数学学习支持为当前场景，连接学生学习、智能体教学反馈、教师管理。
 - 协作方式：三名成员借助各自的 AI 编程工具，通过 GitHub 协作；当前用户已认领 C（平台基础、教师端与集成协调）；姓名与账号、A/B 负责人待填写。
-- 当前已完成：数伴（SHUBAN）0.2 本地 MVP；学生 / 教师独立登录界面与工作台、角色校验、记住登录、演示问答与公式渲染、对话收藏与历史、教师发布作业、学生提交、教师查看作答、实际提问统计及响应式页面。新增教师私有题库、按顺序选题生成草稿、草稿编辑/删除/发布、延长截止日期、复制草稿、只读归档、按作答版本保存教师人工反馈、学生查看当前/历史反馈和实际教学统计。已提供后端接口测试、前端构建与启动说明。
-- 当前未完成：真实模型、OCR、语音、RAG、SymPy 工具校验、向量检索、worker、多班级管理、AI 反馈复核、正式账号管理和公网部署。课程入口与固定演示回复不代表真实 AI 已完成。
+- 当前已完成：数伴（SHUBAN）0.2 本地 B/C 集成版本；学生 / 教师独立登录界面与工作台、角色校验、记住登录、演示问答与公式渲染、对话收藏与历史、教师发布作业、学生提交、教师查看作答、实际提问统计及响应式页面。新增教师私有题库、按顺序选题生成草稿、草稿编辑/删除/发布、延长截止日期、复制草稿、只读归档、按作答版本保存教师人工反馈、学生查看当前/历史反馈和实际教学统计。已提供后端接口测试、前端构建与启动说明。
+- 当前未完成：真实模型实连/效果验证、拍照识别等前端流程、语音、SymPy工具校验、向量检索、worker、多班级管理、AI反馈复核、正式账号和公网部署。B模型兼容接口、本地BM25、引用、诊断与识别API已集成；不能把代码接入或模拟测试写成真实模型效果已验证。
 - 技术路线已从恢复的建设计划书核实：Vue 3 + TypeScript + Element Plus + KaTeX + ECharts，FastAPI 模块化后端。正式数据路线为 PostgreSQL / pgvector；本地 MVP 使用 SQLAlchemy + SQLite 免部署体验，PostgreSQL 驱动已安装但未实连验证；0.2 迁移仅支持 SQLite，非 SQLite 启动明确拒绝，待单独验证后开放。具体依赖版本见 frontend/package-lock.json 与 backend/requirements.lock.txt。
 - 0.2 数据升级：新增 schema_migrations 版本2，启动旧库迁移前自动生成被忽略的 SQLite 备份；实际旧库副本先行验证，失败回滚且不启动。migrations/restore.py 支持恢复到新路径，拒绝覆盖既有数据库。
 - 第一轮闭环已验证：提交示例题 → 明确标注的演示反馈 → 保存记录 → 刷新与重登后查看；教师发布 → 学生提交 → 教师查看也已跑通。0.2 已进一步验证题库→草稿→发布→提交→人工反馈→学生修改→新版复核→归档；演示数据保留，本轮无真实 AI。
-- 本地运行：frontend 5173 端口，backend 8000 端口；入口、安装、启动及公开演示凭据见 README.md。数据库为被忽略的 backend/demo.db。首次未登录显示登录页；有效 Cookie 会话恢复工作台。“记住密码”保留七天会话，不存储明文密码；退出撤销会话。
-- 启动入口：根目录一键启动.cmd 可直接双击，调用 start.ps1，检查服务、隐藏启动前后端并在就绪后打开浏览器；重复运行复用服务，同时点击由互斥锁防止重复启动。缺少依赖需按 README 安装；端口冲突或启动失败明确报错。不打开浏览器可用 start.ps1 -NoBrowser。
-- Windows便携包（2026-09-18）：在新分支codex/portable-windows为当前C版增加build-portable.py和platform/portable.py。开发机预构建前端并打包CPython 3.11.15、锁定后端依赖与许可，测试者无需安装Node/Python；完整解压后仍双击一键启动.cmd，默认18080端口。源码启动保留8000/5173；运行产物位于已忽略dist，不新增维护目录。无数据库、.env或日志随包分发，尚未上传此次修改。最终包dist/shuban-windows-x64-20260918-083356.zip约28.1MiB；19项后端测试、前端构建和实际ZIP隔离验收（含CMD、重启持久化与自动选端口）通过，尚待其他电脑实测。默认18080不可用时自动换端口并记住。验收结果与限制见开发日志和docs/portable-windows.md。
+- 本地运行：默认源码自动模式为同源18080（占用自动换端口）；-Dev模式为frontend 5173、backend 8000；入口、安装、启动及公开演示凭据见 README.md。数据库为被忽略的 backend/demo.db。首次未登录显示登录页；有效 Cookie 会话恢复工作台。“记住密码”保留七天会话，不存储明文密码；退出撤销会话。
+- 启动入口：普通源码完整解压后双击一键启动.cmd。start.ps1默认调用bootstrap.ps1自动下载并校验项目专用Python3.13.13/Node22.23.2/pip26.2.1、安装锁定依赖、构建前端；首次需联网，缓存完整时复用。仅使用项目.runtime缓存及进程环境，不要求管理员或系统开发环境。默认同源18080，可自动选端口；-SetupOnly/-NoBrowser/-Port以及-Dev（原8000/5173开发模式）见README。
+- 历史可选便携包（2026-09-18，随后用户明确改为源码自动初始化）：在新分支codex/portable-windows为当前C版增加build-portable.py和platform/portable.py。开发机预构建前端并打包CPython 3.11.15、锁定后端依赖与许可，测试者无需安装Node/Python；完整解压后仍双击一键启动.cmd，默认18080端口。源码启动保留8000/5173；运行产物位于已忽略dist，不新增维护目录。无数据库、.env或日志随包分发，当时未上传；当前源码方案替代其作为默认入口。最终包dist/shuban-windows-x64-20260918-083356.zip约28.1MiB；19项后端测试、前端构建和实际ZIP隔离验收（含CMD、重启持久化与自动选端口）通过，尚待其他电脑实测。默认18080不可用时自动换端口并记住。验收结果与限制见开发日志和docs/portable-windows.md。
 - 师生招募、组织试用及依赖试用的效果验证均为暂定，不得写成已落实安排或真实效果。
 - 历史依据：关联任务“分析教育智能体优秀案例”及原始素材中的建设计划书。此前素材清理已留日志；2026-09-17 本轮检查发现原始素材目录已恢复（含 PDF、案例汇编和三套图示），本轮已实际读取建设计划书第 4 页确认技术路线，并保留素材原位。历史材料中的建议不等于已完成实现。
-- 本轮本地开发状态：用户已确认先完善本地教师流程，将正式账号、多班级、PostgreSQL 和云端部署后置。本轮分支 codex/c-local-teaching，保留此前报告及文档修改，已按用户要求上传独立分支，功能提交955bbbe，远端文件树与本地一致；尚未与B集成。
+- 本轮本地开发状态：用户已确认先完善本地教师流程，将正式账号、多班级、PostgreSQL 和云端部署后置。原C分支codex/c-local-teaching已上传，功能提交955bbbe；本轮从其后续本地状态建立codex/source-bootstrap-integration，合入origin/main的B代码，并完善源码自动安装、模式/超时/降级/引用兼容。此次集成尚未上传。
+- 本轮验收：下载的Python3.13环境运行57项测试通过；来源标记后续针对性回归1项通过，独立演示冒烟通过。无系统Node/Python的全新源码副本真实下载安装、B/C闭环、重启持久化、缓存离线启动、本地假模型live与中文/空格路径CMD复验通过；浏览器问答/公式/引用/历史和前端构建通过。尚未在另一台Windows实机或真实模型服务验收。
 - B/C合并核验（2026-09-17）：远端B分支 chatbox/ai-agent-v0.2 为721b3e2，用户ZIP与其64个文件完全一致；核验当时远端main为a76925e，已删除PCL.exe，本地旧文件尚在，后续集成须保留远端删除。核验当时C未提交。三方预演存在main.py、架构文档、开发日志3处文件冲突；临时组合入口后48项测试通过，但live健康检查、前端模式/超时以及B演示识别和关键词判错仍需处理。只做核验，未合并或上传，详见docs/merge-feasibility.md。
 - C 分支上传准备（2026-09-17）：用户要求将当前本地项目上传为新分支 codex/c-local-teaching；最新 origin/main 为4bd8519，已合并B分支。C保留9a57238基线，不在本轮整合B或修改main。65个候选文件已扫描，9个原有附件字节未变，公开演示凭据保留；本地数据库、备份、环境、依赖和日志排除。用户回复“没有，开始上传”确认本次凭据状态并授权上传；已通过GitHub接口上传并fetch验证文件树一致，详见开发日志。
 - 历史 0.1 GitHub 与密钥状态：目标为公开仓库 844346518scp-coder/agent-school-llm-usts；用户于 2026-09-17 明确委托 AI 核验秘密凭据后直接上传，并保留远端已有内容。当时已完成检查并上传至 main，项目提交 e0747b3；当时已拉取远端验证全部文件与本地一致，既有文件和历史保留，结果见开发日志。公开演示凭据保留，本地数据库、环境、依赖、缓存与日志不上传。
@@ -40,9 +41,9 @@
 ├─ .gitignore                    # 本地配置、缓存与敏感文件忽略规则
 ├─ .env.example                  # 配置占位模板，禁止真实密钥
 ├─ 一键启动.cmd                  # Windows 双击启动入口
-├─ start.ps1                     # 源码/便携模式识别与启动
+├─ start.ps1                     # 自动源码启动、可选开发/便携模式
+├─ bootstrap.ps1                 # 项目私有环境下载校验、依赖安装和前端构建
 ├─ build-portable.py            # 生成Windows x64便携测试ZIP
-├─ PCL.exe                       # 远端原有文件，原样保留，不参与数伴运行
 ├─ b4c83b8f47127b5aca665db31ea2be423546788405446779.png@290w_270h_1s.avif # 远端原有图片
 ├─ frontend/
 │  ├─ package.json               # 前端依赖与开发 / 构建命令
@@ -62,9 +63,9 @@
 │  ├─ requirements.lock.txt     # 本轮验证的完整依赖版本
 │  └─ app/
 │     ├─ main.py                 # FastAPI、初始化与路由
-│     ├─ platform/               # C：auth.py、database.py、portable.py（便携启动）
+│     ├─ platform/               # C：auth.py、database.py、portable.py（源码/便携服务启动）
 │     ├─ teaching/               # C：routes.py（题库、作业、反馈与统计）
-│     └─ ai/                     # B：service.py（演示问答与历史）
+│     └─ ai/                     # B：config、llm、knowledge、prompts、diagnosis、service
 ├─ migrations/
 │  ├─ README.md                  # 迁移、备份与恢复说明
 │  ├─ upgrade.py                 # SQLite 版本2事务迁移与备份
@@ -72,7 +73,10 @@
 ├─ tests/
 │  ├─ test_api.py                # 认证、权限、题库、作业和反馈闭环测试
 │  ├─ test_migrations.py         # 旧库迁移、幂等、失败回滚与恢复测试
-│  └─ check_portable.py          # 便携ZIP隔离环境与持久化验收
+│  ├─ check_portable.py          # 可选便携ZIP验收
+│  ├─ check_source.py            # 无开发环境源码冷启动及B/C闭环验收
+│  ├─ test_agent.py              # B检索、模型、诊断与兼容回归
+│  └─ smoke_agent.py             # B演示接口冒烟
 ├─ 原始素材/                     # 本轮开工时已恢复；保留原位
 │  └─ output/
 │     ├─ pdf/
@@ -82,7 +86,8 @@
    ├─ development-log.md        # 每次开发记录及文档同步清单
    ├─ c-role-status-report.md   # C 负责人任务与项目现状简报
    ├─ merge-feasibility.md      # B/C 合并核验、冲突与兼容问题
-   ├─ portable-windows.md       # 便携包使用、构建和限制
+   ├─ portable-windows.md       # 历史可选便携方案
+   ├─ source-startup.md         # 当前源码自动初始化与运行说明
    └─ contracts/
       └─ README.md              # 接口约定登记入口
 ```
@@ -140,6 +145,40 @@ AI 必须主动帮助核验 API 密钥及其他秘密凭据，包括访问令牌
 
 - C 已由当前用户认领；确认 A/B 负责人和公共文件复核责任。先验收本地教师工作流，再规划多账号与班级权限；PostgreSQL 和部署后置，详见 docs/c-role-status-report.md。
 - 体验题库、草稿、教师评语与归档流程，确认本地结果；用户确认上传范围后再执行凭据检查和上传确认，不自动上传。
-- 接入真实模型与课程检索前，先补齐模型配置、接口约定和失败处理；不得把预设回复当作真实 AI 能力。
+- 模型兼容接口与本地检索已集成；实际服务验证、资料复核及识别等前端入口后续推进，不把演示或假模型测试当作真实模型效果。
 - 按正式路线落实 PostgreSQL / pgvector、多班级权限、正式认证、迁移与部署；当前仅验证本地 SQLite 模式，不直接公开演示账号服务。
 - 保持开发日志、接口、架构、README 和本文件同步；需新增目录时按第 3 节确认。
+
+## B 模块（智能体）实现说明（2026-09-17 追加）
+
+范围：对齐 9/20 最小版——课程问答、RAG 引用、拍照识别与确认、步骤反馈、基础诊断。
+
+新增文件（均在既有目录内，未新增子目录）：
+
+- `backend/app/ai/config.py`：模式与模型配置。`AGENT_MODE=auto|demo|live`；`live` 缺凭据时如实降级为 `demo`。
+- `backend/app/ai/knowledge.py`：课程知识点与本地 BM25 检索（中文按字 bigram），返回带出处与命中词的片段；知识点均 `verified=false`，待课程资料复核。
+- `backend/app/ai/prompts.py`：分层提示（概念层 → 例题层 → 迁移层）与引用编号约束，另含教师版、费曼版、诊断、步骤批改、识别提示。
+- `backend/app/ai/llm.py`：OpenAI 兼容 Chat Completions 客户端（httpx，支持流式），失败统一为 `ModelUnavailable` / `ModelCallFailed`。
+- `backend/app/ai/diagnosis.py`：规则优先的薄弱知识点诊断与步骤反馈；模型只在 live 模式润色总结或判断单步。
+- `backend/app/ai/service.py`（已有文件，已改造）：保留原演示文案与既有响应结构，新增 `/api/agent/status`、`/api/agent/ask`、`/api/agent/ask/stream`、`/api/agent/feedback`、`/api/agent/diagnosis`、`/api/agent/recognize`。
+- `tests/test_agent.py`：检索、诊断、步骤反馈、提示词、模式降级、最小版测试题集。
+- `tests/smoke_agent.py`：强制demo及临时数据库的端到端冒烟脚本（问答、反馈、诊断、SSE、识别预期拒绝），不会验证真实模型。
+
+硬约束（后续改动不要破坏）：
+
+1. 未配置模型或调用失败时，答案必须是演示内容且 `mode='demo'`，并在 `notice` 说明原因；不得把预设文案冒充模型输出。
+2. demo模式关键词只生成待复核提示，步骤verdict统一为`unclear`，不据此确定对错。
+3. 演示答案正文保留 `还不能生成`、`固定例题演示` 等既有标记（原有 API 测试依赖它们）。
+4. B 不实现权限与持久化，路由只做结构化结果；不改 `platform` 的表结构。
+5. 不在业务路由内重复写权限逻辑；写操作仍由 `main.py` 的 `X-Requested-With: shuban-web` 中间件与 `current_user` 把关。
+
+B原始验证方式（本轮结果以最新日志为准）：
+
+```
+python -m pytest -q              # 集成后57项，详见最新开发日志
+python tests/smoke_agent.py      # 端到端冒烟（demo 模式下 recognize 返回 503 属预期）
+```
+
+配置真实模型：复制 `.env.example` 为 `.env`，填写 `MODEL_BASE_URL` / `MODEL_API_KEY` / `MODEL_NAME`（可选 `MODEL_VISION_NAME`），把 `AGENT_MODE` 保持 `auto` 或改 `live`；密钥不入库、不入仓。
+
+下一步（9/21–24 功能扩展版）：长期记忆、个性化推荐、资源检索与总结评价、语音；以及把 `knowledge.retrieve()` 升级为向量检索。
