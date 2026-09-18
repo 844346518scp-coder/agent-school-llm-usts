@@ -32,7 +32,7 @@
 - **前端依赖被占用**：先停止这个文件夹正在运行的 Vite/构建进程，再次启动；安装器会尽可能提前检查，不主动关闭其他程序。
 - **后端失败**：查看 `backend/server.err.log`；启动失败不等于数据已删除。端口冲突可去掉 `-Port` 自动选择。
 - **空间不足**：保持项目盘有足够空间（建议至少2GB）。安装临时文件与npm/pip缓存放在项目 `.runtime/`，避免只依赖C盘空间。
-- **旧启动器仍提示手动npm ci**：说明仍在使用旧源码。未上传修复之前，GitHub main不会自动包含本次本地修改。
+- **旧启动器仍提示手动npm ci**：说明仍在使用旧源码。请重新下载最新main源码并完整解压；旧ZIP不会自动更新。
 
 详细机制、已验证范围和限制见 [源码启动说明](docs/source-startup.md)。
 
@@ -99,7 +99,7 @@ npm run build
 
 ## 协作入口
 
-所有人及AI开始工作前完整阅读 [AGENTS.md](AGENTS.md)，再读 [开发日志](docs/development-log.md)、[架构](docs/architecture.md)、[接口](docs/contracts/README.md)。目录职责、迁移、文档同步及上传前密钥确认要求以AGENTS.md为准。当前本地集成分支为`codex/source-bootstrap-integration`；本次修复尚未上传，不修改远端main。
+所有人及AI开始工作前完整阅读 [AGENTS.md](AGENTS.md)，再读 [开发日志](docs/development-log.md)、[架构](docs/architecture.md)、[接口](docs/contracts/README.md)。目录职责、迁移、文档同步及上传前密钥确认要求以AGENTS.md为准。本次集成已更新`codex/c-local-teaching`，并通过[PR #2](https://github.com/844346518scp-coder/agent-school-llm-usts/pull/2)合入`main`；下载最新main即可获得修复。
 
 项目仓库：https://github.com/844346518scp-coder/agent-school-llm-usts 。历史原始材料保留原文；PCL.exe的远端删除在本次集成中保留。
 

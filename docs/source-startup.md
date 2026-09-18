@@ -26,4 +26,4 @@
 
 tests/check_source.py建立没有.runtime/.venv/node_modules/dist/.env的新源码副本，移除子进程PATH中的Python/Node，设置无效PYTHONHOME/PYTHONPATH，再真实下载、校验、安装、构建。检查C题库/作业/反馈闭环、B演示问答和引用、重启持久化，以及缓存启动无需重新安装；live使用本地假模型服务，不使用真实密钥或外部模型。
 
-验收结果以开发日志为准。本机隔离测试不能替代所有Windows实机；首次网络/代理、机构程序策略、Windows ARM及Mac/Linux仍有边界。普通旧main源码ZIP不会自行获得修复，需发布本次源码修改后下载更新。
+验收结果以开发日志为准。本机隔离测试不能替代所有Windows实机；首次网络/代理、机构程序策略、Windows ARM及Mac/Linux仍有边界。普通旧main源码ZIP不会自行获得修复，本次已通过PR #2合入main，请重新下载最新main。

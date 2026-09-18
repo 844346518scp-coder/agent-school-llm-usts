@@ -82,6 +82,6 @@ start.ps1根据portable-manifest.json识别测试包并调用platform/portable.p
 
 用户明确要求普通源码文件夹下载后直接启动；此前便携分发仅保留为可选工具。start.ps1默认走bootstrap.ps1项目私有安装，首次联网取得固定版本和SHA256校验的Python/Node/pip，安装锁定依赖并预构建页面，交由FastAPI同源托管；无管理员/全局PATH变更。-Dev才走原Vite方式。源码模式保留.env与数据库语义，便携模式仍固定包内数据库。详细机制见source-startup.md。
 
-origin/main(4bd8519)已包含B，用户提供main ZIP逐文件与该提交一致。在codex/source-bootstrap-integration合入其历史，保留C教师流程、schema版本2及备份恢复，保留main删除PCL.exe。共享入口保留C迁移、B路由/动态模式和目录实例标识；当前未上传远端。
+origin/main(4bd8519)已包含B，用户提供main ZIP逐文件与该提交一致。在codex/source-bootstrap-integration合入其历史，保留C教师流程、schema版本2及备份恢复，保留main删除PCL.exe。共享入口保留C迁移、B路由/动态模式和目录实例标识；已更新原C分支并通过PR #2合入main（b52f194）。
 
 前端普通问答支持demo/live、调用失败提示及待复核引用；AI请求等待90秒、模型网络阶段超时1–60秒，禁止自动重试。回答来源前缀和降级提示随正文持久化，无数据库结构变更；旧记录兼容读取。步骤关键词不能确定错误，一律unclear；demo识别不外调，模型错误正文不回显秘密，流式网络异常规范降级。课程资料仍待复核，模拟live测试不等于真实服务验收。
