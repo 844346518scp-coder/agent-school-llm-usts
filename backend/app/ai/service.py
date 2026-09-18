@@ -123,14 +123,21 @@ def demo_reply(question: str, topic: str, role: str) -> str:
 def detect_mode(answer: str) -> str:
     """历史记录只存了答案文本，这里按演示标记反推来源，避免误报 live。"""
     text = answer or ''
+    if text.startswith('【回复来源：模型】'):
+        return 'live'
+    if text.startswith('【回复来源：演示】'):
+        return 'demo'
     return 'demo' if any(marker in text for marker in DEMO_MARKERS) else 'live'
 
 
 def _safe_host(base_url: str) -> str | None:
     if not base_url:
         return None
-    parts = urlsplit(base_url)
-    return f'{parts.scheme}://{parts.netloc}' if parts.netloc else None
+    try:
+        parts = urlsplit(base_url)
+        return f'{parts.scheme}://{parts.hostname}' if parts.hostname else None
+    except ValueError:
+        return None
 
 
 def retrieve_chunks(question: str, topic: str | None = None) -> list:
@@ -186,6 +193,9 @@ def ask(data: QuestionInput, user: User = Depends(current_user), db: Session = D
     settings = load_settings()
     chunks = retrieve_chunks(data.question, data.topic)
     answer, mode, notice = compose_answer(data.question, data.topic, user.role, settings.resolved_mode, chunks)
+    if notice:
+        answer = f'【调用提示】{notice}\n\n{answer}'  # Preserve fallback notice after refresh/relogin.
+    answer = ('【回复来源：模型】\n' if mode == 'live' else '【回复来源：演示】\n') + answer
     item = Conversation(id=str(uuid4()), user_id=user.id, question=data.question, topic=data.topic,
                         answer=answer, favorite=False,
                         created_at=datetime.now(timezone.utc).isoformat())
@@ -223,10 +233,10 @@ def agent_status():
         'knowledge': knowledge.stats(),
         'capabilities': {
             'qa': True,
-            'qa_stream': settings.model_ready,
+            'qa_stream': settings.resolved_mode == 'live',
             'references': True,
             'diagnosis': True,
-            'recognize': settings.model_ready,
+            'recognize': settings.resolved_mode == 'live',
             'memory': False,
             'recommendation': True,
         },
@@ -285,7 +295,7 @@ def stream_ask(data: AskInput, user: User = Depends(current_user)):
                 raise ModelCallFailed('模型未返回任何内容。')
         except (ModelUnavailable, ModelCallFailed) as exc:
             answer, mode, notice = compose_answer(data.question, data.topic, data.role, 'demo', chunks)
-            yield _sse({'type': 'fallback', 'mode': 'demo', 'notice': f'流式调用失败，已降级（{exc}）。'})
+            yield _sse({'type': 'fallback', 'mode': 'demo', 'replace': True, 'notice': f'流式调用失败，已降级（{exc}）。'})
             yield _sse({'type': 'delta', 'text': answer})
             yield _sse({'type': 'done', 'mode': mode, 'notice': notice})
             return
@@ -324,7 +334,7 @@ def check_step(data: StepFeedbackInput, user: User = Depends(current_user)):
 def recognize_question(data: RecognizeInput, user: User = Depends(current_user)):
     """拍照识别：仅做题目转录。未配置真实模型时如实报 503，不返回编造结果。"""
     settings = load_settings()
-    if not settings.model_ready:
+    if settings.resolved_mode != 'live':
         raise HTTPException(
             status_code=503,
             detail='未配置真实模型（MODEL_BASE_URL / MODEL_API_KEY / MODEL_NAME），识别功能不可用；'

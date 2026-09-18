@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, String, Text, Integer, Boolean, ForeignKey
+from sqlalchemy import create_engine, String, Text, Integer, Boolean, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -53,6 +53,7 @@ class Assignment(Base):
     topic: Mapped[str] = mapped_column(String(40))
     due_date: Mapped[str] = mapped_column(String(10))
     created_at: Mapped[str] = mapped_column(String(40))
+    status: Mapped[str] = mapped_column(String(20), default='published', server_default='published')
 
 
 class Submission(Base):
@@ -62,6 +63,39 @@ class Submission(Base):
     student_id: Mapped[str] = mapped_column(ForeignKey('users.id'))
     answer: Mapped[str] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(String(40))
+    version: Mapped[int] = mapped_column(Integer, default=1, server_default='1')
+
+
+class Question(Base):
+    __tablename__ = 'questions'
+    id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    teacher_id: Mapped[str] = mapped_column(ForeignKey('users.id'), index=True)
+    title: Mapped[str] = mapped_column(String(100))
+    topic: Mapped[str] = mapped_column(String(40))
+    content: Mapped[str] = mapped_column(Text)
+    reference_answer: Mapped[str] = mapped_column(Text, default='')
+    archived: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[str] = mapped_column(String(40))
+    updated_at: Mapped[str] = mapped_column(String(40))
+
+
+class Review(Base):
+    __tablename__ = 'reviews'
+    __table_args__ = (UniqueConstraint('submission_id', 'version'),)
+    id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    submission_id: Mapped[str] = mapped_column(ForeignKey('submissions.id'), index=True)
+    teacher_id: Mapped[str] = mapped_column(ForeignKey('users.id'))
+    version: Mapped[int] = mapped_column(Integer)
+    comment: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(30))
+    answer_snapshot: Mapped[str] = mapped_column(Text)
+    reviewed_at: Mapped[str] = mapped_column(String(40))
+
+
+class SchemaMigration(Base):
+    __tablename__ = 'schema_migrations'
+    version: Mapped[int] = mapped_column(Integer, primary_key=True)
+    applied_at: Mapped[str] = mapped_column(String(40))
 
 
 def get_db():

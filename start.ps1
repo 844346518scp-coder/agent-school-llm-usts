@@ -1,9 +1,33 @@
 # Double-click the CMD launcher, or run ./start.ps1 [-NoBrowser].
-param([switch]$NoBrowser)
+param([switch]$NoBrowser, [int]$Port = 0, [switch]$Dev, [switch]$SetupOnly)
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $taskRoot = $PSScriptRoot
+$taskPortablePython = Join-Path $taskRoot 'runtime/python.exe'
+if (Test-Path -LiteralPath (Join-Path $taskRoot 'portable-manifest.json')) {
+    if (-not (Test-Path -LiteralPath $taskPortablePython)) {
+        Write-Host 'ERROR: Portable runtime missing. Extract the complete portable ZIP first.' -ForegroundColor Red
+        exit 1
+    }
+    $taskPortableArgs = @('-B', (Join-Path $taskRoot 'backend/app/platform/portable.py'), '--port', "$Port")
+    if ($NoBrowser) { $taskPortableArgs += '--no-browser' }
+    & $taskPortablePython @taskPortableArgs
+    exit $LASTEXITCODE
+}
+if (-not $Dev) {
+    try {
+        & (Join-Path $taskRoot 'bootstrap.ps1')
+        if ($SetupOnly) { exit 0 }
+        $taskSourceArgs = @('-B', (Join-Path $taskRoot 'backend/app/platform/portable.py'), '--source', '--port', "$Port")
+        if ($NoBrowser) { $taskSourceArgs += '--no-browser' }
+        & (Join-Path $taskRoot '.runtime/python-3.13.13/python.exe') @taskSourceArgs
+        exit $LASTEXITCODE
+    } catch {
+        Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
+    }
+}
 $taskPython = Join-Path $taskRoot '.venv/Scripts/python.exe'
 $taskFrontend = Join-Path $taskRoot 'frontend'
 $taskBackendUrl = 'http://127.0.0.1:8000/api/health'
@@ -21,7 +45,7 @@ function Test-TaskHealth([string]$Url) {
     try {
         $taskResponse = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 2
         $taskHealth = $taskResponse.Content | ConvertFrom-Json
-        return ($taskHealth.status -eq 'ok' -and $taskHealth.agent_mode -eq 'demo' -and $taskHealth.version -eq '0.1.0')
+        return ($taskHealth.status -eq 'ok' -and $taskHealth.agent_mode -in @('demo', 'live') -and $taskHealth.version -eq '0.2.0' -and $taskHealth.agent_version -eq '0.2.0')
     } catch { return $false }
 }
 
@@ -68,10 +92,10 @@ try {
         throw 'Port 5173 is occupied, but a SHUBAN page was not found. No process was stopped.'
     }
     if (-not $taskBackendRunning) {
-        if (-not (Test-Path -LiteralPath $taskPython)) { throw 'Python environment missing. Complete the installation steps in README.md first.' }
+        if (-not (Test-Path -LiteralPath $taskPython)) { throw 'Source checkout: Python environment missing. Testers should use the portable ZIP; developers should follow README.md.' }
     }
     if (-not $taskFrontendRunning) {
-        if (-not (Test-Path -LiteralPath (Join-Path $taskFrontend 'node_modules/vite/bin/vite.js'))) { throw 'Frontend dependencies missing. Run npm ci in frontend; see README.md.' }
+        if (-not (Test-Path -LiteralPath (Join-Path $taskFrontend 'node_modules/vite/bin/vite.js'))) { throw 'Source checkout: frontend dependencies missing. Testers should use the portable ZIP; developers run npm ci in frontend. See README.md.' }
         $taskNodeCommand = Get-Command node -ErrorAction SilentlyContinue
         if (-not $taskNodeCommand) { throw 'Node.js was not found. Install Node.js 22.12+ and reopen the launcher.' }
         $taskNode = $taskNodeCommand.Source

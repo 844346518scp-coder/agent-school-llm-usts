@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import os
+import math
 from dataclasses import dataclass
 
 MODES = ('auto', 'demo', 'live')
@@ -13,12 +14,13 @@ MODES = ('auto', 'demo', 'live')
 KEY_ENV_NAMES = ('MODEL_BASE_URL', 'MODEL_API_KEY', 'MODEL_NAME')
 
 
-def _number(name: str, default: float) -> float:
+def _number(name: str, default: float, low: float, high: float) -> float:
     raw = (os.getenv(name) or '').strip()
     if not raw:
         return default
     try:
-        return float(raw)
+        value = float(raw)
+        return min(high, max(low, value)) if math.isfinite(value) else default
     except ValueError:
         return default
 
@@ -66,9 +68,9 @@ def load_settings() -> AgentSettings:
         api_key=(os.getenv('MODEL_API_KEY') or '').strip(),
         model=model,
         vision_model=(os.getenv('MODEL_VISION_NAME') or '').strip() or model,
-        timeout=_number('MODEL_TIMEOUT_SECONDS', 30.0),
-        temperature=_number('MODEL_TEMPERATURE', 0.3),
-        max_tokens=int(_number('MODEL_MAX_TOKENS', 900)),
-        top_k=int(_number('AGENT_TOP_K', 4)),
-        min_score=_number('AGENT_MIN_SCORE', 0.0),
+        timeout=_number('MODEL_TIMEOUT_SECONDS', 30.0, 1, 60),
+        temperature=_number('MODEL_TEMPERATURE', 0.3, 0, 2),
+        max_tokens=int(_number('MODEL_MAX_TOKENS', 900, 1, 4096)),
+        top_k=int(_number('AGENT_TOP_K', 4, 1, 8)),
+        min_score=_number('AGENT_MIN_SCORE', 0.0, 0, 100),
     )

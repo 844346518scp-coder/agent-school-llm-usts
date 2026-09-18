@@ -6,7 +6,10 @@
 from __future__ import annotations
 
 import json
+import os
+import atexit
 import sys
+import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve()
@@ -14,9 +17,24 @@ ROOT = HERE.parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+# Always isolate this demonstration from local user data and model credentials.
+(ROOT / '.tmp').mkdir(exist_ok=True)
+_database = tempfile.TemporaryDirectory(prefix='agent-smoke-', dir=ROOT / '.tmp')
+os.environ['DATABASE_URL'] = 'sqlite:///' + (Path(_database.name) / 'smoke.db').as_posix()
+os.environ['AGENT_MODE'] = 'demo'
+
 from fastapi.testclient import TestClient  # noqa: E402
 
 from backend.app.main import app  # noqa: E402
+from backend.app.platform.database import engine  # noqa: E402
+
+
+def cleanup() -> None:
+    engine.dispose()
+    _database.cleanup()
+
+
+atexit.register(cleanup)
 
 HEADERS = {'X-Requested-With': 'shuban-web'}
 lines: list[str] = []
@@ -24,6 +42,7 @@ summary: list[str] = []
 
 
 def record(title: str, status: int, payload=None) -> None:
+    assert status == (503 if 'recognize' in title else 200), (title, status)
     summary.append(f'{title}: HTTP {status}')
     lines.append(f'--- {title} --- HTTP {status}')
     if payload is not None:
@@ -33,6 +52,7 @@ def record(title: str, status: int, payload=None) -> None:
 with TestClient(app) as client:
     response = client.post('/api/auth/login', json={'username': 'student', 'password': 'Student123!', 'role': 'student'}, headers=HEADERS)
     summary.append(f'login: HTTP {response.status_code}')
+    assert response.status_code == 200
 
     response = client.get('/api/agent/status')
     record('GET /api/agent/status', response.status_code, response.json())
@@ -69,10 +89,12 @@ with TestClient(app) as client:
     response = client.post('/api/conversations', json={'question': '求 lim(x→0) sin(x)/x 的极限', 'topic': '函数与极限'}, headers=HEADERS)
     data = response.json()
     summary.append(f'POST /api/conversations: HTTP {response.status_code} mode={data.get("mode")} refs={len(data.get("references", []))}')
+    assert response.status_code == 201 and data['mode'] == 'demo'
 
     with client.stream('POST', '/api/agent/ask/stream', json={'question': '导数的几何意义是什么？'}, headers=HEADERS) as stream:
         events = [line for line in stream.iter_lines() if line.startswith('data:')]
     summary.append(f'SSE /api/agent/ask/stream: HTTP {stream.status_code} events={len(events)}')
+    assert stream.status_code == 200 and len(events) >= 3
     lines.append('--- SSE 事件 ---')
     lines.extend(events[:6])
 

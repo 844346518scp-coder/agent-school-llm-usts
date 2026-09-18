@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from datetime import date, timedelta, datetime, timezone
 from pathlib import Path
+import os
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -11,10 +12,11 @@ from .platform.auth import router as auth_router, hash_password
 from .ai.config import load_settings
 from .ai.service import agent_router as agent_core_router, router as agent_router
 from .teaching.routes import router as teaching_router
+from migrations.upgrade import upgrade
 
 
 def initialize_database():
-    Base.metadata.create_all(engine)
+    upgrade(engine, Base.metadata)
     with SessionLocal() as db:
         for role, name, password in [('student', '林同学', 'Student123!'), ('teacher', '陈老师', 'Teacher123!')]:
             if not db.get(User, role):
@@ -33,7 +35,7 @@ async def lifespan(app):
     yield
 
 
-app = FastAPI(title='数伴 · 教育智能体 MVP', version='0.1.0', lifespan=lifespan)
+app = FastAPI(title='数伴 · 教育智能体 MVP', version='0.2.0', lifespan=lifespan)
 
 
 @app.middleware('http')
@@ -58,8 +60,10 @@ app.include_router(teaching_router)
 
 @app.get('/api/health')
 def health():
-    # agent_mode 如实反映当前生效模式：未配置模型凭据时为 demo。
-    return {'status': 'ok', 'agent_mode': load_settings().resolved_mode, 'version': '0.1.0'}
+    result = {'status': 'ok', 'agent_mode': load_settings().resolved_mode, 'version': '0.2.0', 'agent_version': '0.2.0'}
+    if os.getenv('SHUBAN_INSTANCE_ID'):
+        result['instance_id'] = os.environ['SHUBAN_INSTANCE_ID']
+    return result
 
 
 DIST = Path(__file__).resolve().parents[2] / 'frontend' / 'dist'

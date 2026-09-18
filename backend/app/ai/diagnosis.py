@@ -54,8 +54,8 @@ def weak_points(text: str, topic: str | None = None) -> list[dict]:
 def _rule_summary(weak: Sequence[dict]) -> str:
     if not weak:
         return '规则诊断：未发现明显薄弱点信号，建议先完成一道基础例题再回来诊断。'
-    detail = '；'.join(f'{item["title"]}（置信度 {item["confidence"]}）' for item in weak)
-    return f'规则诊断：最可能薄弱的是 {detail}。'
+    detail = '；'.join(f'{item["title"]}（规则匹配分 {item["confidence"]}）' for item in weak)
+    return f'规则提示：以下内容需要核对，不能据此确定掌握程度： {detail}。'
 
 
 def _rule_next_step(weak: Sequence[dict]) -> str:
@@ -128,7 +128,7 @@ STEP_MISTAKE_HINTS = {
     '直接代入': '不要直接代入 0 或 ∞，先判断是不是不定式。',
 }
 
-UNVERIFIABLE_HINT = '规则模式只能标出明显错误，不能判定这一步正确；请对照上面引用的定义与要点自检。'
+UNVERIFIABLE_HINT = '关键词规则不能判断这一步的对错；请对照引用的定义与要点自检。'
 DEFAULT_NEXT_QUESTION = '这一步为什么成立？请说出用到的定义或定理。'
 
 
@@ -141,7 +141,7 @@ def step_feedback(
 ) -> dict:
     """判断学生提交的“某一步”。
 
-    demo 模式只会标记明显错误（命中规则表）或返回 unclear，**不会**给出 correct，
+    demo 模式关键词只用于生成自检提示，统一返回 unclear，不给出确定对错，
     避免把规则判断包装成真实的解题批改。
     """
     settings = settings or load_settings()
@@ -151,7 +151,7 @@ def step_feedback(
         else []
     )
     flagged = [key for key in STEP_MISTAKE_HINTS if key in (step or '')]
-    verdict = 'incorrect' if flagged else 'unclear'
+    verdict = 'unclear'
     hint = STEP_MISTAKE_HINTS[flagged[0]] if flagged else UNVERIFIABLE_HINT
     next_question = DEFAULT_NEXT_QUESTION
     mode = 'demo'

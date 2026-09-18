@@ -75,7 +75,7 @@ def chat(
     client: httpx.Client | None = None,
 ) -> str:
     """同步一次性问答。失败时抛出 ModelUnavailable / ModelCallFailed。"""
-    if not settings.model_ready:
+    if settings.resolved_mode != 'live':
         raise ModelUnavailable('未配置 MODEL_BASE_URL / MODEL_API_KEY / MODEL_NAME。')
     owns_client = client is None
     client = client or httpx.Client(timeout=settings.timeout)
@@ -86,17 +86,19 @@ def chat(
             json=_payload(messages, settings, stream=False, model=model),
         )
     except httpx.HTTPError as exc:
-        raise ModelCallFailed(f'请求模型失败：{exc}') from exc
+        raise ModelCallFailed('网络连接失败或超时，请检查模型服务。') from exc
     finally:
         if owns_client:
             client.close()
     if response.status_code >= 400:
-        raise ModelCallFailed(f'模型返回 {response.status_code}：{response.text[:200]}')
+        raise ModelCallFailed(f'模型返回 HTTP {response.status_code}。')
     try:
         content = response.json()['choices'][0]['message']['content']
     except (ValueError, KeyError, IndexError, TypeError) as exc:
         raise ModelCallFailed('模型返回结构无法解析。') from exc
-    text = (content or '').strip()
+    if not isinstance(content, str):
+        raise ModelCallFailed('模型返回内容不是文本。')
+    text = content.strip()
     if not text:
         raise ModelCallFailed('模型返回内容为空。')
     return text
@@ -109,33 +111,35 @@ def chat_stream(
     model: str | None = None,
 ) -> Iterator[str]:
     """流式输出增量文本（SSE 的 data 行）。"""
-    if not settings.model_ready:
+    if settings.resolved_mode != 'live':
         raise ModelUnavailable('未配置 MODEL_BASE_URL / MODEL_API_KEY / MODEL_NAME。')
-    with httpx.Client(timeout=settings.timeout) as client:
-        with client.stream(
-            'POST',
-            endpoint(settings.base_url),
-            headers=_headers(settings),
-            json=_payload(messages, settings, stream=True, model=model),
-        ) as response:
-            if response.status_code >= 400:
-                body = response.read().decode('utf-8', 'replace')
-                raise ModelCallFailed(f'模型返回 {response.status_code}：{body[:200]}')
-            for raw_line in response.iter_lines():
-                line = (raw_line or '').strip()
-                if not line:
-                    continue
-                if line.startswith('data:'):
-                    line = line[5:].strip()
-                if line == '[DONE]':
-                    return
-                try:
-                    chunk = json.loads(line)
-                except ValueError:
-                    continue
-                try:
-                    piece = chunk['choices'][0]['delta'].get('content')
-                except (KeyError, IndexError, TypeError):
-                    piece = None
-                if piece:
-                    yield piece
+    try:
+        with httpx.Client(timeout=settings.timeout) as client:
+            with client.stream(
+                'POST',
+                endpoint(settings.base_url),
+                headers=_headers(settings),
+                json=_payload(messages, settings, stream=True, model=model),
+            ) as response:
+                if response.status_code >= 400:
+                    raise ModelCallFailed(f'模型返回 HTTP {response.status_code}。')
+                for raw_line in response.iter_lines():
+                    line = (raw_line or '').strip()
+                    if not line:
+                        continue
+                    if line.startswith('data:'):
+                        line = line[5:].strip()
+                    if line == '[DONE]':
+                        return
+                    try:
+                        chunk = json.loads(line)
+                    except ValueError:
+                        continue
+                    try:
+                        piece = chunk['choices'][0]['delta'].get('content')
+                    except (KeyError, IndexError, TypeError):
+                        piece = None
+                    if piece:
+                        yield piece
+    except httpx.HTTPError as exc:
+        raise ModelCallFailed("流式连接失败或超时。") from exc

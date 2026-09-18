@@ -191,7 +191,7 @@ def test_suggest_topic_from_recognized_text():
 
 def test_step_feedback_flags_known_mistake():
     result = diagnosis.step_feedback('求 lim(x→0) sin x / x', '我直接用洛必达法则求导', topic='函数与极限')
-    assert result['verdict'] == 'incorrect'
+    assert result['verdict'] == 'unclear'
     assert result['flagged'] == ['洛必达']
     assert result['mode'] == 'demo'
     assert result['references']
@@ -221,3 +221,47 @@ def test_mvp_case_set_retrieves_expected_point(question, expected_id):
     hits = knowledge.retrieve(question, top_k=3)
     assert hits, question
     assert expected_id in {hit.point.id for hit in hits}, (question, [hit.point.id for hit in hits])
+
+
+def test_correct_statement_is_not_marked_wrong_by_keywords(monkeypatch):
+    monkeypatch.setenv('AGENT_MODE', 'demo')
+    result = diagnosis.step_feedback('可导与连续有什么关系？', '可导必连续。')
+    assert result['flagged'] and result['verdict'] == 'unclear'
+
+
+@pytest.mark.parametrize('value', ['nan', 'inf', '-1', '99999'])
+def test_model_timeout_is_finite_and_below_frontend_budget(monkeypatch, value):
+    monkeypatch.setenv('MODEL_TIMEOUT_SECONDS', value)
+    monkeypatch.setenv('MODEL_MAX_TOKENS', 'nan')
+    settings = load_settings()
+    assert 1 <= settings.timeout <= 60
+    assert settings.max_tokens == 900
+
+
+def test_http_model_errors_do_not_echo_provider_body(monkeypatch):
+    import httpx
+    from backend.app.ai import llm
+    monkeypatch.setenv('AGENT_MODE', 'live')
+    monkeypatch.setenv('MODEL_BASE_URL', 'https://example.invalid/v1')
+    monkeypatch.setenv('MODEL_API_KEY', 'synthetic-private-value')
+    monkeypatch.setenv('MODEL_NAME', 'test-model')
+    with httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(401, text='synthetic-private-value'))) as client:
+        with pytest.raises(llm.ModelCallFailed) as exc:
+            llm.chat([], load_settings(), client=client)
+    assert '401' in str(exc.value)
+    assert 'synthetic-private-value' not in str(exc.value)
+
+
+def test_stream_network_failure_is_translated(monkeypatch):
+    import httpx
+    from backend.app.ai import llm
+    monkeypatch.setenv('AGENT_MODE', 'live')
+    monkeypatch.setenv('MODEL_BASE_URL', 'https://example.invalid/v1')
+    monkeypatch.setenv('MODEL_API_KEY', 'synthetic-key')
+    monkeypatch.setenv('MODEL_NAME', 'test-model')
+    def unavailable(*args, **kwargs):
+        raise httpx.ConnectError('synthetic-private-value')
+    monkeypatch.setattr(httpx.Client, 'stream', unavailable)
+    with pytest.raises(llm.ModelCallFailed) as exc:
+        list(llm.chat_stream([], load_settings()))
+    assert 'synthetic-private-value' not in str(exc.value)
