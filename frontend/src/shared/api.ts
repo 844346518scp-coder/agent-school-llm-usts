@@ -1,13 +1,15 @@
 export type Role = 'student' | 'teacher'
-export interface User { id: string; username: string; name: string; role: Role }
+export interface User { id: string; username: string; name: string; role: Role; active: boolean; must_change_password: boolean; is_demo: boolean }
+export interface TeachingClass { id: string; name: string; course: string; term: string; archived: boolean; student_count: number; created_at: string }
+export interface ClassStudent { id: string; username: string; name: string; active: boolean; must_change_password: boolean; member_active: boolean; manageable: boolean; submitted: number; completed: number; pending: number; needs_improvement: number; expected: number }
 export interface Reference { index: number; id: string; title: string; source: string; verified: boolean }
 export interface Conversation { id: string; question: string; answer: string; topic: string; favorite: boolean; created_at: string; mode: 'demo' | 'live'; notice?: string | null; references?: Reference[] }
 export type ReviewStatus = 'needs_improvement' | 'completed'
 export interface Review { id: string; version: number; comment: string; status: ReviewStatus; answer_snapshot: string; reviewed_at: string }
 export interface Submission { id: string; student_id: string; student_name: string; answer: string; created_at: string; version: number; review: Review | null; review_history: Review[] }
-export interface Assignment { id: string; title: string; content: string; topic: string; due_date: string; created_at: string; status: 'draft' | 'published' | 'archived'; submitted: boolean; answer: string; submission: Submission | null; submissions?: Submission[] }
+export interface Assignment { id: string; title: string; content: string; topic: string; due_date: string; created_at: string; status: 'draft' | 'published' | 'archived'; submitted: boolean; answer: string; submission: Submission | null; submissions?: Submission[]; class_id: string | null; class_name: string; recipient_count: number; class_archived?: boolean; can_submit?: boolean }
 export interface Question { id: string; title: string; topic: string; content: string; reference_answer: string; archived: boolean }
-export interface TeachingStats { published: number; submitted: number; pending: number; needs_improvement: number; completed: number }
+export interface TeachingStats { published: number; submitted: number; pending: number; needs_improvement: number; completed: number; classes: number; students: number; expected: number; unsubmitted: number }
 export const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 export const reviewLabel = (status?: ReviewStatus) => status === 'completed' ? '教师确认完成' : status === 'needs_improvement' ? '待改进' : '待批改'
 

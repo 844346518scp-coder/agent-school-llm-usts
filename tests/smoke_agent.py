@@ -22,6 +22,7 @@ if str(ROOT) not in sys.path:
 _database = tempfile.TemporaryDirectory(prefix='agent-smoke-', dir=ROOT / '.tmp')
 os.environ['DATABASE_URL'] = 'sqlite:///' + (Path(_database.name) / 'smoke.db').as_posix()
 os.environ['AGENT_MODE'] = 'demo'
+os.environ['SHUBAN_SEED_DEMO'] = 'true'
 
 from fastapi.testclient import TestClient  # noqa: E402
 

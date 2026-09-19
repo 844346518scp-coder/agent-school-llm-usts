@@ -1,18 +1,23 @@
 """Authentication, role boundaries, persistence, and the real assignment loop."""
-import os
 from datetime import date, timedelta
 from pathlib import Path
 import tempfile
 
-# A disposable database outside the project; never touch demo.db.
+# Independent of module import order: never reuse the configured application engine.
 _test_db = tempfile.TemporaryDirectory(prefix='shuban-tests-')
-os.environ['DATABASE_URL'] = f'sqlite:///{Path(_test_db.name) / "test.db"}'
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from backend.app import main
+from backend.app.platform import database as database_module
 from backend.app.main import app
-from backend.app.platform.database import Base, engine, SessionLocal, User, Session, Conversation
+from backend.app.platform.database import Base, User, Session, Conversation
 from backend.app.platform.auth import token_hash
+
+engine = create_engine(f'sqlite:///{Path(_test_db.name) / "test.db"}', connect_args={'check_same_thread': False})
+SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 
 HEADERS = {'X-Requested-With': 'shuban-web'}
 
@@ -65,7 +70,13 @@ def cleanup_database():
 
 
 @pytest.fixture(autouse=True)
-def database():
+def database(monkeypatch):
+    monkeypatch.setenv('SHUBAN_SEED_DEMO', 'true')
+    monkeypatch.setenv('AGENT_MODE', 'demo')
+    monkeypatch.setattr(main, 'engine', engine)
+    monkeypatch.setattr(main, 'SessionLocal', SessionLocal)
+    monkeypatch.setattr(database_module, 'engine', engine)
+    monkeypatch.setattr(database_module, 'SessionLocal', SessionLocal)
     Base.metadata.drop_all(engine)
     yield
 
@@ -156,7 +167,7 @@ def test_unknown_question_not_fabricated(client):
 
 def test_assignments_round_trip_and_role_guard(client):
     login(client, 'teacher')
-    response = client.post('/api/assignments', json={'title': '测试作业', 'content': '解释导数', 'topic': '导数与微分', 'due_date': (date.today() + timedelta(days=1)).isoformat()})
+    response = client.post('/api/assignments', json={'class_id': 'demo-class', 'title': '测试作业', 'content': '解释导数', 'topic': '导数与微分', 'due_date': (date.today() + timedelta(days=1)).isoformat()})
     assert response.status_code == 201
     assignment_id = response.json()['id']
     assert client.put(f'/api/assignments/{assignment_id}/submission', json={'answer': '1'}).status_code == 403
@@ -193,7 +204,7 @@ def test_draft_lifecycle_and_student_visibility(client):
     assert client.put(f'/api/assignments/{aid}/submission', json={'answer': 'x'}).status_code == 404
     assert client.post('/api/assignments/drafts', json={}).status_code == 403
     login(client, 'teacher')
-    fields = {'title': '草稿发布', 'content': '题干 $x^2$', 'topic': '导数与微分', 'due_date': date.today().isoformat()}
+    fields = {'class_id': 'demo-class', 'title': '草稿发布', 'content': '题干 $x^2$', 'topic': '导数与微分', 'due_date': date.today().isoformat()}
     assert client.patch(f'/api/assignments/{aid}', json=fields).status_code == 200
     for _ in range(2):
         assert client.post(f'/api/assignments/{aid}/publish').json()['status'] == 'published'
@@ -237,7 +248,7 @@ def test_questions_snapshot_order_search_and_secrecy(client):
     assert client.patch(f'/api/questions/{q1["id"]}', json={'title': 'new title'}).status_code == 409
     assert client.post('/api/assignments/drafts', json={'question_ids': [q1['id']]}).status_code == 409
     aid = draft['id']
-    client.patch(f'/api/assignments/{aid}', json={'title': '题库作业', 'topic': '混合', 'due_date': date.today().isoformat()})
+    client.patch(f'/api/assignments/{aid}', json={'class_id': 'demo-class', 'title': '题库作业', 'topic': '混合', 'due_date': date.today().isoformat()})
     assert client.post(f'/api/assignments/{aid}/publish').status_code == 200
     login(client)
     assert client.get('/api/questions').status_code == 403
@@ -247,7 +258,7 @@ def test_questions_snapshot_order_search_and_secrecy(client):
 
 def test_review_revisions_statistics_and_history(client):
     login(client, 'teacher')
-    aid = client.post('/api/assignments', json={'title': '版本测试', 'topic': '导数', 'content': '求导', 'due_date': date.today().isoformat()}).json()['id']
+    aid = client.post('/api/assignments', json={'class_id': 'demo-class', 'title': '版本测试', 'topic': '导数', 'content': '求导', 'due_date': date.today().isoformat()}).json()['id']
     url = f'/api/assignments/{aid}/submissions/student/review'
     payload = {'version': 1, 'comment': '请补充过程', 'status': 'needs_improvement'}
     assert client.put(url, json=payload).status_code == 404
@@ -287,7 +298,7 @@ def test_other_teacher_and_other_student_are_isolated(client):
     from backend.app.platform.auth import hash_password
     login(client, 'teacher')
     qid = client.post('/api/questions', json={'title': 'private', 'topic': 'x', 'content': 'secret'}).json()['id']
-    aid = client.post('/api/assignments', json={'title': 'private', 'topic': 'x', 'content': 'x', 'due_date': date.today().isoformat()}).json()['id']
+    aid = client.post('/api/assignments', json={'class_id': 'demo-class', 'title': 'private', 'topic': 'x', 'content': 'x', 'due_date': date.today().isoformat()}).json()['id']
     login(client)
     client.put(f'/api/assignments/{aid}/submission', json={'answer': 'private student answer'})
     with SessionLocal() as db:
@@ -306,13 +317,14 @@ def test_other_teacher_and_other_student_are_isolated(client):
     assert client.put(f'/api/assignments/{aid}/submissions/student/review', json={'version': 1, 'comment': 'hack', 'status': 'completed'}).status_code == 404
     client.post('/api/auth/login', json={'username': 'student2', 'password': 'test-pass', 'role': 'student'})
     assert 'private student answer' not in client.get('/api/assignments').text
-    assert client.get('/api/assignments').json()[0]['submission'] is None
+    assert client.get('/api/assignments').json() == []
+    assert client.put(f'/api/assignments/{aid}/submission', json={'answer': 'cross-class'}).status_code == 404
 
 
 def test_past_deadline_blocks_writes_and_validation(client):
     from backend.app.platform.database import Assignment
     login(client, 'teacher')
-    aid = client.post('/api/assignments', json={'title': 'expired', 'topic': 'x', 'content': 'x', 'due_date': date.today().isoformat()}).json()['id']
+    aid = client.post('/api/assignments', json={'class_id': 'demo-class', 'title': 'expired', 'topic': 'x', 'content': 'x', 'due_date': date.today().isoformat()}).json()['id']
     with SessionLocal() as db:
         db.get(Assignment, aid).due_date = (date.today() - timedelta(days=1)).isoformat()
         db.commit()
@@ -328,7 +340,7 @@ def test_concurrent_review_and_resubmit_preserves_version_boundary(client):
     from concurrent.futures import ThreadPoolExecutor
     from threading import Barrier
     login(client, 'teacher')
-    aid = client.post('/api/assignments', json={'title': 'race', 'topic': 'x', 'content': 'x', 'due_date': date.today().isoformat()}).json()['id']
+    aid = client.post('/api/assignments', json={'class_id': 'demo-class', 'title': 'race', 'topic': 'x', 'content': 'x', 'due_date': date.today().isoformat()}).json()['id']
     with TestClient(app, headers=HEADERS) as student_client:
         login(student_client)
         student_client.put(f'/api/assignments/{aid}/submission', json={'answer': 'v1'})

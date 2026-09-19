@@ -45,7 +45,7 @@ function Test-TaskHealth([string]$Url) {
     try {
         $taskResponse = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 2
         $taskHealth = $taskResponse.Content | ConvertFrom-Json
-        return ($taskHealth.status -eq 'ok' -and $taskHealth.agent_mode -in @('demo', 'live') -and $taskHealth.version -eq '0.2.0' -and $taskHealth.agent_version -eq '0.2.0')
+        return ($taskHealth.status -eq 'ok' -and $taskHealth.agent_mode -in @('demo', 'live') -and $taskHealth.version -eq '0.2.0' -and $taskHealth.agent_version -eq '0.2.0' -and $taskHealth.teaching_version -eq '0.3.0' -and $taskHealth.schema_version -eq 3)
     } catch { return $false }
 }
 

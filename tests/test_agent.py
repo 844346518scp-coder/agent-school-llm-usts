@@ -18,6 +18,13 @@ from backend.app.ai import diagnosis, knowledge, prompts  # noqa: E402
 from backend.app.ai.config import load_settings  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def offline_by_default(monkeypatch):
+    # Unit tests must not inherit a developer's real model credentials/mode.
+    # Tests of live transport explicitly override this and inject fake clients.
+    monkeypatch.setenv('AGENT_MODE', 'demo')
+
+
 def test_tokenize_builds_chinese_bigrams():
     tokens = knowledge.tokenize('求极限洛必达')
     assert '极限' in tokens
@@ -172,10 +179,19 @@ def test_agent_status_endpoint_exposes_capabilities_without_secrets(monkeypatch)
     monkeypatch.delenv('MODEL_API_KEY', raising=False)
     from fastapi.testclient import TestClient
 
-    from backend.app.main import app
+    from backend.app import main
 
-    with TestClient(app) as client:
+    def must_not_initialize():
+        raise AssertionError('The public status probe must never initialize a database')
+
+    monkeypatch.setattr(main, 'initialize_database', must_not_initialize)
+    # The status endpoint has no database dependency. Entering the lifespan here
+    # would otherwise open the configured application DB during a unit test.
+    client = TestClient(main.app)
+    try:
         response = client.get('/api/agent/status')
+    finally:
+        client.close()
     assert response.status_code == 200
     payload = response.json()
     assert payload['mode'] == 'demo'

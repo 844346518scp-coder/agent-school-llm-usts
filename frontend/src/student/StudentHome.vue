@@ -5,8 +5,8 @@ import { localToday, type User, type Conversation, type Assignment } from '../sh
 import ActivityChart from '../shared/ActivityChart.vue'
 const props = defineProps<{ user: User; records: Conversation[]; assignments: Assignment[] }>()
 const emit = defineEmits<{ navigate: [page: string]; ask: [question: string] }>()
-const todo = computed(() => props.assignments.filter(a => a.status === 'published' && a.due_date >= localToday() && (!a.submitted || a.submission?.review?.status === 'needs_improvement')))
-const current = computed(() => props.assignments.filter(a => a.status === 'published'))
+const todo = computed(() => props.assignments.filter(a => a.status === 'published' && a.can_submit !== false && !a.class_archived && a.due_date >= localToday() && (!a.submitted || a.submission?.review?.status === 'needs_improvement')))
+const current = computed(() => props.assignments.filter(a => a.status === 'published' && !a.class_archived))
 const submitted = computed(() => current.value.filter(a => a.submitted).length)
 const completed = computed(() => current.value.filter(a => a.submission?.review?.status === 'completed').length)
 </script>

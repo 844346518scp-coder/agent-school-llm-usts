@@ -4,24 +4,18 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import select, text
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from ..platform.auth import current_user, require_role
-from ..platform.database import Assignment, Question, Review, Submission, User, get_db
+from ..platform.database import Assignment, AssignmentRecipient, Classroom, ClassMember, Question, Review, Submission, User, get_db, write_db
+from .classes import owned_class
 
 router = APIRouter(prefix='/api', tags=['teaching'])
 
 
 def now():
     return datetime.now(timezone.utc).isoformat()
-
-
-def write_db(db: Session = Depends(get_db)):
-    # Serialize state checks and mutations, including review vs. resubmission.
-    if db.bind.dialect.name == 'sqlite':
-        db.execute(text('BEGIN IMMEDIATE'))
-    return db
 
 
 class Input(BaseModel):
@@ -33,6 +27,7 @@ class AssignmentInput(Input):
     content: str = Field(min_length=1, max_length=3000)
     topic: str = Field(min_length=1, max_length=40)
     due_date: date
+    class_id: str = Field(min_length=1, max_length=40)
 
     @field_validator('title', 'content', 'topic')
     @classmethod
@@ -48,6 +43,7 @@ class DraftInput(Input):
     topic: str = Field(default='', max_length=40)
     due_date: str = ''
     question_ids: list[str] = Field(default_factory=list, max_length=30)
+    class_id: str | None = Field(default=None, min_length=1, max_length=40)
 
     @field_validator('due_date')
     @classmethod
@@ -60,6 +56,7 @@ class AssignmentPatch(Input):
     content: str = Field(default='', max_length=3000)
     topic: str = Field(default='', max_length=40)
     due_date: str = ''
+    class_id: str | None = Field(default=None, min_length=1, max_length=40)
 
     @field_validator('due_date')
     @classmethod
@@ -140,8 +137,17 @@ def assignment_data(item, db, user):
     own = next((s for s in submissions if s.student_id == user.id), None)
     data = {key: getattr(item, key) for key in ('id', 'title', 'content', 'topic', 'due_date', 'created_at', 'status')}
     data.update(submitted=own is not None, answer=own.answer if own else '', submission=submission_data(own, db) if own else None)
+    classroom = db.get(Classroom, item.class_id) if item.class_id else None
+    data.update(class_id=item.class_id, class_name=classroom.name if classroom else '',
+                class_archived=classroom.archived if classroom else False,
+                recipient_count=db.scalar(select(func.count()).select_from(AssignmentRecipient).where(AssignmentRecipient.assignment_id == item.id)))
     if user.role == 'teacher':
         data['submissions'] = [submission_data(s, db) for s in submissions]
+    else:
+        member = db.get(ClassMember, (item.class_id, user.id)) if item.class_id else None
+        recipient = db.get(AssignmentRecipient, (item.id, user.id))
+        data['can_submit'] = bool(recipient and member and member.active and user.active and classroom and not classroom.archived
+                                  and item.status == 'published' and item.due_date >= date.today().isoformat())
     return data
 
 
@@ -154,6 +160,23 @@ def ensure_publishable(item):
         raise HTTPException(422, '发布前请填写标题、章节、题干和截止日期。')
     if date.fromisoformat(item.due_date) < date.today():
         raise HTTPException(422, '截止日期不能早于今天。')
+
+
+def snapshot_recipients(item, db, user):
+    if not item.class_id:
+        raise HTTPException(422, '发布前请选择班级。')
+    owned_class(db, item.class_id, user, writable=True)
+    ids = list(db.scalars(select(User.id).join(ClassMember, ClassMember.student_id == User.id)
+                         .where(ClassMember.class_id == item.class_id, ClassMember.active.is_(True), User.active.is_(True), User.role == 'student')))
+    if not ids:
+        raise HTTPException(422, '班级至少需要一位有效学生才能发布作业。')
+    db.flush()
+    db.add_all([AssignmentRecipient(assignment_id=item.id, student_id=sid) for sid in ids])
+
+
+def ensure_class_writable(item, db, user):
+    if item.class_id:
+        owned_class(db, item.class_id, user, writable=True)
 
 
 @router.get('/questions')
@@ -197,21 +220,38 @@ def archive_question(question_id: str, db: Session = Depends(write_db), user: Us
 
 
 @router.get('/teaching/stats')
-def stats(user: User = Depends(require_role('teacher')), db: Session = Depends(get_db)):
-    items = list(db.scalars(select(Assignment).where(Assignment.teacher_id == user.id, Assignment.status == 'published')))
-    result = dict(published=len(items), submitted=0, pending=0, needs_improvement=0, completed=0)
+def stats(class_id: str | None = None, user: User = Depends(require_role('teacher')), db: Session = Depends(get_db)):
+    if class_id:
+        owned_class(db, class_id, user)
+    classes_query = select(Classroom).where(Classroom.teacher_id == user.id, Classroom.archived.is_(False))
+    if class_id:
+        classes_query = classes_query.where(Classroom.id == class_id)
+    class_ids = [c.id for c in db.scalars(classes_query)]
+    items = list(db.scalars(select(Assignment).where(Assignment.teacher_id == user.id, Assignment.status == 'published', Assignment.class_id.in_(class_ids))))
+    student_ids = set(db.scalars(select(User.id).join(ClassMember, ClassMember.student_id == User.id).where(ClassMember.class_id.in_(class_ids), ClassMember.active.is_(True), User.active.is_(True))))
+    result = dict(classes=len(class_ids), students=len(student_ids), expected=0, unsubmitted=0,
+                  published=len(items), submitted=0, pending=0, needs_improvement=0, completed=0)
     for item in items:
-        for s in db.scalars(select(Submission).where(Submission.assignment_id == item.id)):
+        recipients = set(db.scalars(select(AssignmentRecipient.student_id).where(AssignmentRecipient.assignment_id == item.id)))
+        result['expected'] += len(recipients)
+        for s in db.scalars(select(Submission).where(Submission.assignment_id == item.id, Submission.student_id.in_(recipients))):
             review = db.scalar(select(Review).where(Review.submission_id == s.id, Review.version == s.version))
             result['submitted'] += 1
             result[review.status if review else 'pending'] += 1
+    result['unsubmitted'] = result['expected'] - result['submitted']
     return result
 
 
 @router.get('/assignments')
-def assignments(user: User = Depends(current_user), db: Session = Depends(get_db)):
+def assignments(class_id: str | None = None, user: User = Depends(current_user), db: Session = Depends(get_db)):
     query = select(Assignment).order_by(Assignment.created_at.desc())
-    query = query.where(Assignment.teacher_id == user.id) if user.role == 'teacher' else query.where(Assignment.status != 'draft')
+    if class_id:
+        if user.role == 'teacher':
+            owned_class(db, class_id, user)
+        elif not db.get(ClassMember, (class_id, user.id)):
+            raise HTTPException(404, '班级不存在或不可访问。')
+        query = query.where(Assignment.class_id == class_id)
+    query = query.where(Assignment.teacher_id == user.id) if user.role == 'teacher' else query.join(AssignmentRecipient, AssignmentRecipient.assignment_id == Assignment.id).where(Assignment.status != 'draft', AssignmentRecipient.student_id == user.id)
     return [assignment_data(item, db, user) for item in db.scalars(query)]
 
 
@@ -220,12 +260,15 @@ def create_assignment(data: AssignmentInput, db: Session = Depends(write_db), us
     item = Assignment(id=str(uuid4()), teacher_id=user.id, **data.model_dump(exclude={'due_date'}), due_date=data.due_date.isoformat(), created_at=now(), status='published')
     ensure_publishable(item)
     db.add(item)
+    snapshot_recipients(item, db, user)
     db.commit()
     return assignment_data(item, db, user)
 
 
 @router.post('/assignments/drafts', status_code=201)
 def create_draft(data: DraftInput, db: Session = Depends(write_db), user: User = Depends(require_role('teacher'))):
+    if data.class_id:
+        owned_class(db, data.class_id, user, writable=True)
     content = data.content
     if data.question_ids:
         if len(set(data.question_ids)) != len(data.question_ids):
@@ -248,6 +291,9 @@ def edit_assignment(assignment_id: str, data: AssignmentPatch, db: Session = Dep
     changes = data.model_dump(exclude_unset=True)
     if item.status == 'archived':
         raise HTTPException(409, '归档作业不可编辑。')
+    ensure_class_writable(item, db, user)
+    if 'class_id' in changes and data.class_id:
+        owned_class(db, data.class_id, user, writable=True)
     if item.status == 'published':
         if set(changes) != {'due_date'} or not data.due_date or data.due_date < item.due_date:
             raise HTTPException(409, '已发布作业仅可延长截止日期；修改题干请复制为草稿。')
@@ -262,6 +308,7 @@ def delete_draft(assignment_id: str, db: Session = Depends(write_db), user: User
     item = owned(db, Assignment, assignment_id, user)
     if item.status != 'draft':
         raise HTTPException(409, '只能删除草稿，已发布作业请归档。')
+    ensure_class_writable(item, db, user)
     db.delete(item)
     db.commit()
     return {'ok': True}
@@ -272,8 +319,10 @@ def publish(assignment_id: str, db: Session = Depends(write_db), user: User = De
     item = owned(db, Assignment, assignment_id, user)
     if item.status == 'archived':
         raise HTTPException(409, '归档作业不能重新发布。')
+    ensure_class_writable(item, db, user)
     if item.status == 'draft':
         ensure_publishable(item)
+        snapshot_recipients(item, db, user)
         item.status = 'published'
         db.commit()
     return assignment_data(item, db, user)
@@ -284,6 +333,7 @@ def archive(assignment_id: str, db: Session = Depends(write_db), user: User = De
     item = owned(db, Assignment, assignment_id, user)
     if item.status == 'draft':
         raise HTTPException(409, '草稿可以删除，无需归档。')
+    ensure_class_writable(item, db, user)
     if item.status != 'archived':
         item.status = 'archived'
         db.commit()
@@ -293,7 +343,10 @@ def archive(assignment_id: str, db: Session = Depends(write_db), user: User = De
 @router.post('/assignments/{assignment_id}/copy', status_code=201)
 def copy_assignment(assignment_id: str, db: Session = Depends(write_db), user: User = Depends(require_role('teacher'))):
     source = owned(db, Assignment, assignment_id, user)
-    item = Assignment(id=str(uuid4()), teacher_id=user.id, title=source.title, topic=source.topic, content=source.content, due_date='', status='draft', created_at=now())
+    classroom = db.get(Classroom, source.class_id) if source.class_id else None
+    # A new draft must remain editable even if its source belongs to a closed term.
+    target_class = classroom.id if classroom and not classroom.archived else None
+    item = Assignment(id=str(uuid4()), teacher_id=user.id, class_id=target_class, title=source.title, topic=source.topic, content=source.content, due_date='', status='draft', created_at=now())
     db.add(item)
     db.commit()
     return assignment_data(item, db, user)
@@ -302,10 +355,14 @@ def copy_assignment(assignment_id: str, db: Session = Depends(write_db), user: U
 @router.put('/assignments/{assignment_id}/submission')
 def submit(assignment_id: str, data: SubmissionInput, db: Session = Depends(write_db), user: User = Depends(require_role('student'))):
     item = db.get(Assignment, assignment_id)
-    if not item or item.status == 'draft':
+    if not item or item.status == 'draft' or not db.get(AssignmentRecipient, (assignment_id, user.id)):
         raise HTTPException(404, '作业不存在。')
     if item.status != 'published' or date.fromisoformat(item.due_date) < date.today():
         raise HTTPException(409, '作业已截止或归档，不能修改或提交。')
+    classroom = db.get(Classroom, item.class_id)
+    member = db.get(ClassMember, (item.class_id, user.id))
+    if not classroom or classroom.archived or not member or not member.active:
+        raise HTTPException(409, '班级已归档或您已移出班级，历史作业只读。')
     key = f'{assignment_id}:{user.id}'
     submission = db.get(Submission, key)
     if submission:
@@ -323,6 +380,7 @@ def review_submission(assignment_id: str, student_id: str, data: ReviewInput, db
     item = owned(db, Assignment, assignment_id, user)
     if item.status != 'published':
         raise HTTPException(409, '仅已发布且未归档的作业可批改。')
+    ensure_class_writable(item, db, user)
     submission = db.get(Submission, f'{assignment_id}:{student_id}')
     if not submission:
         raise HTTPException(404, '学生尚未提交作答。')
