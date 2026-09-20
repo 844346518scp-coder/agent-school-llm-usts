@@ -4,7 +4,7 @@
 
 ## 当前状态（2026-09-21）
 
-- 发布准备：用户在知晓模型测试失败后明确只上传原C分支、不合并main。当前增量已完成14项Node回归和生产构建，待提交并推送到`codex/c-local-teaching`；不引入main的拍照组件、两套原型目录或PCL.exe，也不处理6处合并冲突。失败结论仍见[测试报告](docs/simulation-test-report.md)。
+- 发布状态：用户在知晓模型测试失败后明确只上传原C分支、不合并main。本轮增量已提交`7877799`并推送到`codex/c-local-teaching`；`main`保持不变。不引入main的拍照组件、两套原型目录或PCL.exe，也未处理6处合并冲突。失败结论仍见[测试报告](docs/simulation-test-report.md)。
 - 免费模型续测：官方Qwen3-VL-2B已在本机CPU真实运行，短请求返回正确极限值；应用带课程资料的Q01/Q02超时降级、两张题图识别超时502，完整接入未通过。模型仅是忽略缓存中的测试环境，不随源码下载、未加入默认启动。见[测试报告](docs/simulation-test-report.md)。
 - 首次模拟验收（demo阶段）：82项Python、14项Node、构建、演示冒烟及18场景HTTP联动通过，师生页面闭环已跑通；双端操作出现SQLite锁冲突，当时真实AI缺配置，拍照入口/知识点弹窗未实现，尚不能判定整体通过。见[测试报告](docs/simulation-test-report.md)及[12章题单/OCR题干](docs/simulation-test-cases.md)。本轮只增加测试和文档，未修复业务、未合远端。
 - 已发布基线：0.2 B/C 集成版已通过 PR #2 进入 main；题库、作业、人工反馈、SQLite v2 及演示问答有历史验收记录。
@@ -138,7 +138,7 @@ npm run build
 
 ## 协作入口
 
-所有人及AI开始工作前完整阅读 [AGENTS.md](AGENTS.md)，再读 [开发日志](docs/development-log.md)、[架构](docs/architecture.md)、[接口](docs/contracts/README.md)。0.2 B/C集成已通过 PR #2 合入 main；教师v0.3已上传原分支`codex/c-local-teaching`（8799cd0），本轮新增界面将继续只更新该分支，不合入main。目录变更和上传前凭据确认仍按AGENTS执行。
+所有人及AI开始工作前完整阅读 [AGENTS.md](AGENTS.md)，再读 [开发日志](docs/development-log.md)、[架构](docs/architecture.md)、[接口](docs/contracts/README.md)。0.2 B/C集成已通过 PR #2 合入 main；教师v0.3及本轮新增界面已上传原分支`codex/c-local-teaching`（本轮提交`7877799`），未合入main。目录变更和上传前凭据确认仍按AGENTS执行。
 
 C 当前任务与验收边界见 [C 负责人状态报告](docs/c-role-status-report.md)。本轮 v0.3 接口已先行登记；后续共同授课、跨教师学生共享、正式身份和数据库变更仍需由 C 统筹，目录结构变更需先获明确确认。
 

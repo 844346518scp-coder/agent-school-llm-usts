@@ -4,7 +4,7 @@
 
 ## 当前结果
 
-- 2026-09-21最新请求：用户在获知免费模型完整问答/OCR超时后明确“只上传分支，不合并”。本次仅更新原`codex/c-local-teaching`，不改`main`或其他远端分支，不把已知失败写成通过；此前6处main冲突和main附件不进入本次操作。实时基线、凭据预审、14项Node回归和生产构建已复核，待提交推送。
+- 2026-09-21最新请求：用户在获知免费模型完整问答/OCR超时后明确“只上传分支，不合并”。本次仅更新原`codex/c-local-teaching`，不改`main`或其他远端分支，不把已知失败写成通过；此前6处main冲突和main附件不进入本次操作。提交`7877799`已非强制推送并fetch确认，`main`保持`168928d`。
 - 实时基线：`origin/codex/c-local-teaching=8799cd01fd69cfca23868735480ea499ef333605`、`origin/main=168928dd3b6d93a6011ec611bd0729dac7b24a8b`。C可在确认后快进上传本地增量；C与main共同基线为285f1aa。虚拟树预演使用独立临时index和未挂分支的临时提交，实际index/工作树未改变。
 - 冲突：`AGENTS.md`、`docs/contracts/README.md`、`docs/development-log.md`、`frontend/src/App.vue`、`frontend/src/shared/AgentView.vue`、`frontend/src/shared/style.css`。需要保留C的v0.3账号/班级/精简导航/对话记录，与main拍照组件入口兼容；文档历史双方保留追加，不能整文件选一侧覆盖。合并后必须重新构建和验证，不沿用本次合并前构建结果。
 - 目录核对更正：main相对285f1aa实际26个新增/修改文件，包含两个完整原型目录及内部历史/素材目录，而非仅两份根目录HTML。下列路径在main已存在、当前C工作区尚无；引入当前C分支/工作区前按AGENTS等待明确保留确认，不擅自删改或执行。
