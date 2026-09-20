@@ -1,8 +1,30 @@
 # 接口约定入口
 
+## 2026-09-21 模拟验收发现（尚未修复，不改变现行接口）
+
+后续免费Qwen3-VL-2B本地真实调用中，普通问答Q01/Q02超时后返回HTTP200、mode=demo及notice；两张合成PNG的识别均返回502及明确调用失败提示，没有可用于符号准确率统计的text。直接模型短请求成功不等于上述应用契约通过，也不改变status只反映配置是否齐全的边界。未改变超时、响应字段、权限或数据库结构，见[续测报告](../simulation-test-report.md)。
+
+18场景HTTP顺序联动验证了师生权限/发布快照/作答版本/反馈/私人对话隔离。双端页面测试另出现SQLite锁冲突与统计读取失败，健康检查仍可200，因此health不是业务可用性证明。
+
+本地识别响应没有related_points、references或知识点详情，suggested_topic仅主题建议；缓存main前端将其显示为标签，不是知识点弹窗。离线合成探针复现：伪base64及text/plain通过RecognizeInput；模型返回空JSON仍得live空text，warnings为数字时抛未捕获TypeError（HTTP500为推断，函数探针未发HTTP）；积分/级数被建议为导数主题。上述为已知缺口，不是认可的目标契约。demo503与模拟ModelCallFailed转502符合现状；不得把该合成探针称真实视觉验收。详见[测试报告](../simulation-test-report.md)。
+
+## 2026-09-21 教师交互精简（接口不变）
+
+成员设置沿用原单人账号/成员端点。批量移出/恢复只对当前列表中所勾选且需要变更的成员依次调用PATCH /api/classes/{id}/members/{student_id}，每次均由服务器校验归属和班级状态。执行前确认固定名单；首个失败后停止，报告已完成与未执行人数并刷新，不是原子批量事务，不自动重试超时，不改变发布收件快照或其他班级身份。manageable=false仍只允许本班成员维护，不授予账号管理权。
+
+题库直接按章号分组显示，无需预选章节；作业编辑不再显示所属章节下拉。topic字段仍存在，同章选题自动推导、混合章节使用综合练习；手写新作业及旧空topic回落综合练习，未重新选题的旧非空topic保留。日期、题干限制、权限及schema v3不变。
+
+## 2026-09-20 教师入口整合
+
+教师侧边栏保留教学概览、班级管理、教学助手、账号设置。班级管理内进入本班作业或独立成员页；全部作业与未分班草稿仍可从班级管理访问。布置/编辑草稿时内嵌题库，按同济《高等数学》第八版上下册12章顺序分组，兼容原有自定义topic。
+
+本轮沿用v0.3所有HTTP契约及schema v3，没有迁移。题库选题重新读取本人有效题目后，仅把标题、题干按选定顺序追加到编辑中的content；保留已填写内容，不复制reference_answer。最终仍用既有草稿POST/PATCH与发布端点，保持3000字限制、班级授权和发布收件快照。
+
+对话记录现从Agent聊天顶部进入，复用GET /api/conversations和PATCH /api/conversations/{id}收藏接口；按问题/章节搜索、筛选已收藏和选记录回看均为前端行为，无新端点、无schema迁移，也不改变个人记录隔离。学生原学习记录导航保留。
+
 ## 2026-09-19 教师工作空间 v0.3 实施约定
 
-最后更新：2026-09-19。本节为本地`codex/teacher-workspace`教师工作空间v0.3契约，优先于下方0.2沿用字段/历史行为；本轮尚未上传。SQLite新增schema v3；教师私有题库、作答版本和人工反馈保持。验收结果见开发日志，不把本节接口存在当作真实师生效果证明。
+最后更新：2026-09-19。本节为本地`codex/teacher-workspace`教师工作空间v0.3契约，优先于下方0.2沿用字段/历史行为；v0.3已以8799cd0上传原分支codex/c-local-teaching，9/20界面增量尚未上传。SQLite新增schema v3；教师私有题库、作答版本和人工反馈保持。验收结果见开发日志，不把本节接口存在当作真实师生效果证明。
 
 - 默认不植入演示用户或作业。`GET /api/auth/setup`按是否已有教师返回`{required}`；`POST /api/auth/setup`接收`username,name,password`，事务内只允许首次创建教师，201返回User并登录，之后409。已有教师可`POST /api/auth/teachers`创建同级教师，201返回新User且其`must_change_password=true`，不改变当前教师会话。演示种子须显式SHUBAN_SEED_DEMO=true且用户表为空；重启不补回已有库的数据。
 - User公共字段为`id,username,name,role,active,must_change_password,is_demo`；不返回password_hash或created_by。`POST /api/auth/password`接收`current_password,new_password`，旧密码错误403、新旧相同422，成功撤销所有旧会话并签发新会话，返回User且清除演示/强制改密标记；`PATCH /api/auth/profile`接收name。临时密码登录后必须改密，业务访问403，仅允许me/password/logout等账号必要操作；停用账号认证401。账号3–80位英文/数字/._-，姓名1–80位非空；新密码10–128字符含英文字母数字，不回传明文。重复账号409，未知字段422。
@@ -69,7 +91,7 @@ B智能体接口已于2026-09-18集成，见下文；语音、异步任务和完
 
 ## 2026-09-18 · 拍照识别前端调用约定（远端main增量，待集成复核）
 
-远端main的入口位于`frontend/src/shared/PhotoSearchDialog.vue`，由`AgentView.vue`对话头的“拍照搜题”按钮打开。当前工作区HEAD 285f1aa尚无这些前端文件；以下约定来自对远端168928d的只读核对，不表示本地已完成联调。
+远端main的入口位于`frontend/src/shared/PhotoSearchDialog.vue`，由`AgentView.vue`对话头的“拍照搜题”按钮打开。当前工作区沿用285f1aa集成基线，8799cd0及本轮界面增量仍未纳入这些前端文件；以下约定来自对远端168928d的只读核对，不表示本地已完成联调。
 
 1. **上传**：`POST /api/agent/recognize`，请求体`{ image_base64, media_type, hint }`。`image_base64`为裁剪压缩后的纯base64，不含`data:`前缀；`media_type`为`image/jpeg`或`image/png`；`hint`最多200字符。
 2. **传输**：复用`frontend/src/shared/api.ts`的`api()`，自动携带JSON内容类型、`X-Requested-With: shuban-web`和同源Cookie；AI写请求超时90秒，不自动重试。

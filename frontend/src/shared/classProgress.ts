@@ -2,6 +2,24 @@ import type { ClassStudent } from './api'
 
 export type MemberFilter = 'active' | 'removed' | 'all'
 
+export function memberBatchTargets(visible: readonly ClassStudent[], selectedIds: readonly string[], active: boolean): ClassStudent[] {
+  const selected = new Set(selectedIds)
+  // Membership is separate from account management, including legacy accounts.
+  return visible.filter(student => selected.has(student.id) && student.member_active !== active)
+}
+
+export async function runMemberBatch(targets: readonly ClassStudent[], update: (student: ClassStudent) => Promise<unknown>) {
+  const completed: string[] = []
+  for (const student of targets) {
+    try { await update(student); completed.push(student.id) }
+    catch (error) {
+      // A timeout may have committed. Do not retry or continue silently.
+      return { completed, failed: student, error: error instanceof Error ? error.message : '请求失败', unprocessed: targets.length - completed.length - 1 }
+    }
+  }
+  return { completed, failed: null, error: '', unprocessed: 0 }
+}
+
 export function filterClassStudents(students: readonly ClassStudent[], search: string, memberFilter: MemberFilter): ClassStudent[] {
   const query = search.trim().toLowerCase()
   return students.filter(student =>

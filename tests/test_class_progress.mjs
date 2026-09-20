@@ -2,7 +2,29 @@
 // Run: .runtime/node-v22.23.2-win-x64/node.exe --experimental-strip-types --test tests/test_class_progress.mjs
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { classProgressCsv, downloadCsv, filterClassStudents } from '../frontend/src/shared/classProgress.ts'
+import { classProgressCsv, downloadCsv, filterClassStudents, memberBatchTargets, runMemberBatch } from '../frontend/src/shared/classProgress.ts'
+
+test('bulk membership affects only selected visible members with a different membership state', () => {
+  const roster = [student({ id: 'one', manageable: false }), student({ id: 'two', member_active: false }), student({ id: 'three', active: false })]
+  assert.deepEqual(memberBatchTargets(roster, ['one', 'two', 'hidden', 'one'], false).map(s => s.id), ['one'])
+  assert.deepEqual(memberBatchTargets(roster, ['one', 'two'], true).map(s => s.id), ['two'])
+  assert.deepEqual(memberBatchTargets(roster, ['three'], false).map(s => s.id), ['three'])
+  assert.deepEqual(memberBatchTargets(roster, [], false), [])
+})
+
+test('bulk execution stops on first uncertain result without retrying or touching later members', async () => {
+  const targets = ['one', 'two', 'three'].map(id => student({ id }))
+  const calls = []
+  const result = await runMemberBatch(targets, async s => { calls.push(s.id); if (s.id === 'two') throw new Error('超时') })
+  assert.deepEqual(calls, ['one', 'two'])
+  assert.deepEqual(result.completed, ['one'])
+  assert.equal(result.failed.id, 'two')
+  assert.equal(result.error, '超时')
+  assert.equal(result.unprocessed, 1)
+  const success = await runMemberBatch(targets, async () => {})
+  assert.deepEqual(success.completed, ['one', 'two', 'three'])
+  assert.equal(success.failed, null)
+})
 
 function student(overrides = {}) {
   return {
