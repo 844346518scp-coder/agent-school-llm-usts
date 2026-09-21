@@ -3,6 +3,8 @@ import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import ElMessage from 'element-plus/es/components/message/index'
 import { LayoutDashboard, Sparkles, BookOpen, ClipboardList, Bookmark, History, Users, LogOut, ChevronRight, Menu, X, ArrowUpRight, GraduationCap, CircleHelp, RefreshCw, Settings } from 'lucide-vue-next'
 import Brand from './shared/Brand.vue'
+import ThemeToggle from './shared/ThemeToggle.vue'
+import { initTheme } from './shared/theme'
 import LoginView from './shared/LoginView.vue'
 import StudentHome from './student/StudentHome.vue'
 import TeacherHome from './teacher/TeacherHome.vue'
@@ -13,6 +15,7 @@ import AssignmentsView from './shared/AssignmentsView.vue'
 import RecordsView from './shared/RecordsView.vue'
 import CoursesView from './student/CoursesView.vue'
 import { api, ApiError, type User, type Conversation, type Assignment, type TeachingStats, type TeachingClass, localToday } from './shared/api'
+initTheme()
 const user = ref<User | null>(null)
 const booting = ref(true)
 const page = ref('dashboard')
@@ -81,7 +84,7 @@ onBeforeUnmount(() => window.removeEventListener('session-expired', expired))
   <div v-else class="app-shell" :class="{ 'teacher-theme': teacher }">
     <div v-if="mobileNav" class="nav-backdrop" @click="mobileNav = false"></div>
     <aside class="sidebar" :class="{ 'is-open': mobileNav }"><div class="sidebar-brand"><Brand/><button class="icon-button mobile-only" aria-label="关闭导航" @click="mobileNav = false"><X :size="20"/></button></div><div class="workspace-label"><span class="tiny-dot"/>{{ teacher ? '教师教学空间' : '学生学习空间' }}</div><div class="nav-section-label">{{ teacher ? '教学工作台' : '我的学习空间' }}</div><nav><button v-for="nav in navigation" :key="nav.id" :class="{ active: page === nav.id }" @click="navigate(nav.id)"><component :is="nav.icon" :size="19"/><span>{{ nav.label }}</span><span v-if="nav.id === 'agent'" class="nav-ai">AI</span><span v-if="nav.id === 'assignments' && !teacher && assignments.some(a => a.status === 'published' && a.can_submit !== false && !a.class_archived && !a.submitted && a.due_date >= localToday())" class="nav-dot"></span></button></nav><div class="sidebar-bottom"><div class="sidebar-note"><span>一点好奇，一点进步。</span><p>数伴陪你，把每一步走扎实。</p><Sparkles :size="22"/></div><button class="help-link" @click="help = true"><CircleHelp :size="17"/> 使用说明<ArrowUpRight :size="14"/></button><div class="sidebar-user"><span class="user-avatar">{{ user.name.slice(0, 1) }}</span><div><strong>{{ user.name }}</strong><small>{{ teacher ? '教师' : '学生' }}{{ user.is_demo ? ' · 演示账号' : '' }}</small></div><button class="icon-button" :disabled="loggingOut" aria-label="退出登录" title="退出登录" @click="logout"><LogOut :size="17"/></button></div></div></aside>
-    <div class="app-body"><header class="topbar"><button class="icon-button mobile-only" aria-label="打开导航" @click="mobileNav = true"><Menu :size="22"/></button><div class="breadcrumb"><span>工作台</span><ChevronRight :size="13"/><strong>{{ navigation.find(n => n.id === page)?.label }}</strong></div><div class="topbar-right"><span class="local-indicator"><span class="tiny-dot"/> 本地教学空间</span><span class="topbar-divider"></span><GraduationCap :size="18"/><span>高等数学</span></div></header><main class="main-content"><div v-if="loadError" class="load-error" role="alert"><span>{{ loadError }}</span><button class="subtle-link" @click="loadData"><RefreshCw :size="14"/> 重新加载</button></div>
+    <div class="app-body"><header class="topbar"><button class="icon-button mobile-only" aria-label="打开导航" @click="mobileNav = true"><Menu :size="22"/></button><div class="breadcrumb"><span>工作台</span><ChevronRight :size="13"/><strong>{{ navigation.find(n => n.id === page)?.label }}</strong></div><div class="topbar-right"><ThemeToggle class="topbar-theme"/><span class="local-indicator"><span class="tiny-dot"/> 本地教学空间</span><span class="topbar-divider"></span><GraduationCap :size="18"/><span>高等数学</span></div></header><main class="main-content"><div v-if="loadError" class="load-error" role="alert"><span>{{ loadError }}</span><button class="subtle-link" @click="loadData"><RefreshCw :size="14"/> 重新加载</button></div>
       <AccountSettings v-if="user.must_change_password || page === 'account'" :user="user" @updated="updatedUser"/>
       <StudentHome v-else-if="page === 'dashboard' && !teacher" :user="user" :records="records" :assignments="assignments" @navigate="navigate" @ask="ask"/>
       <TeacherHome v-else-if="page === 'dashboard'" :user="user" :records="records" :assignments="classFilter ? assignments.filter(a => a.class_id === classFilter) : assignments" :stats="teachingStats" :classes="classes" :class-id="classFilter" :loading="dataLoading" @filter="filterClass" @navigate="navigate" @create="create" @refresh="loadData"/>

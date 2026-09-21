@@ -596,3 +596,27 @@ GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：
 - 文档同步清单（逐项）：AGENTS.md（目录树 + 项目记忆 + 桌面入口说明）；README.md（新增“可选：桌面窗口入口”）；docs/source-startup.md（新增同类说明）；docs/contracts、docs/architecture 已核对无变化（不涉及接口与模块边界）；`.env.example`、`backend/requirements*.txt`、`frontend/package.json` 无变化（未新增依赖）；本日志追加。
 - GitHub 上传 / 密钥状态 / 用户确认依据：本轮待上传提交已扫描，无凭据匹配；用户随后明确要求“推并合并”。分支 `chatbox/desktop-shell` 已推送，创建 [PR #6](https://github.com/844346518scp-coder/agent-school-llm-usts/pull/6) 并以 squash 合并进 main（`c1d7cf5`），本地与远程功能分支均已删除。本次改动不含密钥，未改数据库、依赖与既有 HTTP 接口。按用户明确要求执行，未取得另一成员审阅；常规流程仍建议先 Review 再合并。
 - 遗留问题与下一步：关窗即停服务、真正的桌面安装包、便携包集成、Chrome 路径实测、另一台 Windows 实机验收。
+
+## 2026-09-21 · 界面主题（浅色 / 深色）
+
+- 日期 / 任务：2026-09-21 / 用户反馈“设计得不够好，想加一个浅色、深色模式选项”，要求新增主题切换能力。
+- 负责人 / AI 工具：待确认（前端表现层）/ Chatbox。
+- 开发了什么与原因：前端此前固定为浅色（学生紫 / 教师绿两套强调色），无主题系统。
+  - 新增 `frontend/src/shared/theme.ts`：`light` / `dark` / `system` 三态，持久化到 `localStorage` 的 `shuban-theme`，监听 `prefers-color-scheme` 变化，渲染通过 `<html class="dark">` 生效。
+  - 新增 `frontend/src/shared/ThemeToggle.vue`：一个按钮循环 浅色 → 深色 → 跟随系统，登录页（`login-top`）与工作台顶栏（`topbar-right`）各放一个；窄屏只留图标。
+  - `frontend/index.html`：新增内联脚本，在 Vue 挂载前读取偏好并设置 `html.dark` 与 `color-scheme`，避免首屏闪白。
+  - `frontend/src/main.ts`：引入 Element Plus 深色变量与生成的深色样式表。
+- 深色样式为什么是生成而不是手写：`frontend/src/shared/style.css` 里有 **335 处颜色字面量、309 个互不相同的值**（几乎没有设计 token），手写深色表必然在下次改界面时失效。
+  - 新增 `build-dark-theme.py`：解析 `style.css` 与各组件 `<style>` 块，按属性归类（`background` → 表面、`color` → 文字、`border` → 描边、`box-shadow` → 阴影、`--*` 变量按名称分类），在 HLS 空间做保持色相的变换（表面变暗、文字变亮、描边变暗、阴影转黑），输出 `frontend/src/shared/dark-theme.css`（272 条规则，约 15 KB）。
+  - **未改动 `style.css`**（公共文件），浅色模式的渲染路径与改动前完全一致；深色规则全部以 `html.dark` 开头。
+- 修改文件：新增 `build-dark-theme.py`、`frontend/src/shared/{theme.ts,ThemeToggle.vue,dark-theme.css}`；修改 `frontend/index.html`、`frontend/src/main.ts`、`frontend/src/App.vue`、`frontend/src/shared/LoginView.vue`；同步文档。
+- 验证命令或方式 / 结果（通过、失败、未执行）：
+  - 通过：`npm run build`（= `vue-tsc --noEmit` + `vite build`），多次运行均成功（最近一次 13.97s）。
+  - 通过：用无头 Edge（`--headless=new --screenshot`）实际截图。深色登录页、深色工作台（教师主题）、浅色工作台三张均已人工查看，配色协调、文字对比度正常。
+  - 通过：与**改动前构建**的基线截图逐张对比，浅色工作台外观一致（主题按钮除外）。
+  - **发现并修复一处回归**：生成器起初只给逗号列表的第一个选择器加前缀，导致 `html.dark .work-toolbar input, .work-toolbar select{background:var(--surface,#252525)}` 的第二个选择器变成全局规则，浅色下“教学数据范围”下拉框被渲染成深色。已改为逐选择器加前缀，并在生成器末尾加入守卫（任何选择器逃出 `html.dark` 即中止），修复后重新生成并截图确认浅色恢复。
+  - 未执行：真实浏览器（非无头）内的逐页点击验收、移动端尺寸验收、其他浏览器验收。
+- 目录结构变更 / 用户确认依据：无新增或重命名目录；新增文件都在仓库根目录与 `frontend/src/shared/`（既有目录内新增普通文件）。
+- 文档同步清单（逐项）：`AGENTS.md`（目录树 + 项目记忆）；`README.md`（新增“界面主题（浅色 / 深色）”）；`docs/architecture.md`（新增表现层说明）；本日志追加。`docs/contracts`、`.env.example`、依赖锁、`frontend/package.json` 已核对无变化（无新依赖、无接口与数据变更）。
+- GitHub 上传 / 密钥状态 / 用户确认依据：**尚未提交或上传**；改动不含密钥，未改数据库、依赖与接口。
+- 遗留问题与下一步：尚无独立“主题”设置页（只有按钮）；不支持自定义强调色；插图与图表未做手工深色版本（SVG 内联颜色仍是浅色系）；主题未跨设备同步。界面配色若调整，需重新运行 `python build-dark-theme.py` 并重建前端。

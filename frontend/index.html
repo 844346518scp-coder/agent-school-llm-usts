@@ -1,5 +1,14 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="theme-color" content="#7760d0" /><meta name="description" content="数伴 · 让每一步学习都有回应。高等数学伴随式学习与教学工作台。" /><title>数伴 · 高数学习伙伴</title><link rel="icon" type="image/svg+xml" href="/favicon.svg" /></head>
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="theme-color" content="#7760d0" /><meta name="description" content="数伴 · 让每一步学习都有回应。高等数学伴随式学习与教学工作台。" /><title>数伴 · 高数学习伙伴</title><link rel="icon" type="image/svg+xml" href="/favicon.svg" /><script>/* 首屏防闪烁：必须在 Vue 挂载前决定 <html class="dark">；值来自账号设置里的主题选项。 */
+      (function () {
+        try {
+          var mode = localStorage.getItem('shuban-theme') || 'system'
+          var dark = mode === 'dark' || (mode !== 'light' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.classList.toggle('dark', dark)
+          document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
+        } catch (error) { /* 隐私模式：回退为浅色 */ }
+      })()
+    </script></head>
   <body><div id="app"></div><script type="module" src="/src/main.ts"></script></body>
 </html>
