@@ -15,6 +15,18 @@ import webbrowser
 ROOT = Path(__file__).resolve().parents[3]
 
 
+def compatible_health(health, instance):
+    """Reject an old service from this directory before opening a migrated DB."""
+    if health.get('instance_id') != instance:
+        return False
+    if (health.get('agent_version') != '0.2.0'
+            or health.get('teaching_version') != '0.3.0'
+            or health.get('schema_version') != 3):
+        raise RuntimeError('An older SHUBAN service from this directory is still running. '
+                           'Stop that backend before upgrading; no process was stopped.')
+    return health.get('status') == 'ok'
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--no-browser', action='store_true')
@@ -47,11 +59,11 @@ def main():
         try:
             with opener.open(url + 'api/health', timeout=1) as response:
                 health = json.load(response)
+            if not compatible_health(health, instance):
+                return False
             with opener.open(url, timeout=1) as response:
                 page = response.read()
-            return (health.get('status') == 'ok' and health.get('instance_id') == instance
-                    and (not args.source or health.get('agent_version') == '0.2.0')
-                    and b'<html' in page and b'/assets/' in page)
+            return b'<html' in page and b'/assets/' in page
         except (OSError, ValueError):
             return False
 

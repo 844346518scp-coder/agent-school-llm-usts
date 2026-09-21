@@ -3,7 +3,8 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, String, Text, Integer, Boolean, ForeignKey, UniqueConstraint
+from sqlalchemy import create_engine, String, Text, Integer, Boolean, ForeignKey, UniqueConstraint, text
+from fastapi import Depends
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -24,6 +25,28 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(200))
     role: Mapped[str] = mapped_column(String(20))
     name: Mapped[str] = mapped_column(String(80))
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default='1')
+    must_change_password: Mapped[bool] = mapped_column(Boolean, default=False, server_default='0')
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default='0')
+    created_by: Mapped[str | None] = mapped_column(ForeignKey('users.id'), nullable=True)
+
+
+class Classroom(Base):
+    __tablename__ = 'classrooms'
+    id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    teacher_id: Mapped[str] = mapped_column(ForeignKey('users.id'), index=True)
+    name: Mapped[str] = mapped_column(String(80))
+    course: Mapped[str] = mapped_column(String(80))
+    term: Mapped[str] = mapped_column(String(80))
+    archived: Mapped[bool] = mapped_column(Boolean, default=False, server_default='0')
+    created_at: Mapped[str] = mapped_column(String(40))
+
+
+class ClassMember(Base):
+    __tablename__ = 'class_members'
+    class_id: Mapped[str] = mapped_column(ForeignKey('classrooms.id'), primary_key=True)
+    student_id: Mapped[str] = mapped_column(ForeignKey('users.id'), primary_key=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default='1')
 
 
 class Session(Base):
@@ -54,6 +77,13 @@ class Assignment(Base):
     due_date: Mapped[str] = mapped_column(String(10))
     created_at: Mapped[str] = mapped_column(String(40))
     status: Mapped[str] = mapped_column(String(20), default='published', server_default='published')
+    class_id: Mapped[str | None] = mapped_column(ForeignKey('classrooms.id'), nullable=True, index=True)
+
+
+class AssignmentRecipient(Base):
+    __tablename__ = 'assignment_recipients'
+    assignment_id: Mapped[str] = mapped_column(ForeignKey('assignments.id'), primary_key=True)
+    student_id: Mapped[str] = mapped_column(ForeignKey('users.id'), primary_key=True)
 
 
 class Submission(Base):
@@ -101,3 +131,10 @@ class SchemaMigration(Base):
 def get_db():
     with SessionLocal() as db:
         yield db
+
+
+def write_db(db=Depends(get_db)):
+    # All platform/teaching mutations check state under the same SQLite write lock.
+    if db.bind.dialect.name == 'sqlite':
+        db.execute(text('BEGIN IMMEDIATE'))
+    return db

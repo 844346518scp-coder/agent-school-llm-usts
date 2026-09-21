@@ -6,27 +6,39 @@ import os
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import select
 
-from .platform.database import Base, engine, SessionLocal, User, Assignment
+from .platform.database import Base, engine, SessionLocal, User, Assignment, Classroom, ClassMember, AssignmentRecipient
 from .platform.auth import router as auth_router, hash_password
 from .ai.config import load_settings
 from .ai.service import agent_router as agent_core_router, router as agent_router
 from .teaching.routes import router as teaching_router
+from .teaching.classes import router as classes_router
 from migrations.upgrade import upgrade
 
 
 def initialize_database():
     upgrade(engine, Base.metadata)
+    if os.getenv('SHUBAN_SEED_DEMO', 'false').lower() != 'true':
+        return
     with SessionLocal() as db:
+        # Explicit demo seeding is only allowed on a genuinely empty install.
+        # Restarts must not recreate archived/deleted rows or overwrite account changes.
+        if db.scalar(select(User.id).limit(1)):
+            return
         for role, name, password in [('student', '林同学', 'Student123!'), ('teacher', '陈老师', 'Teacher123!')]:
-            if not db.get(User, role):
-                db.add(User(id=role, username=role, role=role, name=name, password_hash=hash_password(password)))
-        db.commit()
-        if not db.get(Assignment, 'demo-limit'):
-            db.add(Assignment(id='demo-limit', teacher_id='teacher', title='第一章 · 极限概念小练习',
+            db.add(User(id=role, username=role, role=role, name=name, password_hash=hash_password(password),
+                        active=True, is_demo=True, must_change_password=False, created_by='teacher' if role == 'student' else None))
+        db.flush()
+        db.add(Classroom(id='demo-class', teacher_id='teacher', name='演示教学班', course='高等数学', term='演示学期', archived=False, created_at=datetime.now(timezone.utc).isoformat()))
+        db.flush()
+        db.add(ClassMember(class_id='demo-class', student_id='student', active=True))
+        db.add(Assignment(id='demo-limit', teacher_id='teacher', class_id='demo-class', title='第一章 · 极限概念小练习',
                 content='1. 用自己的话解释函数极限。\n2. 求 lim(x→0) sin(x)/x，并说明理由。\n3. 思考：函数在一点有极限，是否一定在该点有定义？',
                 topic='函数与极限', due_date=(date.today() + timedelta(days=7)).isoformat(), created_at=datetime.now(timezone.utc).isoformat()))
-            db.commit()
+        db.flush()
+        db.add(AssignmentRecipient(assignment_id='demo-limit', student_id='student'))
+        db.commit()
 
 
 @asynccontextmanager
@@ -56,11 +68,12 @@ app.include_router(auth_router)
 app.include_router(agent_router)
 app.include_router(agent_core_router)
 app.include_router(teaching_router)
+app.include_router(classes_router)
 
 
 @app.get('/api/health')
 def health():
-    result = {'status': 'ok', 'agent_mode': load_settings().resolved_mode, 'version': '0.2.0', 'agent_version': '0.2.0'}
+    result = {'status': 'ok', 'agent_mode': load_settings().resolved_mode, 'version': '0.2.0', 'agent_version': '0.2.0', 'teaching_version': '0.3.0', 'schema_version': 3}
     if os.getenv('SHUBAN_INSTANCE_ID'):
         result['instance_id'] = os.environ['SHUBAN_INSTANCE_ID']
     return result

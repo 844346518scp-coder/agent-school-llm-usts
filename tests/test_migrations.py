@@ -40,7 +40,7 @@ def test_upgrade_preserves_all_old_fields_and_restorable_backup(tmp_path):
                 assert [row[:len(records[0])] for row in after] == records
             assert db.execute('SELECT status FROM assignments').fetchone()[0] == 'published'
             assert db.execute('SELECT version FROM submissions').fetchone()[0] == 1
-            assert db.execute('SELECT version FROM schema_migrations').fetchone()[0] == 2
+            assert db.execute('SELECT version FROM schema_migrations').fetchone()[0] == 3
         assert upgrade(engine, Base.metadata) is None
         restored = tmp_path / 'restored.db'
         restore(backup, restored)
@@ -68,7 +68,7 @@ def test_migration_failure_rolls_back_ddl_and_retains_backup(tmp_path):
             upgrade(engine, FailingMetadata())
         assert 'status' not in {c['name'] for c in inspect(engine).get_columns('assignments')}
         assert 'version' not in {c['name'] for c in inspect(engine).get_columns('submissions')}
-        assert list(tmp_path.glob('failure.before-v2-*.db'))
+        assert list(tmp_path.glob('failure.before-v3-*.db'))
         upgrade(engine, Base.metadata)
         with engine.connect() as conn:
             conn.exec_driver_sql('ALTER TABLE submissions DROP COLUMN version')

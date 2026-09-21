@@ -54,6 +54,7 @@ def main():
     env['PYTHONHOME'] = env['PYTHONPATH'] = str(source / 'not-installed')
     env['TEMP'] = env['TMP'] = str(task_tmp)
     env['AGENT_MODE'] = 'demo'
+    env['SHUBAN_SEED_DEMO'] = 'true'
     for key in ('DATABASE_URL', 'MODEL_BASE_URL', 'MODEL_API_KEY', 'MODEL_NAME', 'COOKIE_SECURE'):
         env.pop(key, None)
     command = [str(system / 'WindowsPowerShell/v1.0/powershell.exe'), '-NoProfile', '-ExecutionPolicy', 'Bypass',
@@ -115,7 +116,7 @@ def main():
         draft = request('/api/assignments/drafts', {'title': '源码启动闭环', 'question_ids': [question['id']]})
         from datetime import date, timedelta
         aid = draft['id']
-        request(f'/api/assignments/{aid}', {'topic': '导数与微分', 'due_date': (date.today() + timedelta(days=1)).isoformat()}, 'PATCH')
+        request(f'/api/assignments/{aid}', {'class_id': 'demo-class', 'topic': '导数与微分', 'due_date': (date.today() + timedelta(days=1)).isoformat()}, 'PATCH')
         request(f'/api/assignments/{aid}/publish', {})
         login('student')
         assert '教师专有答案' not in json.dumps(request('/api/assignments'), ensure_ascii=False)

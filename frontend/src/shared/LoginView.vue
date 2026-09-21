@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ArrowRight, ArrowUpRight, BookOpen, GraduationCap, School, Eye, EyeOff, LockKeyhole, UserRound, Sparkles, Check, CircleHelp } from 'lucide-vue-next'
 import Brand from './Brand.vue'
 import { api, type Role, type User } from './api'
@@ -11,16 +11,23 @@ const visible = ref(false)
 const remember = ref(false)
 const busy = ref(false)
 const error = ref('')
+const setupRequired = ref(false), checking = ref(true), checkFailed = ref(false), name = ref('')
 const isTeacher = computed(() => role.value === 'teacher')
 function switchRole(value: Role) { role.value = value; username.value = ''; password.value = ''; error.value = ''; remember.value = false }
-function fillDemo() { username.value = role.value; password.value = isTeacher.value ? 'Teacher123!' : 'Student123!'; error.value = '' }
+async function checkSetup() {
+  checking.value = true; checkFailed.value = false; error.value = ''
+  try { setupRequired.value = (await api<{ required: boolean }>('/auth/setup')).required; if (setupRequired.value) role.value = 'teacher' }
+  catch (e) { error.value = (e as Error).message; checkFailed.value = true }
+  finally { checking.value = false }
+}
 async function login() {
-  if (busy.value) return
+  if (busy.value || checking.value || checkFailed.value) return
   error.value = ''; busy.value = true
-  try { emit('login', await api<User>('/auth/login', { method: 'POST', body: JSON.stringify({ username: username.value, password: password.value, role: role.value, remember: remember.value }) })) }
+  try { emit('login', await api<User>(setupRequired.value ? '/auth/setup' : '/auth/login', { method: 'POST', body: JSON.stringify(setupRequired.value ? { username: username.value, name: name.value, password: password.value } : { username: username.value, password: password.value, role: role.value, remember: remember.value }) })) }
   catch (e) { error.value = (e as Error).message }
   finally { busy.value = false }
 }
+onMounted(checkSetup)
 </script>
 
 <template>
@@ -52,27 +59,30 @@ async function login() {
     </section>
 
     <section class="login-panel">
-      <div class="login-top"><span>高等数学 · 学习与教学空间</span><span class="version-chip">MVP 预览版</span></div>
+      <div class="login-top"><span>高等数学 · 学习与教学空间</span><span class="version-chip">数伴 0.3</span></div>
       <div class="login-box">
         <div class="login-heading-icon"><School v-if="isTeacher" :size="27"/><GraduationCap v-else :size="28"/></div>
-        <h2>{{ isTeacher ? '欢迎回来，老师' : '开启今天的学习' }}<span class="heading-dot">.</span></h2>
-        <p class="muted">{{ isTeacher ? '登录教学空间，陪伴每一次进步。' : '登录你的学习空间，从一个好问题开始。' }}</p>
-        <div class="role-tabs" role="tablist" aria-label="登录身份">
+        <h2>{{ setupRequired ? '建立你的教学空间' : isTeacher ? '欢迎回来，老师' : '开启今天的学习' }}<span class="heading-dot">.</span></h2>
+        <p class="muted">{{ setupRequired ? '首次使用，请创建第一位教师账号。之后可创建班级、学生与其他教师账号。' : isTeacher ? '登录教学空间，陪伴每一次进步。' : '使用老师提供的账号登录，开启学习。' }}</p>
+        <p v-if="checking" role="status" class="muted small">正在检查教学空间…</p>
+        <div v-if="!setupRequired" class="role-tabs" role="tablist" aria-label="登录身份">
           <button role="tab" :aria-selected="!isTeacher" :class="{ active: !isTeacher }" @click="switchRole('student')"><GraduationCap :size="18"/> 学生登录</button>
           <button role="tab" :aria-selected="isTeacher" :class="{ active: isTeacher }" @click="switchRole('teacher')"><School :size="18"/> 教师登录</button>
         </div>
         <form @submit.prevent="login">
           <label class="field-label" for="username">{{ isTeacher ? '教师账号' : '学生账号' }}</label>
-          <div class="login-input"><UserRound :size="18"/><input id="username" v-model="username" name="username" autocomplete="username" required maxlength="80" :placeholder="isTeacher ? '请输入教师账号' : '请输入学生账号'" /></div>
+          <div class="login-input"><UserRound :size="18"/><input id="username" v-model="username" name="username" autocomplete="username" required :minlength="setupRequired ? 3 : undefined" :pattern="setupRequired ? '[A-Za-z0-9_.\\-]{3,80}' : undefined" maxlength="80" :placeholder="isTeacher ? '请输入教师账号' : '请输入学生账号'" /></div>
+          <template v-if="setupRequired"><label class="field-label" for="setup-name">教师姓名</label><div class="login-input"><UserRound :size="18"/><input id="setup-name" v-model="name" autocomplete="name" required maxlength="80" placeholder="你希望展示给学生的姓名"/></div></template>
           <label class="field-label" for="password">密码</label>
-          <div class="login-input"><LockKeyhole :size="17"/><input id="password" v-model="password" name="password" :type="visible ? 'text' : 'password'" autocomplete="current-password" required maxlength="128" placeholder="请输入密码"/><button class="icon-button" type="button" :aria-label="visible ? '隐藏密码' : '显示密码'" @click="visible = !visible"><EyeOff v-if="visible" :size="18"/><Eye v-else :size="18"/></button></div>
-          <div class="login-options"><label class="checkbox-label"><input v-model="remember" type="checkbox"/> 记住密码</label><el-tooltip content="演示账号见下方；当前版本暂不提供自助重置密码。"><button type="button" class="subtle-link">登录帮助 <CircleHelp :size="14"/></button></el-tooltip></div>
+          <div class="login-input"><LockKeyhole :size="17"/><input id="password" v-model="password" name="password" :type="visible ? 'text' : 'password'" :autocomplete="setupRequired ? 'new-password' : 'current-password'" required :minlength="setupRequired ? 10 : undefined" maxlength="128" :placeholder="setupRequired ? '至少 10 位，包含字母与数字' : '请输入密码'"/><button class="icon-button" type="button" :aria-label="visible ? '隐藏密码' : '显示密码'" @click="visible = !visible"><EyeOff v-if="visible" :size="18"/><Eye v-else :size="18"/></button></div>
+          <div v-if="!setupRequired" class="login-options"><label class="checkbox-label"><input v-model="remember" type="checkbox"/> 保持登录</label><el-tooltip content="学生忘记密码请联系创建账号的老师。教师账号由首次初始化或已有教师创建。"><button type="button" class="subtle-link">登录帮助 <CircleHelp :size="14"/></button></el-tooltip></div>
+          <p v-else class="account-note">请妥善保管教师账号与密码。密码至少 10 个字符，同时包含字母和数字。</p>
           <p v-if="remember" class="remember-note">在此设备保留登录 7 天，不保存明文密码。</p>
           <p v-if="error" role="alert" class="form-error">{{ error }}</p>
-          <button class="primary-button login-submit" type="submit" :disabled="busy">{{ busy ? '正在验证账号…' : isTeacher ? '进入教学空间' : '进入学习空间' }}<ArrowRight :size="19"/></button>
+          <button v-if="checkFailed" class="outline-button" type="button" @click="checkSetup">重新连接</button>
+          <button class="primary-button login-submit" type="submit" :disabled="busy || checking || checkFailed">{{ busy ? '正在处理…' : setupRequired ? '创建账号并开始' : isTeacher ? '进入教学空间' : '进入学习空间' }}<ArrowRight :size="19"/></button>
         </form>
-        <div class="demo-account"><div class="demo-account-title"><span class="tiny-dot"/> 先体验，再探索<button @click="fillDemo">填入演示账号 <ArrowUpRight :size="13"/></button></div><div class="demo-credentials"><span>账号 <code>{{ role }}</code></span><span>密码 <code>{{ isTeacher ? 'Teacher123!' : 'Student123!' }}</code></span></div></div>
-        <p class="login-footnote"><LockKeyhole :size="13"/> 本地体验环境 · 请使用演示账号</p>
+        <p class="login-footnote"><LockKeyhole :size="13"/> 账号独立 · 数据保存在当前服务</p>
       </div>
       <footer class="login-bottom">数伴 SHUBAN <span>让每一步学习都有回应</span></footer>
     </section>

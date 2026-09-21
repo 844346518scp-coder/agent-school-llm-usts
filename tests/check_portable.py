@@ -27,6 +27,7 @@ def check(archive):
     env['PYTHONHOME'] = env['PYTHONPATH'] = str(task_tmp / 'missing-python')
     env['DATABASE_URL'] = 'sqlite:///DO-NOT-CREATE.db'
     env['TEMP'] = env['TMP'] = str(task_tmp)
+    env['SHUBAN_SEED_DEMO'] = 'true'
     with tempfile.TemporaryDirectory(prefix='便携 测试-', dir=task_tmp) as temporary:
         with zipfile.ZipFile(archive) as z:
             z.extractall(temporary)

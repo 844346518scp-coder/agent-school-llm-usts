@@ -408,7 +408,7 @@ function useText() {
   const text = resultText.value.trim()
   if (!text) { toast('识别文本为空，无法带入提问', true); return }
   emit('apply', text)
-  emit('update:modelValue', false)
+  // 父组件校验合并后的提问长度，接受文本后再关闭；拒绝时保留识别草稿。
 }
 function retake() {
   shot.value = null; fullCanvas = null; errorText.value = ''; resultText.value = ''
