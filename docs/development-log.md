@@ -539,3 +539,38 @@ GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：
 - 当前会话授权依据：用户已委托“你帮忙确认上传”，最新又明确要求将C分支与main合并；按本轮核验结果和已说明的目录范围直接继续，不重复索取同一确认。上传前再次提醒清除API密钥及其他凭据；未发现需撤销/轮换或历史重写的已知秘密，扫描不是全部秘密不存在的证明。
 - 发布完成：合并提交e6ba91a33b74351d30c1fd2623e4e05617e82ffb经非强制推送更新C，创建并关联[PR #3](https://github.com/844346518scp-coder/agent-school-llm-usts/pull/3)。GitHub确认mergeable=true，无已配置的提交状态或PR工作流；使用期望head=e6ba91a调用正常merge，成功生成main提交847f1b39b7b7fb74c920739fafc4f99e5a363513。未绕过分支保护；未取得另一成员审阅，不宣称已有人审，按用户明确合并要求执行。
 - 最终核验：提交后对待合入main的84个文本历史blob再次扫描无已知秘密；实时fetch确认main合并成功，git diff确认847f1b3与已验证e6ba91a文件树一致。本地仅快进跟随main；收尾追加此发布记录，并同步AGENTS/README/合并核验状态，其他文档已准确描述整合后功能和未完成项，无需再次改动。收尾只有状态文档，没有重复跑应用回归；状态文档通过差异/链接及凭据复查后同步C和main。
+
+## 2026-09-21 · B 模块第二阶段：长期记忆、推荐、评价、总结、资源检索 + 契约修复
+
+- 日期 / 任务：2026-09-21 / 功能扩展版（9/21–24）B 部分：长期记忆、推荐练习、评价（费曼复述/自评）、总结复习、资源检索；同时修复 2026-09-21 模拟验收列出的 6 项 AI 契约缺口。
+- 负责人 / AI 工具：B 模块成员（待填）/ Chatbox。
+- 开发了什么与原因：
+  - **修 6 项已知缺口**：拍照入参严格校验（base64 / 图片 MIME / 文件头）、空识别结果报 502、`warnings` 非列表不再抛非受控异常、主题推断覆盖不足时返回 `null`（不猜）、知识库扩展到「一元函数积分学」「无穷级数」。
+  - **长期记忆**：追加式事件表 + 拉普拉斯平滑掌握度；证据只取自评/复述评价、步骤反馈、诊断命中三类可核对信号，普通问答记 `exposed`（权重 0）；学生可清空自己的记忆。
+  - **推荐练习**：按 `weak → learning → unseen` 排序，每条都给依据；`exclude` 支持“换一批”。
+  - **评价**：按知识点信号覆盖率给出档位（基本到位/有遗漏/需要重讲）、缺失项与追问。
+  - **总结复习**：汇总窗口内提问记录 + 记忆薄弱项，给出 `highlights` 与 `next_steps`。
+  - **资源检索**：概念/例题/练习/资料四类条目，带出处与 `verified` 状态。
+  - 新接口单独放 `phase2.py`，避免继续频繁改三方共用的 `service.py`。
+- 修改文件：
+  - 新增 `backend/app/ai/memory.py`、`insight.py`、`phase2.py`、`tests/test_agent_phase2.py`（19 项测试）。
+  - 修改 `backend/app/ai/knowledge.py`（+5 知识点、+资源索引、主题推断证据门槛）、`service.py`（识别校验与错误处理、记忆接线、status 能力位）、`prompts.py`（总结提示词）。
+  - 修改 `tests/test_api.py`、`tests/smoke_agent.py`：识别用例改用真实一像素 PNG。原因：旧用例用假 base64（`'a'*16`），契约修复后会在入参阶段先 422，无法再验证“演示模式拒绝识别”这一条，因此按新契约换夹具（与 `check_ai_contracts.py` 用同一张图）。
+- 验证命令或方式 / 结果（通过、失败、未执行）：
+  - `python -m pytest -q` → **101 passed**（含教师端与迁移测试，无回归）。
+  - `python tests/check_ai_contracts.py` → **issues_reproduced=0、behaviors_as_expected=8**（原 6 项缺口清零）。
+  - `python tests/smoke_agent.py` → **通过**：登录、status、ask、feedback、diagnosis、recognize（503）、conversations、SSE、review、memory、recommend、summary、resources/search 全部符合预期。
+  - `python tests/check_source.py` → **通过**（冷启动 + 自动安装 + 资源 + B/C 流程 + 离线缓存启动 + 模拟 live 模式）。
+- 目录结构变更 / 用户确认依据：无新增目录；**未改数据库表结构**。长期记忆使用 B 自有表 `ai_learning_events`，由 `memory.py` 用独立 `MetaData` 惰性建表，不加入 `platform.database.Base`，避免触发 `migrations/upgrade.py` 的 v3 完整性校验。
+- 文档同步清单（逐项写已更新，或已核对无变化及原因）：
+  - AGENTS.md 项目记忆与目录：已追加“B 模块第二阶段实现说明”与 6 条新硬约束。
+  - README.md：已核对无变化（本次不涉及启动方式与总览）。
+  - docs/architecture.md：已追加“长期记忆与学情洞察（B 第二阶段）”。
+  - docs/contracts/ 下全部约定：已追加“智能体接口 v0.3（B 模块第二阶段）”，含 6 项缺口修复说明、记忆口径与存储、前端接入建议。
+  - 其他相关说明、配置模板、计划与图示：无新增配置项（沿用第一阶段 `AGENT_MODE` / `MODEL_*`）。
+- GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：待推送分支 `chatbox/ai-phase2`；新增代码不含密钥，仓库内仍无真实密钥，`.env` 未入库；已跑 `check_source.py` 的密钥与源码检查。
+- 遗留问题与下一步：
+  1. 教师端知识点掌握度按班聚合尚未实现（当前记忆只对本人开放）。
+  2. 资源库条目仍由知识点派生，外部课件/视频接入后需要 `verified` 复核。
+  3. 异步任务与语音未实现（`capabilities.async_tasks=false`）。
+  4. `verified=false` 的知识点与资源条目需课程资料复核人确认后置为 True。

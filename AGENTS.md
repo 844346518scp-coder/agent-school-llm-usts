@@ -224,3 +224,33 @@ python tests/smoke_agent.py      # 端到端冒烟（demo 模式下 recognize �
 配置真实模型：复制 `.env.example` 为 `.env`，填写 `MODEL_BASE_URL` / `MODEL_API_KEY` / `MODEL_NAME`（可选 `MODEL_VISION_NAME`），把 `AGENT_MODE` 保持 `auto` 或改 `live`；密钥不入库、不入仓。
 
 下一步（9/21–24 功能扩展版）：长期记忆、个性化推荐、资源检索与总结评价、语音；以及把 `knowledge.retrieve()` 升级为向量检索。
+
+## B 模块第二阶段实现说明（2026-09-21 追加）
+
+范围：功能扩展版——长期记忆、推荐练习、评价（费曼复述/自评）、总结复习、资源检索；同时修复模拟验收列出的 6 项 AI 契约缺口。
+
+新增文件（均在既有目录内，无新增目录）：
+
+- `backend/app/ai/memory.py`：长期记忆。独立 MetaData 的追加式事件表 `ai_learning_events` + 掌握度聚合。
+- `backend/app/ai/insight.py`：推荐练习、评价、总结复习。规则优先，live 模式下模型只润色文字。
+- `backend/app/ai/phase2.py`：第二阶段路由（`/api/agent/memory`、`recommend`、`review`、`summary`、`resources/search`）。单独成模块是为了不再频繁改三方共用的 `service.py`。
+- `tests/test_agent_phase2.py`：契约修复、记忆闭环、推荐/评价/总结、资源检索与鉴权测试（19 项）。
+
+硬约束（新增，后续改动不要破坏）：
+
+1. 长期记忆表**不得**加入 `platform.database.Base`。`migrations/upgrade.py` 在 schema v3 时会逐张校验 `Base.metadata` 里的表是否都已存在，加表会让既有数据库启动报 “Incomplete schema”。要纳入版本化 schema 必须先由平台侧出 v4 迁移。
+2. 掌握度只能由可核对证据汇总（学生自评/复述评价、步骤反馈结论、诊断命中）；普通问答只记 `exposed`（权重 0）；证据不足时状态必须是 `unseen`，不得显示为“已掌握”。
+3. 拍照识别入参必须严格校验（base64、图片 MIME、文件头三者都查）；识别结果为空时报 502；`warnings` 恒为数组。
+4. 主题推断在知识库覆盖不足时必须返回 `null`，不允许把“定积分/级数/微分方程”猜成相邻主题。
+5. `version` 仍是 `0.2.0`：`/api/health` 的 `agent_version` 会被启动器校验，要改动须与 C 侧同步。
+6. 记忆写入必须尽力而为（`remember()` 内部捕获异常并回滚），不得因为写记忆失败而让问答/反馈接口报错。
+
+本地验证：
+
+```
+python -m pytest -q                  # 期望 101 passed
+python tests/check_ai_contracts.py   # 期望 issues_reproduced=0、behaviors_as_expected=8
+python tests/smoke_agent.py          # 端到端冒烟（含第二阶段步骤）
+```
+
+下一步（9/24 冻结前）：教师端知识点掌握度按班聚合、资源库扩充与 `verified` 复核、异步任务与语音仍未实现，不得在文档或界面里当作已有能力展示。
