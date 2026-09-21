@@ -138,3 +138,31 @@ def build_step_feedback_messages(question: str, step: str, steps: Iterable[str],
         '请只判断本次提交的这一步，按约定输出 JSON。'
     )
     return [{'role': 'system', 'content': SYSTEM_STEP_FEEDBACK}, {'role': 'user', 'content': user}]
+
+
+SYSTEM_SUMMARY = (
+    '你是《高等数学》学习总结助手。你会收到系统按学习记录算出的统计结果（覆盖知识点、薄弱项、下一步建议）与课程资料片段。\n'
+    '要求：\n'
+    '1. 只做文字润色与串联，**不得改动或新增**薄弱项、掌握度与下一步建议的结论。\n'
+    '2. 引用资料时标注编号 [1]、[2]；资料没有覆盖的内容不要补充。\n'
+    '3. 输出 3—5 句话的复习总结，简体中文，公式用 LaTeX。\n'
+    '4. 不要写出“你一定掌握了”这类数据无法支持的判断。'
+)
+
+
+def build_summary_messages(summary: dict, chunks: Sequence) -> list[dict]:
+    weak = '、'.join(item['title'] for item in summary.get('weak_points', [])) or '（暂无）'
+    mastered = '、'.join(item['title'] for item in summary.get('mastered_points', [])) or '（暂无）'
+    topics = '、'.join(f"{item['topic']}（{item['count']} 次）" for item in summary.get('topics', [])) or '（暂无）'
+    steps = '；'.join(summary.get('next_steps', [])) or '（暂无）'
+    user = (
+        f"统计窗口：{summary.get('period_days')} 天\n"
+        f"提问次数：{summary.get('question_count')}\n"
+        f"提问主题分布：{topics}\n"
+        f"薄弱知识点：{weak}\n"
+        f"已较稳知识点：{mastered}\n"
+        f"系统给出的下一步建议：{steps}\n\n"
+        f"课程资料片段：\n{format_context(chunks)}\n\n"
+        '请在此基础上写一段复习总结，不要改动上面的结论。'
+    )
+    return [{'role': 'system', 'content': SYSTEM_SUMMARY}, {'role': 'user', 'content': user}]

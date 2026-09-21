@@ -140,3 +140,29 @@ origin/main在4bd8519已包含B，用户提供的main ZIP逐文件与该提交�
 独立测试覆盖至少两教师、两班与多学生的列表/提交/批改/统计/题库越权，以及首位教师竞争、重复账号、归档与提交竞争。具体执行结果见最新日志。PostgreSQL、pgvector、正式身份、审计和部署仍分别验收；AI复核未来须保存原结果、教师修改和发布状态，不自动把AI判断作为正式评价。
 
 前端普通问答支持demo/live、调用失败提示及待复核引用；AI请求等待90秒、模型网络阶段超时1–60秒，禁止自动重试。回答来源前缀和降级提示随正文持久化，无数据库结构变更；旧记录兼容读取。步骤关键词不能确定错误，一律unclear；demo识别不外调，模型错误正文不回显秘密，流式网络异常规范降级。课程资料仍待复核，模拟live测试不等于真实服务验收。
+
+## 长期记忆与学情洞察（B 第二阶段，2026-09-21 追加）
+
+目的：第一阶段只解决“一次问答/一次反馈”，第二阶段要让智能体记得学生练过什么、薄弱在哪，并把结论用于推荐与复习。
+
+数据流：
+
+1. **证据产生**（全部可核对，不含模型判断）：
+   - `/api/agent/review` 的复述/自评结果（`band` → 权重 +1 / -1 / -2）；
+   - `/api/agent/feedback` 的步骤反馈结论（`incorrect` → -1，`correct` → +1，其余 0）；
+   - `/api/agent/diagnosis` 命中的薄弱知识点（每个 -1）；
+   - `/api/conversations` 只记 `exposed`（权重 0，表示“问过”，不代表掌握）。
+2. **存储**：追加式事件表 `ai_learning_events`。表由 `backend/app/ai/memory.py` 用独立 `MetaData` 惰性建（`create_all(checkfirst=True)`），
+   **故意不进 `Base.metadata`**，原因是 `migrations/upgrade.py` 在 schema v3 会逐张校验 Base 的表是否都存在，加表会导致既有库启动失败。
+3. **聚合**：`memory.state()` 在读取时按知识点聚合，得到掌握度（拉普拉斯平滑加权成功率）、`confidence`（证据量）、`status`、`last_seen`。
+4. **消费**：
+   - `insight.recommend()` 按 `weak → learning → unseen` 排序给练习，`exclude` 支持“换一批”；
+   - `insight.evaluate()` 按知识点 `signals` 覆盖率给出评价档位与缺失项；
+   - `insight.summarize()` 汇总窗口内提问记录与记忆薄弱项，给出 `highlights` 与 `next_steps`。
+
+边界与取舍：
+
+- 掌握度不是模型输出；证据不足时状态为 `unseen`，宁可不说“已掌握”。
+- live 模式下模型只润色总结或补充点评（`model_comment` / `model_summary`），规则结论保留原样并在 `method` 里写明。
+- 记忆只对本人开放，可自行清空；教师端按班聚合属于后续工作，需要先定权限边界。
+- 若日后要把记忆纳入版本化 schema，需平台侧出 v4 迁移并同步 `docs/contracts`。
