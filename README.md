@@ -4,7 +4,7 @@
 
 ## 当前状态（2026-09-21）
 
-- 当前整合：按用户最新请求合并`codex/c-local-teaching`（cfd1025）与`main`（168928d），已解决6处冲突，保留教师v0.3和主分支拍照入口；发布结果见[开发日志](docs/development-log.md)。模型/OCR超时等既有失败仍见[测试报告](docs/simulation-test-report.md)。
+- 合并状态：`codex/c-local-teaching`与`main`已通过[PR #3](https://github.com/844346518scp-coder/agent-school-llm-usts/pull/3)完成整合（合并提交847f1b3），保留教师v0.3与拍照入口。82项Python、14项Node、8项回填/历史脚本检查及前端构建通过；模型/OCR超时等既有失败仍见[测试报告](docs/simulation-test-report.md)。
 - 免费模型续测：官方Qwen3-VL-2B已在本机CPU真实运行，短请求返回正确极限值；应用带课程资料的Q01/Q02超时降级、两张题图识别超时502，完整接入未通过。模型仅是忽略缓存中的测试环境，不随源码下载、未加入默认启动。见[测试报告](docs/simulation-test-report.md)。
 - 首次模拟验收（demo阶段）：82项Python、14项Node、构建、演示冒烟及18场景HTTP联动通过，师生页面闭环已跑通；双端操作出现SQLite锁冲突，当时真实AI缺配置，拍照入口/知识点弹窗未实现，尚不能判定整体通过。见[测试报告](docs/simulation-test-report.md)及[12章题单/OCR题干](docs/simulation-test-cases.md)。本轮只增加测试和文档，未修复业务、未合远端。
 - 已发布基线：0.2 B/C 集成版已通过 PR #2 进入 main；题库、作业、人工反馈、SQLite v2 及演示问答有历史验收记录。
