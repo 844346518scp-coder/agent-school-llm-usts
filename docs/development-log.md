@@ -574,3 +574,25 @@ GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：
   2. 资源库在本次追加了 6 条跨模块资料/导览条目（章节导览、极限计算思路图、积分方法选择表等），仍全部 `verified=false`，需复核人确认；外部课件/视频接入后同样要走复核流程。
   3. 异步任务与语音未实现（`capabilities.async_tasks=false`）。
   4. `verified=false` 的知识点与资源条目需课程资料复核人确认后置为 True。
+
+## 2026-09-21 · 桌面窗口入口（可选，不改变现有网页启动方式）
+
+- 日期 / 任务：2026-09-21 / 为本地 Web 应用增加一个可选的“桌面窗口”入口。用户明确要求**新增功能、不得覆盖或改变现有网页版启动方式**（`一键启动.cmd` / `start.ps1` 行为保持原样）。
+- 负责人 / AI 工具：待确认（启动器与交付方向）/ Chatbox。
+- 开发了什么与原因：应用是 FastAPI + Vue 的本地 Web 应用，双击 `一键启动.cmd` 后由浏览器打开 `127.0.0.1:18080`，没有桌面客户端。本次让同一页面显示在**无地址栏、无标签栏**的应用窗口中，使用体验更接近桌面软件，同时不引入任何新依赖。
+  - `desktop.py`：只用标准库。按与 `backend/app/platform/portable.py` **相同**的 instance_id 计算、`backend/launcher-port.txt` 端口文件、`backend/launcher.lock` 单实例锁、health 与首页校验，复用已运行服务，或按同一命令（`portable.py --serve --source --port N`）启动后端；随后用 Edge/Chrome 的 `--app=` 打开窗口，使用独立 profile `.runtime/desktop-profile`（已被忽略）。
+  - `start-desktop.ps1`：先调用既有 `bootstrap.ps1` 准备环境，再运行 `desktop.py`；文件保持纯 ASCII，避免 PowerShell 5.1 将无 BOM 脚本按 ANSI 解码。
+  - `一键启动(桌面窗口).cmd`：双击入口，风格与既有 cmd 一致（英文提示，仅失败时 pause）。
+- **pywebview 实测结论（未采用）**：项目运行时是嵌入式 CPython 3.13.13，不含 setuptools，`pip install pywebview` 只能解析到 3.4（更高版本依赖仅有源码包的 `proxy_tools`，无法构建）；装入后 `import webview` 即令进程以 .NET CLR 异常退出（退出码 `0xE0434352`，来自 pythonnet），属进程级崩溃，Python 层 `try/except` 无法捕获。故改用零依赖的 app 模式窗口，未新增依赖。
+- 修改文件：新增 `desktop.py`、`start-desktop.ps1`、`一键启动(桌面窗口).cmd`；同步 `README.md`、`AGENTS.md`、`docs/source-startup.md`；本日志追加。
+- 验证命令或方式 / 结果（通过、失败、未执行）：
+  - 通过：`python -B -m py_compile desktop.py`；`start-desktop.ps1` 经 PowerShell 解析器检查为 0 错误；两个新文本文件均无 BOM（`.cmd` 仍为纯 ASCII，与既有入口一致）。
+  - 通过：`desktop.py --check` 正确识别并复用已在运行的 18080 服务（输出 `Ready: http://127.0.0.1:18080/`），且不开窗。
+  - 通过：`start-desktop.ps1 -CheckOnly` 走完整链路（`bootstrap.ps1` 输出正常 + 复用成功）。
+  - 通过：双击 `一键启动(桌面窗口).cmd` 打开应用窗口，窗口标题为 `数伴 · 高数学习伙伴`，窗口主进程是该独立 profile 的 msedge 实例（本机 Edge 153.0.4234.48）；命令行窗口在开窗后自行退出。
+  - 未执行：另一台 Windows 机器、Windows ARM、Mac/Linux 验证；Chrome 分支未实测（本机先命中 Edge）；未做窗口内逐项点击验收。
+- 明确边界（不得当作已有能力）：关闭窗口后后端**继续运行**，与网页版一致（Edge 关窗后其进程本身也可能常驻，属浏览器行为）；**未实现**“关窗即停服务”；不含桌面安装包 / PyInstaller / Tauri / Electron 打包；便携 ZIP 与 `build-portable.py` 不包含该入口。
+- 目录结构变更 / 用户确认依据：无新增或重命名目录；三个新文件均在仓库根目录，属 AGENTS.md 第 3 节允许的“既有目录内新增普通文件”，无需额外的目录变更确认。
+- 文档同步清单（逐项）：AGENTS.md（目录树 + 项目记忆 + 桌面入口说明）；README.md（新增“可选：桌面窗口入口”）；docs/source-startup.md（新增同类说明）；docs/contracts、docs/architecture 已核对无变化（不涉及接口与模块边界）；`.env.example`、`backend/requirements*.txt`、`frontend/package.json` 无变化（未新增依赖）；本日志追加。
+- GitHub 上传 / 密钥状态 / 用户确认依据：分支 `chatbox/desktop-shell`，**尚未推送**；本次改动不含密钥或其他凭据，未改数据库、依赖与既有 HTTP 接口，等待用户确认上传范围后再推送。
+- 遗留问题与下一步：关窗即停服务、真正的桌面安装包、便携包集成、Chrome 路径实测、另一台 Windows 实机验收。

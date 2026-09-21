@@ -24,6 +24,10 @@
 
 -SetupOnly仅准备环境；-NoBrowser启动但不打开网页；-Dev使用原先的.venv + 系统Node开发方式，保留8000/5173热更新。出现依赖文件被开发服务占用时需先停止本项目开发服务，不自动终止其他程序。
 
+## 可选：桌面窗口入口
+
+2026-09-21新增可选入口`一键启动(桌面窗口).cmd` + `start-desktop.ps1` + `desktop.py`：先调用同一个bootstrap.ps1准备环境，再用Edge或Chrome的app模式打开无地址栏窗口。它复用同一instance_id、`backend/launcher-port.txt`与`backend/launcher.lock`，与网页版共享同一后端，两个入口可任意顺序混用；默认启动方式（一键启动.cmd/start.ps1/platform/portable.py）未修改。需要本机装有Edge或Chrome，不新增依赖、不进便携ZIP；关闭窗口后后端照常常驻。pywebview方案已在嵌入式Python 3.13实测失败（.NET CLR崩溃），原因见开发日志。
+
 ## 联调范围
 
 2026-09-21已重新执行82项Python、14项Node、构建与隔离HTTP/页面联动；新增[模拟验收报告](simulation-test-report.md)给出独立端口/数据库/实例闸门及已知SQLite并发锁问题。这不是源码冷下载复验，启动健康也不代表AI或拍照功能已可用。后续Qwen3-VL-2B本地CPU实验只用进程环境连接独立模型，完整问答/OCR超时；缓存不随源码分发、未加入启动器或便携包、未改日常.env。云端服务仍需用户本地配置并单独验收。
