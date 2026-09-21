@@ -4,6 +4,12 @@
 
 ## 当前结果
 
+- 2026-09-21最新授权：用户要求将我们的分支与主分支合并，取代此前只上传限制。本轮以C `cfd1025`和main `168928d`整合，6处冲突已解决，保留教师v0.3/精简导航、Agent历史及拍照入口，双方日志记录均保留。
+- main既有两套原型目录及PCL.exe按原路径保留，不执行。识别文本与既有输入合计超2000字时保留原输入及识别草稿；成功接收后才关闭弹窗。HTTP/schema/依赖不变。
+- 合并树验证：82项Python、14项Node和前端生产构建通过；真实AI/OCR超时、SQLite锁与知识点详情未实现的已知边界仍保留。上传及PR结果见开发日志。
+
+## 2026-09-21 合并前核对记录（历史）
+
 - 2026-09-21最新请求：用户在获知免费模型完整问答/OCR超时后明确“只上传分支，不合并”。本次仅更新原`codex/c-local-teaching`，不改`main`或其他远端分支，不把已知失败写成通过；此前6处main冲突和main附件不进入本次操作。提交`7877799`已非强制推送并fetch确认，`main`保持`168928d`。
 - 实时基线：`origin/codex/c-local-teaching=8799cd01fd69cfca23868735480ea499ef333605`、`origin/main=168928dd3b6d93a6011ec611bd0729dac7b24a8b`。C可在确认后快进上传本地增量；C与main共同基线为285f1aa。虚拟树预演使用独立临时index和未挂分支的临时提交，实际index/工作树未改变。
 - 冲突：`AGENTS.md`、`docs/contracts/README.md`、`docs/development-log.md`、`frontend/src/App.vue`、`frontend/src/shared/AgentView.vue`、`frontend/src/shared/style.css`。需要保留C的v0.3账号/班级/精简导航/对话记录，与main拍照组件入口兼容；文档历史双方保留追加，不能整文件选一侧覆盖。合并后必须重新构建和验证，不沿用本次合并前构建结果。

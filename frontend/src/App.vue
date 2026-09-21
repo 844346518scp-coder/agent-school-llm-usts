@@ -92,6 +92,6 @@ onBeforeUnmount(() => window.removeEventListener('session-expired', expired))
       <ClassesView v-else-if="page === 'students' && teacher" :key="classWorkspaceKey" :user="user" :assignments="assignments" :data-loading="dataLoading" :entry="workspaceEntry" @changed="loadData"/>
       <footer class="workspace-footer"><span>数伴 · 让每一步学习都有回应</span><span>数伴 0.3 <span class="tiny-dot"/> 持续生长中</span></footer>
     </main></div>
-    <el-dialog v-model="help" title="数伴使用说明" width="520px"><div class="help-content"><p>这是你的高数教学与学习工作空间。</p><p><strong>已经可以体验：</strong>教师初始化、学生账号与班级管理、班级内布置作业、按教材章节选题、独立成员页面、版本化提交与人工反馈、真实提交统计和成员进度导出，以及模型 / 演示问答、引用与历史。</p><p><strong>能力边界：</strong>已接入模型兼容接口与本地课程检索；未配置模型时仍为演示。拍照识题、步骤反馈和诊断已有后端接口，页面入口待接入；语音、自动评分、AI反馈复核和向量检索尚未实现。</p><p>新学生使用老师提供的临时密码登录后须改密。班级和作业按账号隔离；发布时固定接收名单，后加入的学生需教师另行发布作业。数据保存在当前服务，请妥善备份。</p></div></el-dialog>
+    <el-dialog v-model="help" title="数伴使用说明" width="520px"><div class="help-content"><p>这是你的高数教学与学习工作空间。</p><p><strong>已经可以体验：</strong>教师初始化、学生账号与班级管理、班级内布置作业、按教材章节选题、独立成员页面、版本化提交与人工反馈、真实提交统计和成员进度导出，以及模型 / 演示问答、引用与历史。</p><p><strong>能力边界：</strong>已接入模型兼容接口与本地课程检索；未配置模型时仍为演示。智能体页可拍照/导入图片，识别文本核对后带入提问；需配置可用视觉模型。步骤反馈和诊断已有后端接口，页面入口待接入；语音、自动评分、AI反馈复核和向量检索尚未实现。</p><p>新学生使用老师提供的临时密码登录后须改密。班级和作业按账号隔离；发布时固定接收名单，后加入的学生需教师另行发布作业。数据保存在当前服务，请妥善备份。</p></div></el-dialog>
   </div>
 </template>

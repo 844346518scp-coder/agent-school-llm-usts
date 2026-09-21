@@ -6,7 +6,7 @@
 
 18场景HTTP顺序联动验证了师生权限/发布快照/作答版本/反馈/私人对话隔离。双端页面测试另出现SQLite锁冲突与统计读取失败，健康检查仍可200，因此health不是业务可用性证明。
 
-本地识别响应没有related_points、references或知识点详情，suggested_topic仅主题建议；缓存main前端将其显示为标签，不是知识点弹窗。离线合成探针复现：伪base64及text/plain通过RecognizeInput；模型返回空JSON仍得live空text，warnings为数字时抛未捕获TypeError（HTTP500为推断，函数探针未发HTTP）；积分/级数被建议为导数主题。上述为已知缺口，不是认可的目标契约。demo503与模拟ModelCallFailed转502符合现状；不得把该合成探针称真实视觉验收。详见[测试报告](../simulation-test-report.md)。
+本地识别响应没有related_points、references或知识点详情，suggested_topic仅主题建议；本轮合入的拍照前端将其显示为标签，不是知识点弹窗。离线合成探针复现：伪base64及text/plain通过RecognizeInput；模型返回空JSON仍得live空text，warnings为数字时抛未捕获TypeError（HTTP500为推断，函数探针未发HTTP）；积分/级数被建议为导数主题。上述为已知缺口，不是认可的目标契约。demo503与模拟ModelCallFailed转502符合现状；不得把该合成探针称真实视觉验收。详见[测试报告](../simulation-test-report.md)。
 
 ## 2026-09-21 教师交互精简（接口不变）
 
@@ -24,7 +24,7 @@
 
 ## 2026-09-19 教师工作空间 v0.3 实施约定
 
-最后更新：2026-09-19。本节为本地`codex/teacher-workspace`教师工作空间v0.3契约，优先于下方0.2沿用字段/历史行为；v0.3已以8799cd0上传原分支codex/c-local-teaching，9/20界面增量尚未上传。SQLite新增schema v3；教师私有题库、作答版本和人工反馈保持。验收结果见开发日志，不把本节接口存在当作真实师生效果证明。
+最后更新：2026-09-19。本节为本地`codex/teacher-workspace`教师工作空间v0.3契约，优先于下方0.2沿用字段/历史行为；v0.3及9/20至21界面增量已上传原分支codex/c-local-teaching，本轮与main拍照入口整合，HTTP契约保持不变。SQLite新增schema v3；教师私有题库、作答版本和人工反馈保持。验收结果见开发日志，不把本节接口存在当作真实师生效果证明。
 
 - 默认不植入演示用户或作业。`GET /api/auth/setup`按是否已有教师返回`{required}`；`POST /api/auth/setup`接收`username,name,password`，事务内只允许首次创建教师，201返回User并登录，之后409。已有教师可`POST /api/auth/teachers`创建同级教师，201返回新User且其`must_change_password=true`，不改变当前教师会话。演示种子须显式SHUBAN_SEED_DEMO=true且用户表为空；重启不补回已有库的数据。
 - User公共字段为`id,username,name,role,active,must_change_password,is_demo`；不返回password_hash或created_by。`POST /api/auth/password`接收`current_password,new_password`，旧密码错误403、新旧相同422，成功撤销所有旧会话并签发新会话，返回User且清除演示/强制改密标记；`PATCH /api/auth/profile`接收name。临时密码登录后必须改密，业务访问403，仅允许me/password/logout等账号必要操作；停用账号认证401。账号3–80位英文/数字/._-，姓名1–80位非空；新密码10–128字符含英文字母数字，不回传明文。重复账号409，未知字段422。
@@ -38,7 +38,7 @@
 - CSV由前端依据已授权的班级名册生成，没有新增导出API；只导出当前搜索/成员状态筛选结果。列为班级、账号、姓名、成员状态、账号状态、应交、已交、未交、待批改、待改进、已完成。使用UTF-8 BOM、CRLF、双引号转义及公式前缀防护；下载和Excel兼容的验收边界见日志，不把文件内容测试等同于实际落盘。
 
 
-以下登记沿用的题库/反馈/AI字段及历史集成背景。涉及默认账号、班级授权、统计范围、发布必填字段时以上方v0.3为准。远端拍照Vue流程仍未合入；“仍待定义”不代表已实现。
+以下登记沿用的题库/反馈/AI字段及历史集成背景。涉及默认账号、班级授权、统计范围、发布必填字段时以上方v0.3为准。拍照Vue流程已随本轮合并纳入；“仍待定义”不代表已实现。
 
 ## 0.2 本地教师工作流
 
@@ -87,11 +87,11 @@ B智能体接口已于2026-09-18集成，见下文；语音、异步任务和完
 
 `GET /api/health`原有字段保持；便携启动设置`SHUBAN_INSTANCE_ID`时额外返回`instance_id`（由本地路径哈希生成，非会话/认证凭据），供启动器识别本目录服务，避免误复用另一份测试包。此字段不授予访问权限。便携包网页与API同源于127.0.0.1:18080（可换端口），其余接口不变。
 
-真实模型与流式输出、RAG 引用、诊断已于 2026-09-17 由 B 模块给出接口（见下节“智能体接口 v0.2”）。远端main的后续提交已实现拍照识别上传与人工确认的前端调用流程，但当前工作区没有该组件，且尚未真机/后端联调。仍待定义：多题切分、公式人工修正、诊断任务状态（异步）、语音、长期记忆与异步任务队列。改接口先更新此文档并协调调用方；新增子目录依照 [协作规范](../../AGENTS.md) 先确认。
+真实模型与流式输出、RAG 引用、诊断已于 2026-09-17 由 B 模块给出接口（见下节“智能体接口 v0.2”）。远端main的后续提交已实现拍照识别上传与人工确认的前端调用流程，本轮已随main合并纳入当前工作区，真机及真实视觉模型仍待验收。仍待定义：多题切分、公式人工修正、诊断任务状态（异步）、语音、长期记忆与异步任务队列。改接口先更新此文档并协调调用方；新增子目录依照 [协作规范](../../AGENTS.md) 先确认。
 
-## 2026-09-18 · 拍照识别前端调用约定（远端main增量，待集成复核）
+## 2026-09-18 · 拍照识别前端调用约定（9/21合入当前工作区）
 
-远端main的入口位于`frontend/src/shared/PhotoSearchDialog.vue`，由`AgentView.vue`对话头的“拍照搜题”按钮打开。当前工作区沿用285f1aa集成基线，8799cd0及本轮界面增量仍未纳入这些前端文件；以下约定来自对远端168928d的只读核对，不表示本地已完成联调。
+入口位于`frontend/src/shared/PhotoSearchDialog.vue`，由`AgentView.vue`对话头的“拍照搜题”按钮打开。本轮保留教师v0.3和对话历史功能，整合main 168928d的拍照入口。识别回填与现有提问合计不得超过2000字，超限时保留原问题和识别草稿，由用户缩短后重试；不自动截断公式。
 
 1. **上传**：`POST /api/agent/recognize`，请求体`{ image_base64, media_type, hint }`。`image_base64`为裁剪压缩后的纯base64，不含`data:`前缀；`media_type`为`image/jpeg`或`image/png`；`hint`最多200字符。
 2. **传输**：复用`frontend/src/shared/api.ts`的`api()`，自动携带JSON内容类型、`X-Requested-With: shuban-web`和同源Cookie；AI写请求超时90秒，不自动重试。
