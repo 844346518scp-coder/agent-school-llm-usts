@@ -8,10 +8,10 @@ html.dark input:focus, html.dark textarea:focus, html.dark select:focus{outline:
 html.dark input, html.dark textarea, html.dark select{color:#e4e3e8;}
 html.dark input::placeholder, html.dark textarea::placeholder{color:#c6c3cb;}
 html.dark .teacher-theme{--primary:#66b2a0;--primary-dark:#47a48d;--soft:#1f2b26;--el-color-primary:#66b2a0;}
-html.dark .brand-mark{box-shadow:0 4px 12px rgba(0,0,0,0.10);}
+html.dark .brand-mark{color:#ffffff;box-shadow:0 4px 12px rgba(0,0,0,0.10);}
 html.dark .eyebrow{color:#c4c1cd;}
 html.dark .primary-button{color:#ffffff;box-shadow:0 4px 10px rgba(0,0,0,0.07);}
-html.dark .outline-button{color:#c6c3ca;}
+html.dark .outline-button{background:#252525;color:#c6c3ca;}
 html.dark .icon-button{color:#c5c1cd;}
 html.dark .success{background:#1e2c23;color:#e1eae5;}
 html.dark .form-error{background:#2c201e;color:#dcb6b1;}
@@ -146,6 +146,7 @@ html.dark .char-count{color:#a091ab;}
 html.dark .chat-compose textarea{color:#c8bfcf;}
 html.dark .chat-compose textarea::placeholder{color:#a091ab;}
 html.dark .compose-bottom{color:#9e92aa;}
+html.dark .send-button{color:#ffffff;}
 html.dark .chat-disclaimer{color:#c9c1cd;}
 html.dark .side-tip{background:#2c271e;border-color:#564833;}
 html.dark .side-tip .section-kicker{color:#d5cbb9;}
@@ -168,10 +169,10 @@ html.dark .empty-state{color:#9e8daf;}
 html.dark .empty-state h3{color:#c8becf;}
 html.dark .empty-small{color:#c8bfcf;}
 html.dark .dialog-form label{color:#c7c1cd;}
-html.dark .dialog-form input, html.dark .dialog-form select, html.dark .dialog-form textarea{border:1px solid #463555;}
+html.dark .dialog-form input, html.dark .dialog-form select, html.dark .dialog-form textarea{border:1px solid #463555;background:#252525;}
 html.dark .assignment-full{color:#c9c0ce;background:#241e2c;}
 html.dark .submission-card{background:#202a23;border:1px solid #395141;}
-html.dark .records-toolbar{color:#c8bfcf;}
+html.dark .records-toolbar{background:#252525;color:#c8bfcf;}
 html.dark .record-card:hover{border-color:#523d6c;}
 html.dark .record-card>svg{color:#c8bbd3;}
 html.dark .saved-badge{color:#d5c9b9;}
