@@ -166,3 +166,13 @@ origin/main在4bd8519已包含B，用户提供的main ZIP逐文件与该提交�
 - live 模式下模型只润色总结或补充点评（`model_comment` / `model_summary`），规则结论保留原样并在 `method` 里写明。
 - 记忆只对本人开放，可自行清空；教师端按班聚合属于后续工作，需要先定权限边界。
 - 若日后要把记忆纳入版本化 schema，需平台侧出 v4 迁移并同步 `docs/contracts`。
+
+## 界面主题（浅色 / 深色，2026-09-21 追加）
+
+主题是纯前端表现层能力，不影响接口、数据与模块边界。
+
+- 状态：`frontend/src/shared/theme.ts` 管理 `light` / `dark` / `system`，持久化在 `localStorage`（`shuban-theme`），并监听系统配色变化；实际渲染通过 `<html class="dark">` 生效。
+- 防闪烁：`frontend/index.html` 的内联脚本在 Vue 挂载前读取偏好并设置类名与 `color-scheme`。
+- 深色规则：由 `build-dark-theme.py` 从 `frontend/src/shared/style.css` 与各组件 `<style>` 块推导，输出 `frontend/src/shared/dark-theme.css`。选择器一律带 `html.dark` 前缀，浅色模式不读取该文件；生成器带有守卫，一旦有选择器逃出 `html.dark` 作用域即中止。
+- 组件层：叠加 Element Plus 官方深色变量（`element-plus/theme-chalk/dark/css-vars.css`）。
+- 边界：不做主题服务端同步、自定义配色或图片深色变体；配色调整后需重新运行生成脚本并重建前端。

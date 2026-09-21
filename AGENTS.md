@@ -37,6 +37,7 @@
 - 本地运行：默认同源18080（占用自动换端口），-Dev为5173/8000；数据库默认仍为被忽略的backend/demo.db。v0.3空库先建立第一位教师；公开演示种子须显式SHUBAN_SEED_DEMO=true，旧数据不自动删除。已有账号登录，有效Cookie恢复；临时密码必须先修改。“保持登录”是七天会话，不保存明文密码；改密/重置撤销旧会话。
 - 启动入口：普通源码完整解压后双击一键启动.cmd。start.ps1默认调用bootstrap.ps1自动下载并校验项目专用Python3.13.13/Node22.23.2/pip26.2.1、安装锁定依赖、构建前端；首次需联网，缓存完整时复用。仅使用项目.runtime缓存及进程环境，不要求管理员或系统开发环境。默认同源18080，可自动选端口；-SetupOnly/-NoBrowser/-Port以及-Dev（原8000/5173开发模式）见README。
 - 2026-09-21 桌面窗口入口（可选，网页版启动方式未改）：新增 `desktop.py`、`start-desktop.ps1`、`一键启动(桌面窗口).cmd`；双击后复用项目内环境与同一后端服务（同一 instance_id/端口文件/目录锁），用 Edge 或 Chrome 的 app 模式打开无地址栏窗口。`一键启动.cmd`/`start.ps1`/`portable.py` 均未修改，两个入口可混用。pywebview 在项目嵌入式 Python 3.13 运行时会以 .NET CLR 崩溃（0xE0434352），已实测放弃。关闭窗口后端继续运行（未实现关窗停服务），含 UI 的桌面安装包/便携包集成均未做。已按用户要求推送分支、创建 PR #6 并 squash 合并进 main（`c1d7cf5`），本地与远程功能分支均已删除；未走队友审阅。
+- 2026-09-21 界面主题（浅色/深色，新增）：登录页右上角与工作台顶栏新增主题按钮，循环 浅色 → 深色 → 跟随系统，状态存 `localStorage` 的 `shuban-theme`，首屏由 `frontend/index.html` 内联脚本在 Vue 挂载前应用以防闪烁。深色由 `html.dark` 类驱动：样式**不是手写**，而是 `build-dark-theme.py` 从 `style.css` 与各组件 `<style>` 块的 335 处颜色声明推导生成 `frontend/src/shared/dark-theme.css`（272 条规则）；生成器强制每条规则的每个选择器都带 `html.dark` 前缀（否则逗号列表会把规则泄漏到浅色模式，本轮已实测踩到并修复），并叠加 Element Plus 深色变量。`style.css` 本身一字未改，浅色外观与改动前构建逐像素一致（已截图对比）。未做：独立主题设置页、自定义配色、插图/图表的手工深色版本。
 - 历史可选便携包（2026-09-18，随后用户明确改为源码自动初始化）：在新分支codex/portable-windows为当前C版增加build-portable.py和platform/portable.py。开发机预构建前端并打包CPython 3.11.15、锁定后端依赖与许可，测试者无需安装Node/Python；完整解压后仍双击一键启动.cmd，默认18080端口。源码启动保留8000/5173；运行产物位于已忽略dist，不新增维护目录。无数据库、.env或日志随包分发，当时未上传；当前源码方案替代其作为默认入口。最终包dist/shuban-windows-x64-20260918-083356.zip约28.1MiB；19项后端测试、前端构建和实际ZIP隔离验收（含CMD、重启持久化与自动选端口）通过，尚待其他电脑实测。默认18080不可用时自动换端口并记住。验收结果与限制见开发日志和docs/portable-windows.md。
 - 拍照搜题原型（2026-09-18，独立目录 拍照搜题-20260918T062840513Z）：用户要求实现拍照搜题效果，经确认交付移动 Web/H5 单文件页面（不产出微信原生小程序包），识别来源为可配置接口地址 + 本地演示兜底。getUserMedia 取流、canvas 框选、cover 精确裁剪、最长边/JPEG 压缩、POST 到 /api/agent/recognize（字段 image_base64/media_type/hint，默认带 X-Requested-With: shuban-web，与 service.py 的 RecognizeInput 及 frontend api.ts 约定一致）；非 live 一律标注“演示模式 · 未连接真实模型”，503/失败如实展示不编造。只是独立原型，未接入 frontend/src（A）或 backend（B），不改依赖/迁移/接口约定；第 2 节未完成项中“拍照识别等前端流程”状态不变。本轮仅通过静态语法与引用抽验（0 BLOCKER/0 WARN），未做真实浏览器运行、真机相机或后端联调验证。落点由用户在项目根指定后按 parent 语义新建子目录（第 3 节新增目录已确认）。是否入库及后续并入 A 端由用户/责任人决定。
 - 拍照搜题原型 v2（2026-09-18，同一目录原地迭代，projectId 不变）：按用户明确规格并入「AI 视频解析」视图——顶部关键词输入框 + 解析按钮，下方视频卡片容器；Fetch 调用可配置接口（默认 /api/agent/video-search，body 含 keyword/query/topic/limit），返回结构兼容 items/videos/results/list/data 等，标题与地址字段名可自定义；前端动态创建 video 标签注入实现内嵌播放，切换条目时释放上一路，自动播放按「有声→静音→待手动」降级。安全处理：仅接受 http(s) 与同源相对地址，拦截 javascript: 等协议并报告丢弃条数，https 页面下的 http 视频给出混合内容预警；非接口来源一律标注「示例数据 · 非真实解析结果」并写明与所搜关键词无关。内置示例视频 URL 经 HEAD 请求实测可达（media.w3.org、MDN CC0、test-videos.co.uk），为公开占位素材，非高数内容，未凭空手写地址。本轮修复三处自身缺陷：相机并发守卫被 stopStream 提前复位、reframe 与 showView 重复取流、占位层过期 DOM 引用导致与视频叠加；另加代次令牌避免切走视图后摄像头仍被占用。验证：静态抽验通过（8 脚本块，0 BLOCKER/0 WARN）+ 14 个视频函数定义与调用交叉核对一致；未做真实浏览器运行与真机播放验证。用户另提六条后续功能（错题收藏分类、倒计时专注、同标签重练、语音搜题、语音讲解、全双工语音答疑），本轮仅记录为清单未实现；其中全双工语音需真实后端与第三方服务，不属静态页面可交付范围，语音搜题/讲解需先确认服务商与密钥管理。未上传、未 push。
@@ -70,6 +71,7 @@
 ├─ desktop.py                    # 可选：桌面窗口入口，复用同一端口/健康校验/目录锁
 ├─ bootstrap.ps1                 # 项目私有环境下载校验、依赖安装和前端构建
 ├─ build-portable.py            # 生成Windows x64便携测试ZIP
+├─ build-dark-theme.py          # 从现有样式推导深色主题覆盖（frontend/src/shared/dark-theme.css）
 ├─ PCL.exe                     # main既有附件，原样保留，不执行/不纳入应用启动
 ├─ 拍照搜题-20260918T062840513Z/ # main既有静态原型（.apps-builder、history/v1、v2及delivery）
 ├─ 数伴教育智能体前端-20260918T001305320Z/ # main既有原型（.apps-builder、assets、history/v1及delivery）
@@ -86,7 +88,7 @@
 │     ├─ App.vue                 # 登录状态、工作台与导航
 │     ├─ student/                # A：StudentHome.vue、CoursesView.vue
 │     ├─ teacher/                # C：TeacherHome.vue、QuestionBank.vue（内嵌选题）、ClassesView.vue
-│     └─ shared/                 # 登录、AccountSettings、classProgress（筛选/CSV）、courseChapters（章节/选题）、智能体、PhotoSearchDialog（拍照）、作业、反馈、记录、图表、公式、样式与API
+│     └─ shared/                 # 登录、AccountSettings、classProgress（筛选/CSV）、courseChapters（章节/选题）、智能体、PhotoSearchDialog（拍照）、作业、反馈、记录、图表、公式、样式与API、theme（主题状态）与ThemeToggle（主题切换）
 ├─ backend/
 │  ├─ requirements.txt          # 后端依赖范围
 │  ├─ requirements.lock.txt     # 本轮验证的完整依赖版本
