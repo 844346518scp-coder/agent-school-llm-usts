@@ -594,5 +594,5 @@ GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：
 - 明确边界（不得当作已有能力）：关闭窗口后后端**继续运行**，与网页版一致（Edge 关窗后其进程本身也可能常驻，属浏览器行为）；**未实现**“关窗即停服务”；不含桌面安装包 / PyInstaller / Tauri / Electron 打包；便携 ZIP 与 `build-portable.py` 不包含该入口。
 - 目录结构变更 / 用户确认依据：无新增或重命名目录；三个新文件均在仓库根目录，属 AGENTS.md 第 3 节允许的“既有目录内新增普通文件”，无需额外的目录变更确认。
 - 文档同步清单（逐项）：AGENTS.md（目录树 + 项目记忆 + 桌面入口说明）；README.md（新增“可选：桌面窗口入口”）；docs/source-startup.md（新增同类说明）；docs/contracts、docs/architecture 已核对无变化（不涉及接口与模块边界）；`.env.example`、`backend/requirements*.txt`、`frontend/package.json` 无变化（未新增依赖）；本日志追加。
-- GitHub 上传 / 密钥状态 / 用户确认依据：分支 `chatbox/desktop-shell`，**尚未推送**；本次改动不含密钥或其他凭据，未改数据库、依赖与既有 HTTP 接口，等待用户确认上传范围后再推送。
+- GitHub 上传 / 密钥状态 / 用户确认依据：本轮待上传提交已扫描，无凭据匹配；用户随后明确要求“推并合并”。分支 `chatbox/desktop-shell` 已推送，创建 [PR #6](https://github.com/844346518scp-coder/agent-school-llm-usts/pull/6) 并以 squash 合并进 main（`c1d7cf5`），本地与远程功能分支均已删除。本次改动不含密钥，未改数据库、依赖与既有 HTTP 接口。按用户明确要求执行，未取得另一成员审阅；常规流程仍建议先 Review 再合并。
 - 遗留问题与下一步：关窗即停服务、真正的桌面安装包、便携包集成、Chrome 路径实测、另一台 Windows 实机验收。
