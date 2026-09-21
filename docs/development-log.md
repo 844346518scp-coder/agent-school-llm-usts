@@ -554,7 +554,7 @@ GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：
   - 新接口单独放 `phase2.py`，避免继续频繁改三方共用的 `service.py`。
 - 修改文件：
   - 新增 `backend/app/ai/memory.py`、`insight.py`、`phase2.py`、`tests/test_agent_phase2.py`（19 项测试）。
-  - 修改 `backend/app/ai/knowledge.py`（+5 知识点、+资源索引、主题推断证据门槛）、`service.py`（识别校验与错误处理、记忆接线、status 能力位）、`prompts.py`（总结提示词）。
+  - 修改 `backend/app/ai/knowledge.py`（+5 知识点、+资源索引并追加 6 条跨模块资料/导览条目、主题推断证据门槛）、`service.py`（识别校验与错误处理、记忆接线、status 能力位）、`prompts.py`（总结提示词）。
   - 修改 `tests/test_api.py`、`tests/smoke_agent.py`：识别用例改用真实一像素 PNG。原因：旧用例用假 base64（`'a'*16`），契约修复后会在入参阶段先 422，无法再验证“演示模式拒绝识别”这一条，因此按新契约换夹具（与 `check_ai_contracts.py` 用同一张图）。
 - 验证命令或方式 / 结果（通过、失败、未执行）：
   - `python -m pytest -q` → **101 passed**（含教师端与迁移测试，无回归）。
@@ -571,6 +571,6 @@ GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：
 - GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：待推送分支 `chatbox/ai-phase2`；新增代码不含密钥，仓库内仍无真实密钥，`.env` 未入库；已跑 `check_source.py` 的密钥与源码检查。
 - 遗留问题与下一步：
   1. 教师端知识点掌握度按班聚合尚未实现（当前记忆只对本人开放）。
-  2. 资源库条目仍由知识点派生，外部课件/视频接入后需要 `verified` 复核。
+  2. 资源库在本次追加了 6 条跨模块资料/导览条目（章节导览、极限计算思路图、积分方法选择表等），仍全部 `verified=false`，需复核人确认；外部课件/视频接入后同样要走复核流程。
   3. 异步任务与语音未实现（`capabilities.async_tasks=false`）。
   4. `verified=false` 的知识点与资源条目需课程资料复核人确认后置为 True。
