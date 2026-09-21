@@ -28,6 +28,19 @@ SRC = ROOT / 'frontend/src'
 OUT = SRC / 'shared/dark-theme.css'
 
 HEX = re.compile(r'#[0-9a-fA-F]{3,8}\b')
+# CSS colour keywords actually used by this project (style.css uses "white" for
+# several surfaces). Kept to light/dark neutrals so every entry maps cleanly.
+NAMED_COLOURS = {
+    'white': '#ffffff', 'whitesmoke': '#f5f5f5', 'ghostwhite': '#f8f8ff',
+    'snow': '#fffafa', 'ivory': '#fffff0', 'floralwhite': '#fffaf0',
+    'seashell': '#fff5ee', 'linen': '#faf0e6', 'oldlace': '#fdf5e6',
+    'cornsilk': '#fff8dc', 'beige': '#f5f5dc', 'azure': '#f0ffff',
+    'mintcream': '#f5fffa', 'honeydew': '#f0fff0', 'aliceblue': '#f0f8ff',
+    'lavenderblush': '#fff0f5', 'mistyrose': '#ffe4e1', 'lightyellow': '#ffffe0',
+    'gainsboro': '#dcdcdc', 'silver': '#c0c0c0', 'gray': '#808080',
+    'grey': '#808080', 'black': '#000000',
+}
+NAMED = re.compile(r'\b(' + '|'.join(NAMED_COLOURS) + r')\b', re.I)
 COMMENT = re.compile(r'/\*.*?\*/', re.S)
 STYLE_BLOCK = re.compile(r'<style[^>]*>(.*?)</style>', re.S)
 ROOT_SELECTORS = (':root', 'html')
@@ -53,6 +66,11 @@ def format_rgb(rgb, alpha: float) -> str:
 
 def clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
+
+
+def normalise_named(value: str) -> str:
+    """Rewrite CSS colour keywords to hex so they go through the same transform."""
+    return NAMED.sub(lambda match: NAMED_COLOURS[match.group(0).lower()], value)
 
 
 def role_of(prop: str) -> str:
@@ -151,12 +169,13 @@ def convert_decls(body: str):
             continue
         prop, value = chunk.split(':', 1)
         prop, value = prop.strip(), value.strip()
-        if not prop or not HEX.search(value):
+        normalised = normalise_named(value)
+        if not prop or not HEX.search(normalised):
             continue
         role = role_of(prop)
         if role == 'none':
             continue
-        replaced = HEX.sub(lambda match: dark_colour(match.group(0), role), value)
+        replaced = HEX.sub(lambda match: dark_colour(match.group(0), role), normalised)
         if replaced != value:
             converted.append((prop, replaced))
     return converted
