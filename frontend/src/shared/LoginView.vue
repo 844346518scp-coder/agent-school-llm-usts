@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ArrowRight, ArrowUpRight, BookOpen, GraduationCap, School, Eye, EyeOff, LockKeyhole, UserRound, Sparkles, Check, CircleHelp } from 'lucide-vue-next'
 import Brand from './Brand.vue'
+import ThemeToggle from './ThemeToggle.vue'
 import { api, type Role, type User } from './api'
 const emit = defineEmits<{ login: [user: User] }>()
 const role = ref<Role>('student')
@@ -59,7 +60,7 @@ onMounted(checkSetup)
     </section>
 
     <section class="login-panel">
-      <div class="login-top"><span>高等数学 · 学习与教学空间</span><span class="version-chip">数伴 0.3</span></div>
+      <div class="login-top"><span>高等数学 · 学习与教学空间</span><span class="version-chip">数伴 0.3</span><ThemeToggle compact/></div>
       <div class="login-box">
         <div class="login-heading-icon"><School v-if="isTeacher" :size="27"/><GraduationCap v-else :size="28"/></div>
         <h2>{{ setupRequired ? '建立你的教学空间' : isTeacher ? '欢迎回来，老师' : '开启今天的学习' }}<span class="heading-dot">.</span></h2>

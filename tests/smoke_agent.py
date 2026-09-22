@@ -38,6 +38,9 @@ def cleanup() -> None:
 atexit.register(cleanup)
 
 HEADERS = {'X-Requested-With': 'shuban-web'}
+# 一像素 PNG：契约要求识别入参必须是真实图片，演示模式下才由模式层返回 503。
+PNG_1PX = ('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAA'
+           'SUVORK5CYII=')
 lines: list[str] = []
 summary: list[str] = []
 
@@ -84,7 +87,7 @@ with TestClient(app) as client:
         'summary': data.get('summary'), 'next_step': data.get('next_step'),
     })
 
-    response = client.post('/api/agent/recognize', json={'image_base64': 'A' * 32}, headers=HEADERS)
+    response = client.post('/api/agent/recognize', json={'image_base64': PNG_1PX}, headers=HEADERS)
     record('POST /api/agent/recognize (预期 503)', response.status_code, response.json())
 
     response = client.post('/api/conversations', json={'question': '求 lim(x→0) sin(x)/x 的极限', 'topic': '函数与极限'}, headers=HEADERS)
@@ -98,6 +101,46 @@ with TestClient(app) as client:
     assert stream.status_code == 200 and len(events) >= 3
     lines.append('--- SSE 事件 ---')
     lines.extend(events[:6])
+
+    # ---- 第二阶段：长期记忆 / 推荐 / 评价 / 总结 / 资源检索 ----
+    response = client.post('/api/agent/review', json={
+        'text': '定积分是区间上求和取极限，几何意义是曲线与 x 轴围成的面积，可以用牛顿-莱布尼茨公式计算。',
+        'topic': '一元函数积分学',
+    }, headers=HEADERS)
+    data = response.json()
+    record('POST /api/agent/review', response.status_code, {
+        'band': data.get('band'), 'coverage': data.get('coverage'),
+        'point': (data.get('point') or {}).get('title'),
+        'signals_missing': data.get('signals_missing'), 'method': data.get('method'),
+    })
+    assert response.status_code == 200 and data['band'] in {'基本到位', '有遗漏', '需要重讲'}
+    assert data['mode'] == 'demo'
+
+    response = client.get('/api/agent/memory', headers=HEADERS)
+    data = response.json()
+    summary.append(f'GET /api/agent/memory: HTTP {response.status_code} events={data.get("event_count")} kinds={sorted(data.get("kinds", {}))}')
+    assert response.status_code == 200 and data['event_count'] >= 1
+
+    response = client.post('/api/agent/recommend', json={'limit': 3}, headers=HEADERS)
+    data = response.json()
+    record('POST /api/agent/recommend', response.status_code, {
+        'topic': data.get('topic'),
+        'items': [{'point_id': item['point_id'], 'reason': item['reason']} for item in data.get('items', [])],
+    })
+    assert response.status_code == 200 and data['items']
+
+    response = client.post('/api/agent/summary', json={'days': 7}, headers=HEADERS)
+    data = response.json()
+    record('POST /api/agent/summary', response.status_code, {
+        'period_days': data.get('period_days'), 'question_count': data.get('question_count'),
+        'highlights': data.get('highlights'), 'next_steps': data.get('next_steps'),
+    })
+    assert response.status_code == 200 and data['next_steps']
+
+    response = client.post('/api/agent/resources/search', json={'query': '定积分 面积'}, headers=HEADERS)
+    data = response.json()
+    summary.append(f'POST /api/agent/resources/search: HTTP {response.status_code} items={data.get("total")}')
+    assert response.status_code == 200 and data['items']
 
 (HERE.parent / '_smoke_out.txt').write_text('\n'.join(lines), encoding='utf-8')
 print('\n'.join(summary))

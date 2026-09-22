@@ -6,6 +6,8 @@
 """
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 from datetime import datetime, timezone
 from typing import Iterator, Literal
@@ -24,13 +26,16 @@ from . import diagnosis as diagnosis_service
 from . import knowledge, prompts
 from .config import load_settings
 from .llm import ModelCallFailed, ModelUnavailable, chat, chat_stream, extract_json
+from . import insight, memory
+from .phase2 import phase2_router
 
 router = APIRouter(prefix='/api/conversations', tags=['agent'])
 agent_router = APIRouter(prefix='/api/agent', tags=['agent-core'])
+agent_router.include_router(phase2_router)
 
 AGENT_VERSION = '0.2.0'
 
-DEMO_MARKERS = ('未连接真实模型', '固定例题演示', '未评分', '教学设计示例')
+DEMO_MARKERS = ('未连接真实模型', '固定例题演示', '未评分', '教学设计示例', '【回复来源：演示】')
 
 
 class QuestionInput(BaseModel):
@@ -80,10 +85,72 @@ class StepFeedbackInput(BaseModel):
     topic: str = Field(default='函数与极限', max_length=40)
 
 
+IMAGE_MEDIA_TYPES = ('image/png', 'image/jpeg', 'image/webp', 'image/gif')
+IMAGE_MAGIC = (
+    (b'\x89PNG\r\n\x1a\n', 'image/png'),
+    (b'\xff\xd8\xff', 'image/jpeg'),
+    (b'RIFF', 'image/webp'),
+    (b'GIF87a', 'image/gif'),
+    (b'GIF89a', 'image/gif'),
+)
+MAX_IMAGE_BYTES = 8 * 1024 * 1024
+MIN_IMAGE_BYTES = 32
+
+
+def decode_image(payload: str) -> bytes:
+    """严格解 base64；非法字符或长度异常直接报错，不把脏数据送给模型。"""
+    cleaned = ''.join((payload or '').split())
+    try:
+        return base64.b64decode(cleaned, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError('image_base64 不是合法的 base64 数据') from exc
+
+
+def detect_image_type(raw: bytes) -> str | None:
+    for magic, media_type in IMAGE_MAGIC:
+        if not raw.startswith(magic):
+            continue
+        if magic == b'RIFF' and raw[8:12] != b'WEBP':
+            continue
+        return media_type
+    return None
+
+
+def coerce_warnings(value) -> list[str]:
+    """模型返回的 warnings 只接受字符串列表，其它类型一律忽略，避免非受控异常。"""
+    if isinstance(value, (list, tuple)):
+        return [str(item) for item in value if str(item).strip()][:5]
+    if value in (None, ''):
+        return []
+    return ['模型返回的 warnings 字段格式异常，已忽略原始值。']
+
+
 class RecognizeInput(BaseModel):
-    image_base64: str = Field(min_length=16)
+    image_base64: str = Field(min_length=16, max_length=16_000_000)
     media_type: str = Field(default='image/png', max_length=60)
     hint: str = Field(default='', max_length=200)
+
+    @field_validator('media_type')
+    @classmethod
+    def check_media_type(cls, value: str) -> str:
+        normalized = (value or '').strip().lower()
+        if normalized == 'image/jpg':
+            normalized = 'image/jpeg'
+        if normalized not in IMAGE_MEDIA_TYPES:
+            raise ValueError('仅支持 PNG / JPEG / WEBP / GIF 图片')
+        return normalized
+
+    @field_validator('image_base64')
+    @classmethod
+    def check_image_base64(cls, value: str) -> str:
+        raw = decode_image(value)
+        if len(raw) < MIN_IMAGE_BYTES:
+            raise ValueError('图片数据过小，无法识别')
+        if len(raw) > MAX_IMAGE_BYTES:
+            raise ValueError('图片过大，请压缩或裁剪后重试')
+        if detect_image_type(raw) is None:
+            raise ValueError('图片数据缺少 PNG/JPEG/WEBP/GIF 文件头，无法识别')
+        return ''.join(value.split())
 
 
 def demo_reply(question: str, topic: str, role: str) -> str:
@@ -174,6 +241,19 @@ def serialize(item: Conversation, extra: dict | None = None):
     return data
 
 
+def remember(db: Session, user_id: str, kind: str, *, topic: str | None = None,
+             point_id: str | None = None, verdict: str | None = None,
+             weight: int = 0, excerpt: str | None = None) -> bool:
+    """写入长期记忆：尽力而为，失败不影响主流程返回。"""
+    try:
+        memory.record(db, user_id, kind, topic=topic, point_id=point_id,
+                      verdict=verdict, weight=weight, excerpt=excerpt)
+        return True
+    except Exception:  # noqa: BLE001 - 记忆写入失败不得影响问答/反馈结果
+        db.rollback()
+        return False
+
+
 def _references(chunks) -> list[dict]:
     return [chunk.as_dict(index) for index, chunk in enumerate(chunks, 1)]
 
@@ -201,6 +281,9 @@ def ask(data: QuestionInput, user: User = Depends(current_user), db: Session = D
                         created_at=datetime.now(timezone.utc).isoformat())
     db.add(item)
     db.commit()
+    remember(db, user.id, 'ask', topic=data.topic,
+             point_id=chunks[0].point.id if chunks else None,
+             verdict='exposed', weight=0, excerpt=data.question)
     return serialize(item, {'mode': mode, 'notice': notice, 'references': _references(chunks)})
 
 
@@ -231,18 +314,25 @@ def agent_status():
             'timeout_seconds': settings.timeout,
         },
         'knowledge': knowledge.stats(),
+        'phase': 2,
         'capabilities': {
             'qa': True,
             'qa_stream': settings.resolved_mode == 'live',
             'references': True,
             'diagnosis': True,
+            'step_feedback': True,
             'recognize': settings.resolved_mode == 'live',
-            'memory': False,
+            'memory': True,
             'recommendation': True,
+            'review': True,
+            'summary': True,
+            'resource_search': True,
+            'async_tasks': False,
         },
         'notes': [
             'demo 模式只返回预设演示内容，不会伪造模型输出。',
-            'memory（长期记忆）与异步任务仍在规划中。',
+            '长期记忆、推荐练习、评价、总结与资源检索已在第二阶段提供；异步任务与语音仍未实现。',
+            '掌握度由学生自评、步骤反馈与诊断证据平滑汇总，证据不足时不判定掌握。',
         ],
     }
 
@@ -309,25 +399,36 @@ def stream_ask(data: AskInput, user: User = Depends(current_user)):
 
 
 @agent_router.post('/diagnosis')
-def run_diagnosis(data: DiagnosisInput, user: User = Depends(current_user)):
+def run_diagnosis(data: DiagnosisInput, user: User = Depends(current_user), db: Session = Depends(get_db)):
     """基础诊断：规则给出薄弱知识点与变式练习，模型仅润色学情总结。"""
-    return diagnosis_service.diagnose(
+    result = diagnosis_service.diagnose(
         question=data.question,
         answer=data.answer,
         wrong_points=data.wrong_points,
         topic=data.topic,
     )
+    for item in result.get('weak_points', []):
+        remember(db, user.id, 'diagnosis', topic=item.get('topic') or data.topic,
+                 point_id=item.get('id'), verdict='weak', weight=-1, excerpt=item.get('reason'))
+    return result
 
 
 @agent_router.post('/feedback')
-def check_step(data: StepFeedbackInput, user: User = Depends(current_user)):
+def check_step(data: StepFeedbackInput, user: User = Depends(current_user), db: Session = Depends(get_db)):
     """步骤反馈：请求 → 判断这一步 → 提示与追问，不返回完整答案。"""
-    return diagnosis_service.step_feedback(
+    result = diagnosis_service.step_feedback(
         question=data.question,
         step=data.step,
         steps=data.steps,
         topic=data.topic,
     )
+    verdict = result.get('verdict')
+    references = result.get('references') or []
+    if references:
+        weight = 1 if verdict == 'correct' else (-1 if verdict == 'incorrect' else 0)
+        remember(db, user.id, 'step', topic=data.topic, point_id=references[0].get('id'),
+                 verdict=verdict, weight=weight, excerpt=result.get('hint'))
+    return result
 
 
 @agent_router.post('/recognize')
@@ -340,7 +441,7 @@ def recognize_question(data: RecognizeInput, user: User = Depends(current_user))
             detail='未配置真实模型（MODEL_BASE_URL / MODEL_API_KEY / MODEL_NAME），识别功能不可用；'
             '演示模式不会返回编造的识别结果。',
         )
-    data_url = f'data:{data.media_type};base64,{data.image_base64}'
+    data_url = f'data:{detect_image_type(decode_image(data.image_base64)) or data.media_type};base64,{data.image_base64}'
     try:
         raw = chat(prompts.build_recognize_messages(data_url, data.hint), settings, model=settings.vision_model)
     except ModelUnavailable as exc:
@@ -355,8 +456,10 @@ def recognize_question(data: RecognizeInput, user: User = Depends(current_user))
         confidence = None
     else:
         text = str(parsed.get('text') or '').strip()
-        warnings = list(parsed.get('warnings') or [])
+        warnings = coerce_warnings(parsed.get('warnings'))
         confidence = parsed.get('confidence')
+    if not text:
+        raise HTTPException(status_code=502, detail='识别结果为空，未生成题目草稿；请重拍或手动输入题目。')
     # 识别只给草稿，必须由学生确认后再进入问答/保存（确认动作复用 POST /api/conversations）。
     return {
         'mode': 'live',

@@ -5,7 +5,9 @@ import 'element-plus/es/components/dialog/style/css'
 import 'element-plus/es/components/tooltip/style/css'
 import 'element-plus/es/components/message/style/css'
 import 'katex/dist/katex.min.css'
+import 'element-plus/theme-chalk/dark/css-vars.css'
 import './shared/style.css'
+import './shared/dark-theme.css'
 import App from './App.vue'
 
 createApp(App).use(ElDialog).use(ElTooltip).mount('#app')

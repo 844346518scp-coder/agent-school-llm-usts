@@ -168,3 +168,60 @@ B智能体接口已于2026-09-18集成，见下文；语音、异步任务和完
 v0.3只提供教师私有资源与本地账号/班级。以下仍需另立契约，不可提前依赖：批量导入、学校实名认证/SSO、管理员、教师停用/角色转换、共同授课/助教、跨教师共享或转移学生、课程共享题库、自动找回密码、操作审计与PostgreSQL迁移。
 
 AI反馈复核还需明确原始结果、教师修改、审核状态、发布人及时间，未经批准不能成为学生正式反馈。上述能力不因v0.3多班级实现而自动具备。
+
+## 2026-09-21 · 智能体接口 v0.3（B 模块第二阶段）
+
+状态：已实现、可本地运行（`python -m pytest -q` → 101 passed；`python tests/check_ai_contracts.py` → issues_reproduced=0、behaviors_as_expected=8）。
+范围：长期记忆、推荐练习、评价（费曼复述/自评）、总结复习、资源检索。
+
+### 第一阶段遗留缺口的修复（模拟验收列出的 6 项）
+
+| 缺口 | 现状 |
+| --- | --- |
+| 拍照入参未校验 base64 / MIME | `RecognizeInput` 严格校验：非法 base64、非图片 MIME、缺少文件头的载荷都在入参阶段 422，不会送到模型；若声明的 MIME 与实际文件头不符，以实际文件头为准 |
+| 积分/级数被猜成“导数与微分” | 知识库扩展到「一元函数积分学」「无穷级数」；覆盖不足时返回 `suggested_topic: null`，不猜 |
+| 模型返回空 JSON 时透传空文本 | 识别结果为空时返回 502，并说明需重拍或手动输入 |
+| `warnings` 为数字时抛非受控异常 | 非字符串列表一律忽略并标注，响应里 `warnings` 恒为数组 |
+| 演示模式仍可能触达模型 | 识别在 `mode != live` 时直接 503，不调用模型（已有测试覆盖） |
+
+### 新增接口（均需登录会话 + `X-Requested-With: shuban-web`）
+
+| 方法 / 路径 | 请求 | 响应要点 |
+| --- | --- | --- |
+| GET /api/agent/memory | 无 | user_id、event_count、kinds、updated_at、points[]{point_id,title,topic,attempts,positive,negative,mastery,confidence,status,last_seen}、topics[]、weak_points[]、mastered_points[]、evidence_tags、privacy |
+| DELETE /api/agent/memory | 查询参数 point_id（可选） | removed、scope=own_account；学生可清空自己的长期记忆 |
+| POST /api/agent/recommend | topic、limit(1-8)、exclude[] | items[]{point_id,title,topic,reason,prompt,source,verified,mastery,status}、method、note；把上一批 point_id 放进 `exclude` 即“换一批” |
+| POST /api/agent/review | text(1-4000)、topic、kind=feynman\|self | point、coverage、band（基本到位/有遗漏/需要重讲/无法评价）、memory_weight、signals_hit、signals_missing、advice[]、follow_up、model_comment、references、method |
+| POST /api/agent/summary | days(1-90，默认 7)、topic | period_days、question_count、topics[]、covered_points、weak_points[]、mastered_points[]、highlights[]、next_steps[]、model_summary、references、method |
+| POST /api/agent/resources/search | query(1-200)、topic、limit(1-20) | items[]{id,kind,topic,title,summary,point_id,source,verified,score}、total、note |
+
+`GET /api/agent/status` 新增 `phase=2`；capabilities 增加 step_feedback、review、summary、resource_search，`memory` 改为 true，并新增 `async_tasks=false`。
+`version` 仍为 0.2.0：`/api/health` 的 `agent_version` 会被启动器校验，变更需与 C 侧一起改。
+
+### 长期记忆的口径与存储（重要）
+
+- 掌握度 = 拉普拉斯平滑的加权成功率 `(正证据 + 1) / (正证据 + 负证据 + 2)`；没有证据时是 0.5 但状态为 `unseen`，**不判定掌握**。
+- `status`：`weak`（掌握度 ≤0.4）、`learning`、`mastered`（≥0.75 且至少 2 条证据）、`unseen`。
+- 证据只有三类可核对信号：学生自评/复述评价结果、步骤反馈结论、诊断命中；普通问答只记 `exposed`（权重 0）。
+- 存储：B 自有追加式表 `ai_learning_events`，由 `backend/app/ai/memory.py` 用**独立 MetaData** 惰性建表，
+  **不加入 `platform.database.Base`**——因为 `migrations/upgrade.py` 在 schema v3 时会校验 Base 里每张表都已存在，
+  加表会让既有库启动报 “Incomplete schema”。该表与业务表同库，整库备份/恢复自然覆盖它。
+  若日后要纳入版本化 schema，需平台侧出 v4 迁移并在 `upgrade.py` 加分支。
+- 记忆写入是尽力而为：写失败不影响问答/反馈结果（`remember()` 捕获异常并回滚）。
+
+### 前端（A）接入建议
+
+1. 学生端“我的薄弱点”：`/api/agent/memory` 的 `weak_points` / `points`；`mastery` 与 `confidence` 要一起展示，避免把 0.5 当成“已掌握”。
+2. 推荐练习：“换一批”把上一批 `point_id` 放进 `exclude`；每条 `reason` 已经写明依据，可直接展示，不要改写成“AI 智能推荐”。
+3. 复述/自评：`/api/agent/review` 的 `band` + `signals_missing` + `follow_up` 做评价卡片；`model_comment` 只在 `mode=live` 时出现。
+4. 复习页：`/api/agent/summary` 的 `highlights`、`next_steps` 可直接渲染；`mode=demo` 时不要显示“AI 生成”。
+5. 资源检索：`kind` 可做筛选标签；`verified=false` 必须在界面标注“待复核”。
+6. 拍照识别：`requires_confirmation=true` 时必须让学生确认或修正后再调用 `/api/conversations` 保存。
+
+### 仍待 B 模块后续定义（不属于 9/24 冻结范围）
+
+- 异步任务与长任务进度（当前 `async_tasks=false`）、诊断任务状态。
+- 语音输入输出。
+- 拍照识别的多题切分与公式人工修正细节。
+- 教师端知识点掌握度聚合：当前长期记忆只对本人开放，教师端学情仍以作业提交统计为主；如需按班聚合，需要新增教师侧接口并定义权限边界。
+- 资源库扩充：已在知识点派生的基础上追加 6 条跨模块资料/导览条目（章节导览 ×4、极限计算思路图、积分方法选择表），全部 `verified=false` 待复核；外部课件/视频接入后需同样的复核流程。

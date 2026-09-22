@@ -1,6 +1,6 @@
 # AI 协作规范与项目记忆
 
-最后更新：2026-09-21。适用于所有团队成员及其使用的 AI 工具。
+最后更新：2026-09-22。适用于所有团队成员及其使用的 AI 工具。
 
 ## 1. 每次协作前必须完整阅读
 
@@ -9,6 +9,10 @@
 首次回复简要说明已读取的规则、当前项目状态和本次修改范围。新会话、上下文丢失或换用 AI 工具后必须重新阅读。工具若不会自动加载 AGENTS.md，由使用者按 README 中的指令主动提供本文件。本文件是项目内统一协作依据；其他工具入口只能引用它，避免维护多份冲突的规范。
 
 ## 2. 项目记忆与当前状态
+
+- 2026-09-22 本地Git更新：按用户“更新一下本地git”要求，将此前ZIP覆盖及复测文档收录到当前 `codex/teacher-workspace` 分支的本地提交；未推送或修改远端分支。暂存区30个有实际内容变化的文件，含ZIP中的两份PDF与既有目录内新增文件；28个文本文件的常见密钥格式扫描未命中，两份PDF未做嵌入内容审计。后续上传仍须按第6节重新核验与确认。此前发现的两个基础交互问题仍未修复。
+
+- 2026-09-22 本地ZIP覆盖与师生联动复测：按用户请求将 `agent-school-llm-usts-main (1).zip` 逐文件覆盖当前工作区（51项字节不同文件替换、14项新增；未删除既有文件或新增目录），覆盖前在系统临时目录备份被替换文件。保留被忽略的本地数据库、配置与运行缓存，实际 `backend/demo.db` 测前测后SHA256一致。覆盖后的101项Python、14项Node与前端生产构建通过；隔离数据库的真实浏览器页面完成教师发布、学生提交、教师反馈和学生重登查看。发现两个基础交互问题：选班后对空表单点“保存并发布”会先创建未命名空草稿再报必填错误；深色模式下学生作业页部分选中按钮/刷新按钮文字与浅色按钮底色对比不足。仅记录，未改业务代码；独立桌面入口、真实AI/相机和并发稳定性本轮未验收，未上传。
 
 - 2026-09-21 C/main整合完成：按用户最新合并要求，以C cfd1025与main 168928d解决6处冲突，形成e6ba91a并上传原C分支；PR #3已合入main，合并提交847f1b3，fetch确认合并树与已验证代码完全一致。保留教师v0.3、精简侧栏、章节题库、成员设置/批量操作、Agent历史及拍照入口；回填超过2000字保留两处文本。82项Python、14项Node、8项脚本探针、前端构建与文档链接检查通过；真实AI/OCR超时、SQLite锁及知识点详情缺口仍保留。main两套原型目录及PCL.exe原字节保留、不执行。最终状态文档同步到C/main，其他远端分支未修改。以下旧条目仅代表各自阶段。
 - 2026-09-21 分支上传完成：用户明确改为“只上传分支，不合并”。本地增量已提交为`7877799`并非强制推送至原远端`codex/c-local-teaching`；实时fetch确认远端C与本地一致，`main`仍为`168928d`，未触碰、未合并。14项Node回归及前端生产构建通过；最终候选扫描未发现已知真实凭据（8个既有二进制仅核对未变，未做视觉/嵌入元数据审计）。
@@ -36,6 +40,8 @@
 - 第一轮闭环已验证：提交示例题 → 明确标注的演示反馈 → 保存记录 → 刷新与重登后查看；教师发布 → 学生提交 → 教师查看也已跑通。0.2 已进一步验证题库→草稿→发布→提交→人工反馈→学生修改→新版复核→归档；演示数据保留，本轮无真实 AI。
 - 本地运行：默认同源18080（占用自动换端口），-Dev为5173/8000；数据库默认仍为被忽略的backend/demo.db。v0.3空库先建立第一位教师；公开演示种子须显式SHUBAN_SEED_DEMO=true，旧数据不自动删除。已有账号登录，有效Cookie恢复；临时密码必须先修改。“保持登录”是七天会话，不保存明文密码；改密/重置撤销旧会话。
 - 启动入口：普通源码完整解压后双击一键启动.cmd。start.ps1默认调用bootstrap.ps1自动下载并校验项目专用Python3.13.13/Node22.23.2/pip26.2.1、安装锁定依赖、构建前端；首次需联网，缓存完整时复用。仅使用项目.runtime缓存及进程环境，不要求管理员或系统开发环境。默认同源18080，可自动选端口；-SetupOnly/-NoBrowser/-Port以及-Dev（原8000/5173开发模式）见README。
+- 2026-09-21 桌面窗口入口（可选，网页版启动方式未改）：新增 `desktop.py`、`start-desktop.ps1`、`一键启动(桌面窗口).cmd`；双击后复用项目内环境与同一后端服务（同一 instance_id/端口文件/目录锁），用 Edge 或 Chrome 的 app 模式打开无地址栏窗口。`一键启动.cmd`/`start.ps1`/`portable.py` 均未修改，两个入口可混用。pywebview 在项目嵌入式 Python 3.13 运行时会以 .NET CLR 崩溃（0xE0434352），已实测放弃。关闭窗口后端继续运行（未实现关窗停服务），含 UI 的桌面安装包/便携包集成均未做。已按用户要求推送分支、创建 PR #6 并 squash 合并进 main（`c1d7cf5`），本地与远程功能分支均已删除；未走队友审阅。
+- 2026-09-21 界面主题（浅色/深色，新增）：登录页右上角与工作台顶栏新增主题按钮，循环 浅色 → 深色 → 跟随系统，状态存 `localStorage` 的 `shuban-theme`，首屏由 `frontend/index.html` 内联脚本在 Vue 挂载前应用以防闪烁。深色由 `html.dark` 类驱动：样式**不是手写**，而是 `build-dark-theme.py` 从 `style.css` 与各组件 `<style>` 块的 335 处颜色声明推导生成 `frontend/src/shared/dark-theme.css`（272 条规则）；生成器强制每条规则的每个选择器都带 `html.dark` 前缀（否则逗号列表会把规则泄漏到浅色模式，本轮已实测踩到并修复），并叠加 Element Plus 深色变量。`style.css` 本身一字未改，浅色外观与改动前构建逐像素一致（已截图对比）。未做：独立主题设置页、自定义配色、插图/图表的手工深色版本。
 - 历史可选便携包（2026-09-18，随后用户明确改为源码自动初始化）：在新分支codex/portable-windows为当前C版增加build-portable.py和platform/portable.py。开发机预构建前端并打包CPython 3.11.15、锁定后端依赖与许可，测试者无需安装Node/Python；完整解压后仍双击一键启动.cmd，默认18080端口。源码启动保留8000/5173；运行产物位于已忽略dist，不新增维护目录。无数据库、.env或日志随包分发，当时未上传；当前源码方案替代其作为默认入口。最终包dist/shuban-windows-x64-20260918-083356.zip约28.1MiB；19项后端测试、前端构建和实际ZIP隔离验收（含CMD、重启持久化与自动选端口）通过，尚待其他电脑实测。默认18080不可用时自动换端口并记住。验收结果与限制见开发日志和docs/portable-windows.md。
 - 拍照搜题原型（2026-09-18，独立目录 拍照搜题-20260918T062840513Z）：用户要求实现拍照搜题效果，经确认交付移动 Web/H5 单文件页面（不产出微信原生小程序包），识别来源为可配置接口地址 + 本地演示兜底。getUserMedia 取流、canvas 框选、cover 精确裁剪、最长边/JPEG 压缩、POST 到 /api/agent/recognize（字段 image_base64/media_type/hint，默认带 X-Requested-With: shuban-web，与 service.py 的 RecognizeInput 及 frontend api.ts 约定一致）；非 live 一律标注“演示模式 · 未连接真实模型”，503/失败如实展示不编造。只是独立原型，未接入 frontend/src（A）或 backend（B），不改依赖/迁移/接口约定；第 2 节未完成项中“拍照识别等前端流程”状态不变。本轮仅通过静态语法与引用抽验（0 BLOCKER/0 WARN），未做真实浏览器运行、真机相机或后端联调验证。落点由用户在项目根指定后按 parent 语义新建子目录（第 3 节新增目录已确认）。是否入库及后续并入 A 端由用户/责任人决定。
 - 拍照搜题原型 v2（2026-09-18，同一目录原地迭代，projectId 不变）：按用户明确规格并入「AI 视频解析」视图——顶部关键词输入框 + 解析按钮，下方视频卡片容器；Fetch 调用可配置接口（默认 /api/agent/video-search，body 含 keyword/query/topic/limit），返回结构兼容 items/videos/results/list/data 等，标题与地址字段名可自定义；前端动态创建 video 标签注入实现内嵌播放，切换条目时释放上一路，自动播放按「有声→静音→待手动」降级。安全处理：仅接受 http(s) 与同源相对地址，拦截 javascript: 等协议并报告丢弃条数，https 页面下的 http 视频给出混合内容预警；非接口来源一律标注「示例数据 · 非真实解析结果」并写明与所搜关键词无关。内置示例视频 URL 经 HEAD 请求实测可达（media.w3.org、MDN CC0、test-videos.co.uk），为公开占位素材，非高数内容，未凭空手写地址。本轮修复三处自身缺陷：相机并发守卫被 stopStream 提前复位、reframe 与 showView 重复取流、占位层过期 DOM 引用导致与视频叠加；另加代次令牌避免切走视图后摄像头仍被占用。验证：静态抽验通过（8 脚本块，0 BLOCKER/0 WARN）+ 14 个视频函数定义与调用交叉核对一致；未做真实浏览器运行与真机播放验证。用户另提六条后续功能（错题收藏分类、倒计时专注、同标签重练、语音搜题、语音讲解、全双工语音答疑），本轮仅记录为清单未实现；其中全双工语音需真实后端与第三方服务，不属静态页面可交付范围，语音搜题/讲解需先确认服务商与密钥管理。未上传、未 push。
@@ -64,8 +70,12 @@
 ├─ .env.example                  # 配置占位模板，禁止真实密钥
 ├─ 一键启动.cmd                  # Windows 双击启动入口
 ├─ start.ps1                     # 自动源码启动、可选开发/便携模式
+├─ 一键启动(桌面窗口).cmd         # 可选：双击以桌面应用窗口打开（Edge/Chrome app 模式）
+├─ start-desktop.ps1             # 可选：桌面窗口入口的环境准备与启动
+├─ desktop.py                    # 可选：桌面窗口入口，复用同一端口/健康校验/目录锁
 ├─ bootstrap.ps1                 # 项目私有环境下载校验、依赖安装和前端构建
 ├─ build-portable.py            # 生成Windows x64便携测试ZIP
+├─ build-dark-theme.py          # 从现有样式推导深色主题覆盖（frontend/src/shared/dark-theme.css）
 ├─ PCL.exe                     # main既有附件，原样保留，不执行/不纳入应用启动
 ├─ 拍照搜题-20260918T062840513Z/ # main既有静态原型（.apps-builder、history/v1、v2及delivery）
 ├─ 数伴教育智能体前端-20260918T001305320Z/ # main既有原型（.apps-builder、assets、history/v1及delivery）
@@ -82,7 +92,7 @@
 │     ├─ App.vue                 # 登录状态、工作台与导航
 │     ├─ student/                # A：StudentHome.vue、CoursesView.vue
 │     ├─ teacher/                # C：TeacherHome.vue、QuestionBank.vue（内嵌选题）、ClassesView.vue
-│     └─ shared/                 # 登录、AccountSettings、classProgress（筛选/CSV）、courseChapters（章节/选题）、智能体、PhotoSearchDialog（拍照）、作业、反馈、记录、图表、公式、样式与API
+│     └─ shared/                 # 登录、AccountSettings、classProgress（筛选/CSV）、courseChapters（章节/选题）、智能体、PhotoSearchDialog（拍照）、作业、反馈、记录、图表、公式、样式与API、theme（主题状态）与ThemeToggle（主题切换）
 ├─ backend/
 │  ├─ requirements.txt          # 后端依赖范围
 │  ├─ requirements.lock.txt     # 本轮验证的完整依赖版本
@@ -224,3 +234,33 @@ python tests/smoke_agent.py      # 端到端冒烟（demo 模式下 recognize �
 配置真实模型：复制 `.env.example` 为 `.env`，填写 `MODEL_BASE_URL` / `MODEL_API_KEY` / `MODEL_NAME`（可选 `MODEL_VISION_NAME`），把 `AGENT_MODE` 保持 `auto` 或改 `live`；密钥不入库、不入仓。
 
 下一步（9/21–24 功能扩展版）：长期记忆、个性化推荐、资源检索与总结评价、语音；以及把 `knowledge.retrieve()` 升级为向量检索。
+
+## B 模块第二阶段实现说明（2026-09-21 追加）
+
+范围：功能扩展版——长期记忆、推荐练习、评价（费曼复述/自评）、总结复习、资源检索；同时修复模拟验收列出的 6 项 AI 契约缺口。
+
+新增文件（均在既有目录内，无新增目录）：
+
+- `backend/app/ai/memory.py`：长期记忆。独立 MetaData 的追加式事件表 `ai_learning_events` + 掌握度聚合。
+- `backend/app/ai/insight.py`：推荐练习、评价、总结复习。规则优先，live 模式下模型只润色文字。
+- `backend/app/ai/phase2.py`：第二阶段路由（`/api/agent/memory`、`recommend`、`review`、`summary`、`resources/search`）。单独成模块是为了不再频繁改三方共用的 `service.py`。
+- `tests/test_agent_phase2.py`：契约修复、记忆闭环、推荐/评价/总结、资源检索与鉴权测试（19 项）。
+
+硬约束（新增，后续改动不要破坏）：
+
+1. 长期记忆表**不得**加入 `platform.database.Base`。`migrations/upgrade.py` 在 schema v3 时会逐张校验 `Base.metadata` 里的表是否都已存在，加表会让既有数据库启动报 “Incomplete schema”。要纳入版本化 schema 必须先由平台侧出 v4 迁移。
+2. 掌握度只能由可核对证据汇总（学生自评/复述评价、步骤反馈结论、诊断命中）；普通问答只记 `exposed`（权重 0）；证据不足时状态必须是 `unseen`，不得显示为“已掌握”。
+3. 拍照识别入参必须严格校验（base64、图片 MIME、文件头三者都查）；识别结果为空时报 502；`warnings` 恒为数组。
+4. 主题推断在知识库覆盖不足时必须返回 `null`，不允许把“定积分/级数/微分方程”猜成相邻主题。
+5. `version` 仍是 `0.2.0`：`/api/health` 的 `agent_version` 会被启动器校验，要改动须与 C 侧同步。
+6. 记忆写入必须尽力而为（`remember()` 内部捕获异常并回滚），不得因为写记忆失败而让问答/反馈接口报错。
+
+本地验证：
+
+```
+python -m pytest -q                  # 期望 101 passed
+python tests/check_ai_contracts.py   # 期望 issues_reproduced=0、behaviors_as_expected=8
+python tests/smoke_agent.py          # 端到端冒烟（含第二阶段步骤）
+```
+
+下一步（9/24 冻结前）：教师端知识点掌握度按班聚合、资源库扩充与 `verified` 复核、异步任务与语音仍未实现，不得在文档或界面里当作已有能力展示。

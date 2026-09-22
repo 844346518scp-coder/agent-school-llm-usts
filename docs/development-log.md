@@ -539,3 +539,109 @@ GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：
 - 当前会话授权依据：用户已委托“你帮忙确认上传”，最新又明确要求将C分支与main合并；按本轮核验结果和已说明的目录范围直接继续，不重复索取同一确认。上传前再次提醒清除API密钥及其他凭据；未发现需撤销/轮换或历史重写的已知秘密，扫描不是全部秘密不存在的证明。
 - 发布完成：合并提交e6ba91a33b74351d30c1fd2623e4e05617e82ffb经非强制推送更新C，创建并关联[PR #3](https://github.com/844346518scp-coder/agent-school-llm-usts/pull/3)。GitHub确认mergeable=true，无已配置的提交状态或PR工作流；使用期望head=e6ba91a调用正常merge，成功生成main提交847f1b39b7b7fb74c920739fafc4f99e5a363513。未绕过分支保护；未取得另一成员审阅，不宣称已有人审，按用户明确合并要求执行。
 - 最终核验：提交后对待合入main的84个文本历史blob再次扫描无已知秘密；实时fetch确认main合并成功，git diff确认847f1b3与已验证e6ba91a文件树一致。本地仅快进跟随main；收尾追加此发布记录，并同步AGENTS/README/合并核验状态，其他文档已准确描述整合后功能和未完成项，无需再次改动。收尾只有状态文档，没有重复跑应用回归；状态文档通过差异/链接及凭据复查后同步C和main。
+
+## 2026-09-21 · B 模块第二阶段：长期记忆、推荐、评价、总结、资源检索 + 契约修复
+
+- 日期 / 任务：2026-09-21 / 功能扩展版（9/21–24）B 部分：长期记忆、推荐练习、评价（费曼复述/自评）、总结复习、资源检索；同时修复 2026-09-21 模拟验收列出的 6 项 AI 契约缺口。
+- 负责人 / AI 工具：B 模块成员（待填）/ Chatbox。
+- 开发了什么与原因：
+  - **修 6 项已知缺口**：拍照入参严格校验（base64 / 图片 MIME / 文件头）、空识别结果报 502、`warnings` 非列表不再抛非受控异常、主题推断覆盖不足时返回 `null`（不猜）、知识库扩展到「一元函数积分学」「无穷级数」。
+  - **长期记忆**：追加式事件表 + 拉普拉斯平滑掌握度；证据只取自评/复述评价、步骤反馈、诊断命中三类可核对信号，普通问答记 `exposed`（权重 0）；学生可清空自己的记忆。
+  - **推荐练习**：按 `weak → learning → unseen` 排序，每条都给依据；`exclude` 支持“换一批”。
+  - **评价**：按知识点信号覆盖率给出档位（基本到位/有遗漏/需要重讲）、缺失项与追问。
+  - **总结复习**：汇总窗口内提问记录 + 记忆薄弱项，给出 `highlights` 与 `next_steps`。
+  - **资源检索**：概念/例题/练习/资料四类条目，带出处与 `verified` 状态。
+  - 新接口单独放 `phase2.py`，避免继续频繁改三方共用的 `service.py`。
+- 修改文件：
+  - 新增 `backend/app/ai/memory.py`、`insight.py`、`phase2.py`、`tests/test_agent_phase2.py`（19 项测试）。
+  - 修改 `backend/app/ai/knowledge.py`（+5 知识点、+资源索引并追加 6 条跨模块资料/导览条目、主题推断证据门槛）、`service.py`（识别校验与错误处理、记忆接线、status 能力位）、`prompts.py`（总结提示词）。
+  - 修改 `tests/test_api.py`、`tests/smoke_agent.py`：识别用例改用真实一像素 PNG。原因：旧用例用假 base64（`'a'*16`），契约修复后会在入参阶段先 422，无法再验证“演示模式拒绝识别”这一条，因此按新契约换夹具（与 `check_ai_contracts.py` 用同一张图）。
+- 验证命令或方式 / 结果（通过、失败、未执行）：
+  - `python -m pytest -q` → **101 passed**（含教师端与迁移测试，无回归）。
+  - `python tests/check_ai_contracts.py` → **issues_reproduced=0、behaviors_as_expected=8**（原 6 项缺口清零）。
+  - `python tests/smoke_agent.py` → **通过**：登录、status、ask、feedback、diagnosis、recognize（503）、conversations、SSE、review、memory、recommend、summary、resources/search 全部符合预期。
+  - `python tests/check_source.py` → **通过**（冷启动 + 自动安装 + 资源 + B/C 流程 + 离线缓存启动 + 模拟 live 模式）。
+- 目录结构变更 / 用户确认依据：无新增目录；**未改数据库表结构**。长期记忆使用 B 自有表 `ai_learning_events`，由 `memory.py` 用独立 `MetaData` 惰性建表，不加入 `platform.database.Base`，避免触发 `migrations/upgrade.py` 的 v3 完整性校验。
+- 文档同步清单（逐项写已更新，或已核对无变化及原因）：
+  - AGENTS.md 项目记忆与目录：已追加“B 模块第二阶段实现说明”与 6 条新硬约束。
+  - README.md：已核对无变化（本次不涉及启动方式与总览）。
+  - docs/architecture.md：已追加“长期记忆与学情洞察（B 第二阶段）”。
+  - docs/contracts/ 下全部约定：已追加“智能体接口 v0.3（B 模块第二阶段）”，含 6 项缺口修复说明、记忆口径与存储、前端接入建议。
+  - 其他相关说明、配置模板、计划与图示：无新增配置项（沿用第一阶段 `AGENT_MODE` / `MODEL_*`）。
+- GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：已推送并合并（PR #4，squash 到 `db4b69f`；远程与本地功能分支均已删除）；新增代码不含密钥，仓库内仍无真实密钥，`.env` 未入库；已跑 `check_source.py` 的密钥与源码检查。
+- 遗留问题与下一步：
+  1. 教师端知识点掌握度按班聚合尚未实现（当前记忆只对本人开放）。
+  2. 资源库在本次追加了 6 条跨模块资料/导览条目（章节导览、极限计算思路图、积分方法选择表等），仍全部 `verified=false`，需复核人确认；外部课件/视频接入后同样要走复核流程。
+  3. 异步任务与语音未实现（`capabilities.async_tasks=false`）。
+  4. `verified=false` 的知识点与资源条目需课程资料复核人确认后置为 True。
+
+## 2026-09-21 · 桌面窗口入口（可选，不改变现有网页启动方式）
+
+- 日期 / 任务：2026-09-21 / 为本地 Web 应用增加一个可选的“桌面窗口”入口。用户明确要求**新增功能、不得覆盖或改变现有网页版启动方式**（`一键启动.cmd` / `start.ps1` 行为保持原样）。
+- 负责人 / AI 工具：待确认（启动器与交付方向）/ Chatbox。
+- 开发了什么与原因：应用是 FastAPI + Vue 的本地 Web 应用，双击 `一键启动.cmd` 后由浏览器打开 `127.0.0.1:18080`，没有桌面客户端。本次让同一页面显示在**无地址栏、无标签栏**的应用窗口中，使用体验更接近桌面软件，同时不引入任何新依赖。
+  - `desktop.py`：只用标准库。按与 `backend/app/platform/portable.py` **相同**的 instance_id 计算、`backend/launcher-port.txt` 端口文件、`backend/launcher.lock` 单实例锁、health 与首页校验，复用已运行服务，或按同一命令（`portable.py --serve --source --port N`）启动后端；随后用 Edge/Chrome 的 `--app=` 打开窗口，使用独立 profile `.runtime/desktop-profile`（已被忽略）。
+  - `start-desktop.ps1`：先调用既有 `bootstrap.ps1` 准备环境，再运行 `desktop.py`；文件保持纯 ASCII，避免 PowerShell 5.1 将无 BOM 脚本按 ANSI 解码。
+  - `一键启动(桌面窗口).cmd`：双击入口，风格与既有 cmd 一致（英文提示，仅失败时 pause）。
+- **pywebview 实测结论（未采用）**：项目运行时是嵌入式 CPython 3.13.13，不含 setuptools，`pip install pywebview` 只能解析到 3.4（更高版本依赖仅有源码包的 `proxy_tools`，无法构建）；装入后 `import webview` 即令进程以 .NET CLR 异常退出（退出码 `0xE0434352`，来自 pythonnet），属进程级崩溃，Python 层 `try/except` 无法捕获。故改用零依赖的 app 模式窗口，未新增依赖。
+- 修改文件：新增 `desktop.py`、`start-desktop.ps1`、`一键启动(桌面窗口).cmd`；同步 `README.md`、`AGENTS.md`、`docs/source-startup.md`；本日志追加。
+- 验证命令或方式 / 结果（通过、失败、未执行）：
+  - 通过：`python -B -m py_compile desktop.py`；`start-desktop.ps1` 经 PowerShell 解析器检查为 0 错误；两个新文本文件均无 BOM（`.cmd` 仍为纯 ASCII，与既有入口一致）。
+  - 通过：`desktop.py --check` 正确识别并复用已在运行的 18080 服务（输出 `Ready: http://127.0.0.1:18080/`），且不开窗。
+  - 通过：`start-desktop.ps1 -CheckOnly` 走完整链路（`bootstrap.ps1` 输出正常 + 复用成功）。
+  - 通过：双击 `一键启动(桌面窗口).cmd` 打开应用窗口，窗口标题为 `数伴 · 高数学习伙伴`，窗口主进程是该独立 profile 的 msedge 实例（本机 Edge 153.0.4234.48）；命令行窗口在开窗后自行退出。
+  - 未执行：另一台 Windows 机器、Windows ARM、Mac/Linux 验证；Chrome 分支未实测（本机先命中 Edge）；未做窗口内逐项点击验收。
+- 明确边界（不得当作已有能力）：关闭窗口后后端**继续运行**，与网页版一致（Edge 关窗后其进程本身也可能常驻，属浏览器行为）；**未实现**“关窗即停服务”；不含桌面安装包 / PyInstaller / Tauri / Electron 打包；便携 ZIP 与 `build-portable.py` 不包含该入口。
+- 目录结构变更 / 用户确认依据：无新增或重命名目录；三个新文件均在仓库根目录，属 AGENTS.md 第 3 节允许的“既有目录内新增普通文件”，无需额外的目录变更确认。
+- 文档同步清单（逐项）：AGENTS.md（目录树 + 项目记忆 + 桌面入口说明）；README.md（新增“可选：桌面窗口入口”）；docs/source-startup.md（新增同类说明）；docs/contracts、docs/architecture 已核对无变化（不涉及接口与模块边界）；`.env.example`、`backend/requirements*.txt`、`frontend/package.json` 无变化（未新增依赖）；本日志追加。
+- GitHub 上传 / 密钥状态 / 用户确认依据：本轮待上传提交已扫描，无凭据匹配；用户随后明确要求“推并合并”。分支 `chatbox/desktop-shell` 已推送，创建 [PR #6](https://github.com/844346518scp-coder/agent-school-llm-usts/pull/6) 并以 squash 合并进 main（`c1d7cf5`），本地与远程功能分支均已删除。本次改动不含密钥，未改数据库、依赖与既有 HTTP 接口。按用户明确要求执行，未取得另一成员审阅；常规流程仍建议先 Review 再合并。
+- 遗留问题与下一步：关窗即停服务、真正的桌面安装包、便携包集成、Chrome 路径实测、另一台 Windows 实机验收。
+
+## 2026-09-21 · 界面主题（浅色 / 深色）
+
+- 日期 / 任务：2026-09-21 / 用户反馈“设计得不够好，想加一个浅色、深色模式选项”，要求新增主题切换能力。
+- 负责人 / AI 工具：待确认（前端表现层）/ Chatbox。
+- 开发了什么与原因：前端此前固定为浅色（学生紫 / 教师绿两套强调色），无主题系统。
+  - 新增 `frontend/src/shared/theme.ts`：`light` / `dark` / `system` 三态，持久化到 `localStorage` 的 `shuban-theme`，监听 `prefers-color-scheme` 变化，渲染通过 `<html class="dark">` 生效。
+  - 新增 `frontend/src/shared/ThemeToggle.vue`：一个按钮循环 浅色 → 深色 → 跟随系统，登录页（`login-top`）与工作台顶栏（`topbar-right`）各放一个；窄屏只留图标。
+  - `frontend/index.html`：新增内联脚本，在 Vue 挂载前读取偏好并设置 `html.dark` 与 `color-scheme`，避免首屏闪白。
+  - `frontend/src/main.ts`：引入 Element Plus 深色变量与生成的深色样式表。
+- 深色样式为什么是生成而不是手写：`frontend/src/shared/style.css` 里有 **335 处颜色字面量、309 个互不相同的值**（几乎没有设计 token），手写深色表必然在下次改界面时失效。
+  - 新增 `build-dark-theme.py`：解析 `style.css` 与各组件 `<style>` 块，按属性归类（`background` → 表面、`color` → 文字、`border` → 描边、`box-shadow` → 阴影、`--*` 变量按名称分类），在 HLS 空间做保持色相的变换（表面变暗、文字变亮、描边变暗、阴影转黑），输出 `frontend/src/shared/dark-theme.css`（272 条规则，约 15 KB）。
+  - **未改动 `style.css`**（公共文件），浅色模式的渲染路径与改动前完全一致；深色规则全部以 `html.dark` 开头。
+- 修改文件：新增 `build-dark-theme.py`、`frontend/src/shared/{theme.ts,ThemeToggle.vue,dark-theme.css}`；修改 `frontend/index.html`、`frontend/src/main.ts`、`frontend/src/App.vue`、`frontend/src/shared/LoginView.vue`；同步文档。
+- 验证命令或方式 / 结果（通过、失败、未执行）：
+  - 通过：`npm run build`（= `vue-tsc --noEmit` + `vite build`），多次运行均成功（最近一次 13.97s）。
+  - 通过：用无头 Edge（`--headless=new --screenshot`）实际截图。深色登录页、深色工作台（教师主题）、浅色工作台三张均已人工查看，配色协调、文字对比度正常。
+  - 通过：与**改动前构建**的基线截图逐张对比，浅色工作台外观一致（主题按钮除外）。
+  - **发现并修复一处回归**：生成器起初只给逗号列表的第一个选择器加前缀，导致 `html.dark .work-toolbar input, .work-toolbar select{background:var(--surface,#252525)}` 的第二个选择器变成全局规则，浅色下“教学数据范围”下拉框被渲染成深色。已改为逐选择器加前缀，并在生成器末尾加入守卫（任何选择器逃出 `html.dark` 即中止），修复后重新生成并截图确认浅色恢复。
+  - 未执行：真实浏览器（非无头）内的逐页点击验收、移动端尺寸验收、其他浏览器验收。
+- 目录结构变更 / 用户确认依据：无新增或重命名目录；新增文件都在仓库根目录与 `frontend/src/shared/`（既有目录内新增普通文件）。
+- 文档同步清单（逐项）：`AGENTS.md`（目录树 + 项目记忆）；`README.md`（新增“界面主题（浅色 / 深色）”）；`docs/architecture.md`（新增表现层说明）；本日志追加。`docs/contracts`、`.env.example`、依赖锁、`frontend/package.json` 已核对无变化（无新依赖、无接口与数据变更）。
+- GitHub 上传 / 密钥状态 / 用户确认依据：本轮待上传提交已扫描，无凭据匹配；用户随后要求“合并”。分支 `chatbox/theme-toggle` 已推送并创建 [PR #7](https://github.com/844346518scp-coder/agent-school-llm-usts/pull/7)，以 squash 合并进 main（`e69d3cc`），本地与远程功能分支均已删除；同时按用户要求删除仓库内两个未跟踪目录 `.minecraft/`、`PCL/`（仅限本项目文件夹，根目录 `PCL.exe` 保留）。未取得另一成员审阅。
+- 遗留问题与下一步：尚无独立“主题”设置页（只有按钮）；不支持自定义强调色；插图与图表未做手工深色版本（SVG 内联颜色仍是浅色系）；主题未跨设备同步。界面配色若调整，需重新运行 `python build-dark-theme.py` 并重建前端。
+
+### ͬ��׷���޸�����ɫģʽ��©��ɫ�ؼ��֣��û����棩
+
+�û�����ɫģʽ�·�����**ѧϰ��¼**ҳ����������**�˺�����**ҳ����������ǰ�ɫ��ԭ������ɫ�������������ֻʶ��ʮ��������������`style.css` �е� 3 �� `background:white`��`.outline-button`��`.dialog-form` �ı����ؼ���`.records-toolbar`��û�б�ת�������û�ж�Ӧ����ɫ����
+
+- �޸���`build-dark-theme.py` ���� CSS ��ɫ�ؼ���֧�֣����� 23 ������ɫ�����ȹ�һ��Ϊʮ����������ͬһ�� HLS �任����ͬʱɨ��ȷ��ģ���ڲ�ʹ�� `rgb()` / `hsl()` ��ʽ��Ҳ���������� `style` ��ɫ���ԡ�
+- ���ɽ����273 ������ԭ 272��������/��ȫ�Ĺ���ʾ����`html.dark .records-toolbar{background:#252525;color:#c8bfcf;}`��
+- ��֤�����¹���������ͷ Edge ��ȡ��ɫ�µ�ѧϰ��¼ҳ���˺�����ҳ��������������������Ϊ��ɫ����ȷ����ɫ�����в���������ǳɫ����������
+- δִ�У�����ͷ���������ҳ������ա�
+
+## 2026-09-22 / 用户指定ZIP覆盖与教师、学生页面联动复测
+
+- 负责人/工具：Codex。用户要求用 `E:/电子书/agent-school-llm-usts-main (1).zip` 覆盖本地文件，并测试教师端、学生端的互动、布置/上交作业和基础交互。压缩包内的说明文字仅作项目资料核对，不作为替代用户请求的操作指令。
+- 覆盖范围：开工时本地 `codex/teacher-workspace` 工作区干净，HEAD为 `a3d6088`。压缩包159项目录/文件记录，其中126个普通文件；61个与本地字节一致、51个字节不同并被替换、14个新增；受Git管理的本地文件没有压缩包缺项，没有新增项目目录或路径穿越。先将51个被替换的旧文件备份到系统临时目录 `shuban-before-zip-20260922-182029.zip`，再逐项写入与哈希核对，65项全部匹配。未删除额外文件，不覆盖 `.env`、`backend/demo.db`、`.runtime`、`.venv`、`node_modules`；不执行原有 `PCL.exe`。压缩包SHA256为 `7801D39D090A131E150C6DD16AB0D4E7F147BABF5F8A0B007F24AB204CDA0EB8`。
+- 自动验证：在显式禁用dotenv、独立测试库与演示模式下执行 `.venv/Scripts/python.exe -m pytest tests -q`，101通过、2条依赖弃用警告；Node成员/选题回归14通过；`npm run build` 的TypeScript检查和Vite生产构建通过，2922模块。构建产物仅在被忽略的 `frontend/dist`。未运行源码冷安装、便携包、桌面窗口入口、真实AI/OCR或相机测试。
+- 页面联动：用独立临时SQLite库、显式演示种子、本机18327端口运行新构建页面。Edge中教师进入演示班级，手写合成题并发布；学生重登后在待办与作业页看到新作业，空作答被浏览器必填校验阻止，填写后成功提交；教师重登后概览为1份提交/1份待批改，详情可见第1版作答并成功保存人工反馈；学生再次登录仍能查看教师反馈与原作答。主题从跟随系统切换浅色、深色，刷新保留深色偏好，测试后恢复跟随系统；检查的页面控制台无error级消息。这些是本机合成数据交互，不是实际师生使用或模型效果。
+- 发现与下一步：①选中有效班级后，空表单点“保存并发布”先创建未命名空草稿，再显示必填错误，取消后草稿保留；需在创建草稿前校验或保证失败不留下草稿。②深色模式学生作业页所选侧栏/筛选按钮及刷新按钮是浅底浅字，目视对比不足；需调整前景色并复验。用户本轮要求覆盖并测试，未要求修复；本轮只记录问题，业务代码仍与压缩包一致。此前SQLite锁、真实模型超时不因本轮顺序页面通过而宣称解决。
+- 数据/文档同步：实际 `backend/demo.db` 测前测后SHA256均为 `1AA3EBC710003CE84FF9A23C082631E8154D0868EC30308F7A3AB6324FF56045`，没有本轮写入；独立QA数据库仅在系统临时目录。同步AGENTS当前状态、README状态和 `docs/simulation-test-report.md` 复测节，本日志追加。已核对 `docs/architecture.md`、`docs/contracts/README.md`、`docs/c-role-status-report.md`、`docs/merge-feasibility.md`、`docs/portable-windows.md`、`docs/source-startup.md`、`migrations/README.md`、`.env.example`、题单及原始素材；测试没有改变架构、接口、配置或原始资料，故这些文件保持ZIP版本。未上传GitHub，也未作本轮上传凭据审计。
+- 收尾复核：12份现行Markdown的36个本地链接均可解析，`git diff --check` 通过。覆盖后复核压缩包126个普通文件，只有AGENTS、README、开发日志、模拟测试报告四份因本次记录而与ZIP不同，其余含业务源码均与ZIP逐字节一致。QA页面已关闭，本轮启动的18327/PID28872服务已停止；未停止其他服务。`backend/demo.db`最终SHA256仍一致。
+
+## 2026-09-22 / 本地Git收录ZIP覆盖和复测结果
+
+- 用户要求“更新一下本地git”。在当前 `codex/teacher-workspace` 分支收录上一轮ZIP覆盖与复测文档，不执行远端上传、合并或重置本地 `main`。
+- 暂存复核：30个实际内容变化文件，包含ZIP新增的两份PDF及现有目录内新增源码/附件；暂存差异 `git diff --cached --check` 通过。28个文本文件对私钥头、常见API/GitHub/AWS令牌格式作路径级扫描，未命中；两份PDF仅确认来自ZIP及大小，未做嵌入内容审计。此检查不能替代上传前的第6节检查与用户确认。
+- 本地提交后须核对提交ID、分支和工作区状态；上一轮101项Python、14项Node、前端构建与隔离师生页面结果沿用，不因Git收录重复宣称新测试。两个已发现的交互问题保持待修复。

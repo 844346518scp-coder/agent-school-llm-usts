@@ -33,7 +33,10 @@ def test_demo_disables_recognition_even_with_credentials(client, monkeypatch):
     monkeypatch.setattr(service, 'chat', must_not_call)
     login(client)
     assert client.get('/api/agent/status').json()['capabilities']['recognize'] is False
-    assert client.post('/api/agent/recognize', json={'image_base64': 'a' * 16}).status_code == 503
+    # 契约要求图片必须是真实图片（先过校验），演示模式再在模式层拒绝，因此是 503 而不是 422。
+    png_1px = ('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAA'
+               'SUVORK5CYII=')
+    assert client.post('/api/agent/recognize', json={'image_base64': png_1px}).status_code == 503
 
 
 def test_live_reply_fallback_history_and_health(client, monkeypatch):
