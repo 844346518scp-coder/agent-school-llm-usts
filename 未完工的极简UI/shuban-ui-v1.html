@@ -1,0 +1,1415 @@
+<!doctype html>
+<html lang="zh-CN" data-style="standard">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>数伴 SHUBAN · UI 原型（Own / Agent / More）</title>
+<style>
+/* ============================================================
+   数伴 UI 原型 · 单文件版
+   设计取题：数学教室的文具 —— 坐标纸 / 钢笔水 / 荧光笔划重点
+   三种风格只切换密度与形态，不换配色：
+     data-style="lite"     精简
+     data-style="standard" 普通（默认）
+     data-style="pro"      超版
+   深色：html.dark（与项目现有主题机制同构，落地可直接复用）
+   ============================================================ */
+
+:root {
+  --ink:        #16202b;
+  --ink-2:      #56697c;
+  --ink-3:      #8fa0b0;
+  --paper:      #f6f8f9;
+  --paper-2:    #ffffff;
+  --paper-3:    #eef2f5;
+  --grid:       #d3dce6;
+  --rule:       #d8e0e8;
+  --accent:     #1f4e79;
+  --brand:      var(--accent);
+  --brand-2:    color-mix(in srgb, var(--accent) 78%, #ffffff);
+  --brand-tint: color-mix(in srgb, var(--accent) 11%, transparent);
+    --mark-base:  #e4f24a;
+  --mark:       var(--mark-base);
+  --mark-ink:   #3d4708;
+  --line:       1px;
+  --radius:     14px;
+  --radius-sm:  10px;
+  --shadow:     0 1px 2px rgba(22,32,43,.05), 0 8px 24px -12px rgba(22,32,43,.18);
+  --gap:        20px;
+  --card-pad:   20px;
+  --cols:       2;
+  --sidebar: 116px;
+  --ease:       cubic-bezier(.22,.61,.36,1);
+  --dur:        160ms;
+  --font-ui:    "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --font-mono:  "Cascadia Mono", Consolas, "SF Mono", ui-monospace, monospace;
+  --font-math:  "Cambria Math", Cambria, Georgia, serif;
+}
+html.dark {
+  --ink:        #e9eef4;
+  --ink-2:      #9dafc0;
+  --ink-3:      #6b7d8e;
+  --paper:      #0e141a;
+  --paper-2:    #151d25;
+  --paper-3:    #1b242e;
+  --grid:       #26313d;
+  --rule:       #26323f;
+  --brand:      color-mix(in srgb, var(--accent) 70%, #ffffff);
+  --brand-2:    color-mix(in srgb, var(--accent) 52%, #ffffff);
+  --brand-tint: color-mix(in srgb, var(--accent) 26%, transparent);
+    --mark:       var(--mark-base);
+  --mark-ink:   #2a3208;
+  --shadow:     0 1px 2px rgba(0,0,0,.4), 0 12px 32px -16px rgba(0,0,0,.7);
+}
+
+/* 三风格：只改密度与形态 */
+html[data-style="lite"]     { --gap: 26px; --card-pad: 26px; --cols: 1; --radius: 18px; --sidebar: 76px;  --shadow: 0 1px 2px rgba(22,32,43,.04); }
+html[data-style="standard"] { --gap: 20px; --card-pad: 20px; --cols: 2; --radius: 14px; --sidebar: 116px; }
+html[data-style="pro"]      { --gap: 14px; --card-pad: 14px; --cols: 3; --radius: 9px;  --sidebar: 132px; --dur: 110ms; }
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  color: var(--ink);
+  background: var(--paper);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+h1,h2,h3,h4,p { margin: 0; }
+button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--brand-2); outline-offset: 2px; border-radius: 4px;
+}
+.math { font-family: var(--font-math); font-size: 1.06em; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.eyebrow {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+.rule { height: var(--line); background: var(--rule); border: 0; margin: 0; }
+
+/* 坐标纸底纹：整站的语言 */
+/* 背景不再使用网格底纹（按要求去掉） */
+.gridpaper { }
+
+/* ---------- 布局 ---------- */
+.app { display: grid; grid-template-columns: var(--sidebar) minmax(0,1fr); min-height: 100vh; }
+
+/* 侧栏：只保留大分类，窄栏竖排 */
+.sidebar {
+  border-right: var(--line) solid var(--rule);
+  background: var(--paper-2);
+  display: flex; flex-direction: column;
+  padding: 16px 10px 12px;
+  position: sticky; top: 0; height: 100vh;
+  transition: width var(--dur) var(--ease);
+}
+.side-brand { display: flex; justify-content: center; padding: 4px 0 0; }
+.side-brand .mark {
+  width: 34px; height: 34px; border-radius: 10px; flex: none;
+  background: var(--brand); color: #fff; display: grid; place-items: center;
+}
+.side-brand > span:not(.mark) { display: none; }
+.side-index { display: none; }
+.side-nav { display: flex; flex-direction: column; gap: 6px; margin-top: 20px; }
+.nav-block {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 7px;
+  padding: 13px 6px; width: 100%; border-radius: var(--radius-sm); color: var(--ink-2);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.nav-block .glyph { color: var(--brand); display: grid; place-items: center; }
+.nav-block .label strong { font-size: 12px; font-weight: 600; }
+.nav-block .num, .nav-block .label small { display: none; }
+.nav-block:hover { background: var(--paper-3); color: var(--ink); }
+.nav-block.active { background: var(--brand-tint); color: var(--brand); }
+.nav-block.active .label strong { color: var(--brand); }
+.nav-block.active::before {
+  content: ""; position: absolute; left: -10px; top: 10px; bottom: 10px;
+  width: 3px; background: var(--brand); border-radius: 0 3px 3px 0;
+}
+.nav-sub { display: none !important; }
+.side-foot {
+  margin-top: auto; padding-top: 12px; border-top: var(--line) solid var(--rule);
+  display: flex; flex-direction: column; align-items: center; gap: 9px;
+}
+.side-foot .who { display: none; }
+.side-foot .chip { padding: 6px; }
+
+/* 内容区顶部的二级导航：框内分段选项 */
+.subnav {
+  display: inline-flex; gap: 3px; padding: 4px; margin: 0 0 22px;
+  background: var(--paper-3); border: var(--line) solid var(--rule); border-radius: 12px;
+}
+.subnav button {
+  padding: 9px 22px; border-radius: 9px; font-size: 15px; font-weight: 500; color: var(--ink-2);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.subnav button:hover { color: var(--ink); }
+.subnav button.on {
+  background: var(--paper-2); color: var(--brand); font-weight: 600;
+  box-shadow: 0 1px 3px rgba(22,32,43,.12);
+}
+html[data-style="lite"] .subnav button { padding: 11px 26px; font-size: 16px; }
+html[data-style="pro"] .subnav button { padding: 7px 16px; font-size: 13px; }
+
+/* ---------- 主区 ---------- */
+.main { display: flex; flex-direction: column; min-width: 0; }
+.topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 22px; border-bottom: var(--line) solid var(--rule);
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
+  backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 20;
+}
+.crumb { display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 12px; }
+.crumb strong { color: var(--ink); font-weight: 600; }
+.topbar .spacer { flex: 1; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px;
+  border: var(--line) solid var(--rule); border-radius: 999px;
+  background: var(--paper-2); color: var(--ink-2); font-size: 12px;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.chip:hover { border-color: var(--brand-2); color: var(--brand); }
+.seg { display: inline-flex; padding: 3px; gap: 2px; background: var(--paper-3); border-radius: 999px; }
+.seg button {
+  padding: 5px 11px; border-radius: 999px; font-size: 12px; color: var(--ink-2);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.seg button[aria-pressed="true"] { background: var(--paper-2); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(22,32,43,.08); }
+
+.content { padding: 26px 26px 60px; }
+.view-head { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+.view-head h1 { font-size: 30px; letter-spacing: -.02em; line-height: 1.15; }
+.view-head .lede { color: var(--ink-2); max-width: 46ch; }
+.view-head .stat { margin-left: auto; text-align: right; }
+.view-head .stat b { font-family: var(--font-mono); font-size: 26px; display: block; line-height: 1; }
+.view-head .stat small { color: var(--ink-3); font-size: 11px; }
+html[data-style="lite"] .view-head h1 { font-size: 36px; }
+html[data-style="pro"] .view-head { margin-bottom: 14px; }
+html[data-style="pro"] .view-head h1 { font-size: 22px; }
+
+/* ---------- 卡片 ---------- */
+.grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(0,1fr)); gap: var(--gap); }
+.card {
+  background: var(--paper-2); border: var(--line) solid var(--rule);
+  border-radius: var(--radius); padding: var(--card-pad);
+  box-shadow: var(--shadow);
+  transition: transform var(--dur) var(--ease), border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.card.interactive:hover { transform: translateY(-2px); border-color: var(--brand-2); }
+.card.interactive:active { transform: translateY(0) scale(.995); }
+.card h3 { font-size: 15px; font-weight: 600; }
+.card .sub { color: var(--ink-2); font-size: 12.5px; margin-top: 4px; }
+.card .foot { display: flex; align-items: center; gap: 10px; margin-top: 16px; color: var(--ink-3); font-size: 11.5px; }
+.tag {
+  display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 6px;
+  background: var(--paper-3); color: var(--ink-2); font-size: 11px; font-family: var(--font-mono);
+}
+.tag.mark { background: var(--mark); color: var(--mark-ink); font-weight: 600; }
+.tag.ghost { background: transparent; border: var(--line) solid var(--rule); }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+
+/* 按钮 */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500;
+  transition: transform var(--dur) var(--ease), background var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.btn-primary { background: var(--brand); color: #fff; box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--brand) 80%, transparent); }
+.btn-primary:hover { background: var(--brand-2); }
+.btn-primary:active { transform: translateY(1px); }
+.btn-ghost { border: var(--line) solid var(--rule); color: var(--ink-2); }
+.btn-ghost:hover { border-color: var(--brand-2); color: var(--brand); }
+.btn-mark { background: var(--mark); color: var(--mark-ink); font-weight: 600; }
+.btn-mark:active { transform: translateY(1px); }
+.btn-block { width: 100%; }
+
+/* ---------- Own：参数曲线画廊 ---------- */
+.gallery { display: grid; grid-template-columns: repeat(var(--cols), minmax(0,1fr)); gap: var(--gap); }
+.curve-card {
+  position: relative; overflow: hidden; background: var(--paper-2);
+  border: var(--line) solid var(--rule); border-radius: var(--radius);
+  padding: var(--card-pad); cursor: pointer;
+  transition: transform var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.curve-card:hover { transform: translateY(-3px); border-color: var(--brand-2); }
+.curve-card svg { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; }
+.curve-card .curve { fill: none; stroke: var(--brand); stroke-width: 1.6; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.curve-card .axis { stroke: var(--grid); stroke-width: 1; }
+.curve-card .glow { fill: none; stroke: var(--mark); stroke-width: 5; opacity: 0; transition: opacity var(--dur) var(--ease); }
+.curve-card:hover .glow { opacity: .5; }
+.curve-card .cap { display: flex; align-items: baseline; gap: 8px; margin-top: 12px; }
+.curve-card .cap b { font-size: 13.5px; font-weight: 600; }
+.curve-card .cap code { font-family: var(--font-math); font-size: 12.5px; color: var(--ink-2); }
+.curve-card .actions { position: absolute; top: 10px; right: 10px; opacity: 0; transition: opacity var(--dur) var(--ease); }
+.curve-card:hover .actions { opacity: 1; }
+.card-action {
+  width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
+  background: var(--paper-2); border: var(--line) solid var(--rule); color: var(--ink-2);
+}
+.card-action:hover { color: var(--brand); border-color: var(--brand-2); }
+
+/* Own：全屏动态背景（每次进入随机一条参数曲线，缓慢呼吸） */
+.own-stage { position: relative; min-height: calc(100vh - 150px); overflow: hidden; cursor: grab; touch-action: none; user-select: none; }
+.own-stage.is-dragging { cursor: grabbing; }
+.own-bg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.own-layer { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: calc(100vh - 150px); }
+.page-title { font-size: 26px; letter-spacing: -.01em; margin: 0 0 22px; }
+.own-title { font-size: 30px; letter-spacing: -.02em; line-height: 1.15; }
+.own-panel {
+  position: absolute; left: 0; top: 62px; bottom: 0; width: 34%;
+  border: var(--line) solid var(--rule); border-radius: var(--radius);
+  background: color-mix(in srgb, var(--paper-2) 62%, transparent);
+}
+html[data-style="lite"] .own-panel { width: 42%; }
+html[data-style="pro"] .own-panel { width: 28%; }
+@media (max-width: 860px) {
+  .own-panel { position: static; width: 100%; height: 160px; margin-top: 18px; }
+}
+.own-hero { margin-top: auto; padding-top: 48px; }
+.own-stage .view-head { border-radius: var(--radius); }
+.own-eq { font-family: var(--font-math); font-size: 15px; color: var(--ink-2); display: block; }
+.own-eq b { font-family: var(--font-ui); font-size: 13px; font-weight: 600; color: var(--ink); margin-right: 10px; }
+.own-eq-wrap { position: absolute; left: 55%; right: 2%; top: 7%; text-align: center; z-index: 2; }
+
+/* 划词提问：选中任何文字，直接问 Agent */
+.ask-pop {
+  position: fixed; z-index: 80; display: none; align-items: center; gap: 8px;
+  padding: 7px 12px; border-radius: 999px; background: var(--brand); color: #fff;
+  font-size: 12.5px; box-shadow: var(--shadow);
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.ask-pop.on { display: inline-flex; }
+.ask-pop:hover { background: var(--brand-2); }
+.ask-pop .q { max-width: 20ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .72; }
+.ask-pop .hint { font-family: var(--font-mono); font-size: 10px; opacity: .6; }
+
+/* 设置页 */
+.opt-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.opt {
+  padding: 9px 14px; border: var(--line) solid var(--rule); border-radius: var(--radius-sm);
+  background: var(--paper-2); color: var(--ink-2); font-size: 13px;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.opt:hover { border-color: var(--brand-2); color: var(--brand); }
+.opt[aria-pressed="true"] { border-color: var(--brand); color: var(--brand); background: var(--brand-tint); font-weight: 600; }
+
+.order-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.order-list li {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border: var(--line) solid var(--rule); border-radius: 9px; background: var(--paper);
+}
+.order-list .idx { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
+.order-list b { font-size: 13px; }
+.order-list .mv { margin-left: auto; display: flex; gap: 4px; }
+.order-list .mv button {
+  width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center;
+  border: var(--line) solid var(--rule); color: var(--ink-2);
+}
+.order-list .mv button:hover:not(:disabled) { color: var(--brand); border-color: var(--brand-2); }
+.order-list .mv button:disabled { opacity: .3; cursor: not-allowed; }
+
+.swatch-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+.swatch {
+  width: 34px; height: 34px; border-radius: 10px; padding: 0;
+  border: 2px solid transparent; background: var(--sw);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.08);
+  transition: transform var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.swatch:hover { transform: translateY(-2px); }
+.swatch[aria-pressed="true"] { border-color: var(--ink); }
+.swatch.custom {
+  position: relative; overflow: hidden; display: grid; place-items: center;
+  background: conic-gradient(from 0deg, #e05252, #e0a352, #b6e052, #52e0a3, #52b6e0, #a352e0, #e05252);
+}
+.swatch.custom input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+.shortcuts { margin-top: 34px; }
+.section-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.section-head h2 { font-size: 15px; font-weight: 600; }
+.section-head .rule { flex: 1; }
+.shortcut-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.shortcut {
+  display: inline-flex; align-items: center; gap: 9px; padding: 10px 14px;
+  background: var(--paper-2); border: var(--line) solid var(--rule); border-radius: 999px;
+  font-size: 13px; transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.shortcut:hover { border-color: var(--brand-2); transform: translateY(-1px); }
+.shortcut:active { transform: translateY(0); }
+.shortcut .k { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); }
+.shortcut.add { border-style: dashed; color: var(--ink-3); }
+
+/* ---------- Agent ---------- */
+.agent { display: grid; grid-template-columns: minmax(0,1fr) 132px; gap: var(--gap); align-items: stretch; }
+html[data-style="lite"] .agent { grid-template-columns: minmax(0,1fr); }
+html[data-style="lite"] .agent-aside { display: none; }
+.thread { display: flex; flex-direction: column; gap: 14px; }
+.turn { display: flex; gap: 12px; }
+.turn .bubble {
+  background: var(--paper-2); border: var(--line) solid var(--rule); border-radius: var(--radius);
+  padding: 14px 16px; max-width: 68ch;
+}
+.turn.me { justify-content: flex-end; }
+.turn.me .bubble { background: var(--brand-tint); border-color: color-mix(in srgb, var(--brand) 24%, var(--rule)); }
+.turn .who {
+  width: 30px; height: 30px; border-radius: 9px; flex: none; display: grid; place-items: center;
+  font-size: 11px; font-weight: 600; background: var(--brand-tint); color: var(--brand);
+}
+.knowledge-tree {
+  margin-top: 14px; border: var(--line) solid var(--rule); border-radius: var(--radius-sm);
+  background: var(--paper); padding: 14px;
+}
+.knowledge-tree .tree-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.knowledge-tree svg { width: 100%; height: auto; }
+.knowledge-tree .edge { fill: none; stroke: var(--rule); stroke-width: 1.4; }
+.knowledge-tree .edge.hot { stroke: var(--brand); }
+.knowledge-tree .node-label { font-size: 10.5px; fill: var(--ink-2); font-family: var(--font-ui); }
+.knowledge-tree .node-core { fill: var(--brand); }
+.knowledge-tree .node-mark { fill: var(--mark); }
+/* 右侧「进度 / 建议」：默认只露一个词，鼠标移上去临时展开（可覆盖对话区） */
+.agent-aside .card.peek {
+  position: absolute; right: 0; padding: 0; overflow: hidden; cursor: default; width: 132px;
+  transition: width 220ms var(--ease), box-shadow 220ms var(--ease), border-color 220ms var(--ease);
+}
+.agent-aside .card.peek .peek-label {
+  display: block; padding: 12px 14px; font-size: 13.5px; font-weight: 600; color: var(--ink-2);
+  transition: color var(--dur) var(--ease);
+}
+.agent-aside .card.peek .peek-body { display: none; padding: 0 14px 14px; }
+.agent-aside .card.peek .peek-body .eyebrow { margin-bottom: 6px; }
+.agent-aside .card.peek.is-open {
+  z-index: 40; width: 320px;
+  box-shadow: 0 14px 36px -14px rgba(22,32,43,.38); border-color: var(--brand-2);
+}
+.agent-aside .card.peek.is-open .peek-label { color: var(--brand); }
+.agent-aside .card.peek.is-open .peek-body { display: block; }
+
+.agent-pane { min-height: calc(100vh - 150px); padding-bottom: 104px; }
+.agent > div { display: flex; flex-direction: column; min-height: calc(100vh - 150px); }
+.thread { flex: 1; }
+
+.rank-list { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.rank-list li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: var(--line) solid var(--rule); border-radius: 9px; font-size: 13.5px; color: var(--ink-2); }
+.rank-list li b { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); width: 22px; }
+.rank-list li span { flex: 1; color: var(--ink); }
+.rank-list li i { font-style: normal; font-family: var(--font-mono); font-weight: 600; color: var(--brand); }
+.rank-list li.me { background: var(--brand-tint); border-color: var(--brand-2); }
+
+.composer {
+  position: fixed; left: calc(var(--sidebar) + 26px); right: 26px; bottom: 20px; z-index: 8;
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 12px 12px 15px;
+  background: var(--paper-2);
+  border: var(--line) solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: 0 14px 34px -20px rgba(22,32,43,.44);
+}
+#view-agent .agent-pane::after {
+  content: ''; position: fixed; left: var(--sidebar); right: 0; bottom: 0; height: 108px;
+  background: linear-gradient(to top, var(--paper) 56%, transparent);
+  pointer-events: none; z-index: 7;
+}
+@media (max-width: 860px) { .composer { left: 20px; right: 20px; } }
+.composer input { flex: 1; border: 0; background: none; color: var(--ink); font-size: 13.5px; outline: none; }
+.composer input::placeholder { color: var(--ink-3); }
+.composer .send {
+  flex: none; width: 38px; height: 38px; border-radius: 50%; border: 0;
+  display: grid; place-items: center; background: var(--brand); color: #fff;
+  transition: background var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.composer .send:hover { background: var(--brand-2); transform: translateY(-1px); }
+.composer .send:active { transform: translateY(0) scale(.94); }
+.agent-aside { align-self: start; position: relative; height: 116px; }
+.agent-aside .card.peek:nth-of-type(1) { top: 0; }
+.agent-aside .card.peek:nth-of-type(2) { top: 62px; }
+.agent-aside .card + .card { margin-top: var(--gap); }
+
+/* ---------- More ---------- */
+.feature { display: flex; flex-direction: column; gap: 10px; }
+.feature .top { display: flex; align-items: center; gap: 10px; }
+.feature .ico {
+  width: 32px; height: 32px; border-radius: 9px; flex: none;
+  display: grid; place-items: center; background: var(--brand-tint); color: var(--brand);
+}
+.feature .foot { margin-top: auto; }
+.feature.code { border-style: dashed; }
+.code-field {
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-2);
+  background: var(--paper); border: var(--line) solid var(--rule); border-radius: 8px;
+  padding: 8px 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ---------- 登录 ---------- */
+.login { display: grid; grid-template-columns: 1.05fr .95fr; min-height: 100vh; }
+.login-art {
+  position: relative; overflow: hidden; border-right: var(--line) solid var(--rule);
+  display: flex; flex-direction: column; justify-content: space-between; padding: 34px 38px;
+}
+.login-art .hero-curve { position: absolute; inset: auto -8% -12% -8%; opacity: .5; pointer-events: none; }
+.login-art .hero-curve .c { fill: none; stroke: var(--brand); stroke-width: 1.4; opacity: .8; }
+.login-art .hero-curve .g { fill: none; stroke: var(--mark); stroke-width: 6; opacity: .35; }
+.login-art h1 { font-size: clamp(30px, 3.4vw, 46px); line-height: 1.12; letter-spacing: -.02em; margin: 18px 0 14px; max-width: 15ch; }
+.login-art h1 em { font-style: normal; color: var(--brand); }
+.login-art .lede { color: var(--ink-2); max-width: 34ch; }
+.login-card-wrap { display: grid; place-items: center; padding: 34px; }
+.login-card { width: min(420px, 100%); }
+.login-card h2 { font-size: 22px; letter-spacing: -.01em; }
+.login-card .sub { color: var(--ink-2); margin-top: 6px; font-size: 13px; }
+.field { margin-top: 16px; }
+.field label { display: block; font-size: 12px; color: var(--ink-2); margin-bottom: 6px; }
+.input {
+  display: flex; align-items: center; gap: 9px; padding: 11px 13px;
+  border: var(--line) solid var(--rule); border-radius: var(--radius-sm); background: var(--paper-2);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.input:focus-within { border-color: var(--brand-2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 14%, transparent); }
+.input input { flex: 1; border: 0; background: none; outline: none; color: var(--ink); font-size: 13.5px; }
+.role-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; }
+.role-tabs button {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 10px; border: var(--line) solid var(--rule); border-radius: var(--radius-sm);
+  color: var(--ink-2); font-size: 13px;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.role-tabs button[aria-pressed="true"] { border-color: var(--brand); color: var(--brand); background: var(--brand-tint); font-weight: 600; }
+.style-picker { margin-top: 22px; }
+.style-picker .opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 9px; }
+.style-opt {
+  border: var(--line) solid var(--rule); border-radius: var(--radius-sm); padding: 10px 8px 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px; background: var(--paper-2);
+  transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.style-opt:hover { border-color: var(--brand-2); transform: translateY(-1px); }
+.style-opt[aria-pressed="true"] { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); }
+.style-opt b { font-size: 12px; font-weight: 600; }
+.style-opt small { color: var(--ink-3); font-size: 10px; }
+.wire { display: flex; gap: 3px; height: 26px; align-items: stretch; }
+.wire i { background: var(--rule); border-radius: 2px; display: block; }
+.wire i.b { background: var(--brand); }
+
+.hidden { display: none !important; }
+@media (max-width: 1080px) {
+  .app { grid-template-columns: var(--sidebar) minmax(0,1fr); }
+  .agent { grid-template-columns: minmax(0,1fr); }
+  .agent-aside { display: none; }
+}
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; flex-direction: row; align-items: center; overflow-x: auto; }
+  .side-nav { flex-direction: row; }
+  .nav-sub, .side-foot { display: none; }
+  .login { grid-template-columns: 1fr; }
+  .login-art { display: none; }
+  .grid, .gallery { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 1ms !important; animation-duration: 1ms !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- ================= 登录 ================= -->
+<section class="login" id="view-login">
+  <div class="login-art gridpaper">
+    <div>
+      <div class="side-brand" style="padding:0">
+        <span class="mark">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+            <path d="M3 18c3.5 0 4.2-9 7-9s3.2 6 6 6 3.5-4.5 5-4.5"/>
+          </svg>
+        </span>
+        <span><b>数伴</b><span>SHUBAN</span></span>
+      </div>
+      <div class="eyebrow" style="margin-top:34px">高等数学 · 学习与教学空间</div>
+      <h1>把抽象的极限，<br>画成你<em>看得见</em>的曲线。</h1>
+      <p class="lede">数伴拆开每一步推理，用曲线、树状图和追问陪你把知识点走扎实。</p>
+    </div>
+    <div class="mono" style="color:var(--ink-3);font-size:11px">数伴 0.3 · 本地教学空间</div>
+    <svg class="hero-curve" viewBox="0 0 800 320" preserveAspectRatio="none" aria-hidden="true">
+      <path class="c" d="M0,250 C90,250 120,90 200,90 S300,260 380,260 470,60 560,60 660,210 800,210"/>
+      <path class="g" d="M0,250 C90,250 120,90 200,90 S300,260 380,260 470,60 560,60 660,210 800,210"/>
+    </svg>
+  </div>
+
+  <div class="login-card-wrap">
+    <div class="login-card">
+      <h2>开启今天的学习</h2>
+      <p class="sub">使用老师提供的账号，或用你自己的账号登录。</p>
+
+      <div class="role-tabs" role="group" aria-label="登录身份">
+        <button aria-pressed="true" data-role="student">学生登录</button>
+        <button aria-pressed="false" data-role="teacher">教师登录</button>
+      </div>
+
+      <div class="field">
+        <label for="u">学生账号</label>
+        <div class="input">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="color:var(--ink-3)"><circle cx="12" cy="8" r="3.4"/><path d="M4.5 20c1.4-3.7 4.2-5.2 7.5-5.2S18.1 16.3 19.5 20"/></svg>
+          <input id="u" value="student" autocomplete="username" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="p">密码</label>
+        <div class="input">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="color:var(--ink-3)"><rect x="4.5" y="10.5" width="15" height="9" rx="2.4"/><path d="M8.5 10.5V8a3.5 3.5 0 1 1 7 0v2.5"/></svg>
+          <input id="p" type="password" value="Student123!" autocomplete="current-password" />
+        </div>
+      </div>
+
+      <div class="style-picker">
+        <div class="eyebrow">初次使用 · 选择界面风格（之后可随时更改）</div>
+        <div class="opts" role="group" aria-label="初始界面风格">
+          <button class="style-opt" data-pick="lite" aria-pressed="false">
+            <span class="wire"><i class="b" style="width:8px"></i><i style="flex:1"></i></span>
+            <b>精简</b><small>一屏一件事</small>
+          </button>
+          <button class="style-opt" data-pick="standard" aria-pressed="true">
+            <span class="wire"><i class="b" style="width:8px"></i><i style="width:14px"></i><i style="flex:1"></i></span>
+            <b>常规</b><small>默认推荐</small>
+          </button>
+          <button class="style-opt" data-pick="pro" aria-pressed="false">
+            <span class="wire"><i class="b" style="width:8px"></i><i style="width:14px"></i><i style="width:10px"></i><i style="flex:1"></i></span>
+            <b>繁杂</b><small>信息全开</small>
+          </button>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-block" style="margin-top:22px" id="enter">进入学习空间</button>
+      <p class="mono" style="margin-top:14px;color:var(--ink-3);font-size:11px">账号独立 · 数据保存在当前服务</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 应用 ================= -->
+<div class="app hidden" id="view-app">
+  <aside class="sidebar">
+    <div class="side-brand">
+      <span class="mark">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+          <path d="M3 18c3.5 0 4.2-9 7-9s3.2 6 6 6 3.5-4.5 5-4.5"/>
+        </svg>
+      </span>
+      <span><b>数伴</b><span>SHUBAN</span></span>
+    </div>
+
+    <div class="side-index">索引 INDEX</div>
+    <nav class="side-nav">
+      <button class="nav-block active" data-go="own" title="Own">
+        <span class="glyph">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></svg>
+        </span>
+        <span class="label"><strong>Own</strong></span>
+      </button>
+      <button class="nav-block" data-go="agent" title="Agent">
+        <span class="glyph">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M20 12a7.5 7.5 0 0 1-11 6.6L4.5 20l1.3-4.2A7.5 7.5 0 1 1 20 12Z"/></svg>
+        </span>
+        <span class="label"><strong>Agent</strong></span>
+      </button>
+      <button class='nav-block' data-go='class' title='Class'>
+        <span class='glyph'><svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='M16 20v-1.8a3 3 0 0 0-3-3H6.5a3 3 0 0 0-3 3V20'/><circle cx='9.8' cy='7.4' r='3.1'/><path d='M20.5 20v-1.8a3 3 0 0 0-2.2-2.9'/><path d='M15.6 4.6a3 3 0 0 1 0 5.6'/></svg></span>
+        <span class='label'><strong>Class</strong></span>
+      </button>
+      <button class="nav-block" data-go="more" title="More">
+        <span class="glyph">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg>
+        </span>
+        <span class="label"><strong>More</strong></span>
+      </button>
+      <button class="nav-block" data-go="setting" title="Setting">
+        <span class="glyph">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+        </span>
+        <span class="label"><strong>Setting</strong></span>
+      </button>
+    </nav>
+
+    <div class="side-foot">
+      <span class="avatar">林</span>
+      <span class="who"><strong>林同学</strong><small>学生 · 演示账号</small></span>
+      <button class="chip" title="退出登录" aria-label="退出登录">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M15 17l5-5-5-5M20 12H9M12 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="crumb"><span>工作台</span><span>/</span><strong id="crumb">Own</strong></div>
+      <div class="spacer"></div>
+      <span class="chip" id="themeBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg>
+        <span id="themeLabel">深色</span>
+      </span>
+      
+    </header>
+
+    <main class="content gridpaper">
+
+      <!-- ---------- Own ---------- -->
+      <section id="view-own">
+        <div class="own-stage">
+          <canvas class="own-bg" id="ownBg" aria-hidden="true"></canvas>
+          <div class="own-layer">
+            <h1 class="own-title">数学空间</h1>
+            <div class="own-panel"></div>
+            <div class="own-eq-wrap">
+              <span class="own-eq mono" id="ownEq">—</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- Agent ---------- -->
+      <section id="view-agent" class="hidden">
+        <div class="subnav" data-for="agent">
+          <button class="on" data-pane="chat">对话</button>
+          <button data-pane="history">历史记录</button>
+        </div>
+
+        <!-- 板块一：对话 -->
+        <div class="agent-pane" data-pane-content="chat">
+        <div class="agent">
+          <div>
+            <div class="thread">
+              <div class="turn me">
+                <div class="bubble">求 <span class="math">lim<sub>x→0</sub> sin x / x</span>，为什么不能直接把 0 代进去？</div>
+              </div>
+              <div class="turn">
+                <span class="who">伴</span>
+                <div class="bubble">
+                  直接把 <span class="math">x=0</span> 代进去会得到 <span class="math">0/0</span>——这是个不定式，说明答案藏在你还没用上的结构里。
+                  我把它拆成三层，你可以只展开你需要的：
+                  <div class="knowledge-tree">
+                    <div class="tree-head"><span class="tag mark">知识树</span><span class="mono" style="font-size:11px;color:var(--ink-3)">3 层 · 可跳过</span></div>
+                    <svg viewBox="0 0 560 190" id="tree" aria-label="知识点拆解树"></svg>
+                  </div>
+                  <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+                    <button class="btn btn-mark">展开第一层：等价无穷小</button>
+                    <button class="btn btn-ghost">跳过，直接做题</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="composer">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="color:var(--ink-3)"><path d="M4 18l10.5-10.5a2.5 2.5 0 0 1 3.5 3.5L7.5 21.5 3 22l1-4Z"/></svg>
+              <input placeholder="继续追问，或直接说「跳过讲解，给我一道变式题」" />
+              <button class="send" aria-label="发送"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6"/><path d="M5 13l7-7 7 7"/></svg></button>
+            </div>
+          </div>
+
+          <aside class="agent-aside">
+            <div class="card peek">
+              <span class="peek-label">进度</span>
+              <div class="peek-body">
+                <div class="eyebrow">本次进度</div>
+                <h3>极限与连续</h3>
+                <p class="sub" style="margin-top:6px">已拆解 2 / 4 个知识点，掌握度按你做过的题累计。</p>
+                <div class="foot"><span class="tag">等价无穷小</span><span class="tag">重要极限</span></div>
+              </div>
+            </div>
+            <div class="card peek">
+              <span class="peek-label">建议</span>
+              <div class="peek-body">
+                <div class="eyebrow">Agent 建议</div>
+                <p class="sub">你在「洛必达法则的适用条件」上错过两次，要把它加进快捷入口吗？</p>
+                <button class="btn btn-ghost" style="margin-top:12px">加到 Own 的快捷入口</button>
+              </div>
+            </div>
+          </aside>
+        </div>
+        </div>
+
+        <!-- 板块二：历史记录 -->
+        <div class="agent-pane hidden" data-pane-content="history">
+          <div class="grid">
+            <article class="card interactive">
+              <div class="eyebrow">09-23 21:40</div>
+              <h3 style="margin-top:8px">lim(x→0) sin x / x 为什么不能直接代入</h3>
+              <p class="sub">拆到第 2 层，跳过了「重要极限」分支。</p>
+              <div class="foot"><span class="tag">极限与连续</span><span class="tag">等价无穷小</span></div>
+            </article>
+            <article class="card interactive">
+              <div class="eyebrow">09-23 16:12</div>
+              <h3 style="margin-top:8px">y = x·ln x 的单调区间怎么求</h3>
+              <p class="sub">订正了求导后漏掉定义域的问题。</p>
+              <div class="foot"><span class="tag">导数与微分</span><span class="tag mark">已订正</span></div>
+            </article>
+            <article class="card interactive">
+              <div class="eyebrow">09-22 20:05</div>
+              <h3 style="margin-top:8px">∫ x·e^x dx 用分部积分时 u 该选谁</h3>
+              <p class="sub">用「反对幂指三」的顺序自己选了一次。</p>
+              <div class="foot"><span class="tag">一元函数积分学</span></div>
+            </article>
+            <article class="card interactive">
+              <div class="eyebrow">09-21 19:33</div>
+              <h3 style="margin-top:8px">级数 Σ1/n² 为什么收敛</h3>
+              <p class="sub">第一次接触无穷级数，只听了概念讲解。</p>
+              <div class="foot"><span class="tag">无穷级数</span><span class="tag">待复习</span></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+            <section id='view-class' class='hidden'>
+        <h1 class='page-title'>班级</h1>
+
+        <div class='subnav' data-for='class'>
+          <button class='on' data-pane='class-home'>我的班级</button>
+          <button data-pane='class-rank'>排行榜</button>
+        </div>
+
+        <div class='agent-pane' data-pane-content='class-home'>
+          <div class='grid'>
+            <article class='card interactive'>
+              <div class='eyebrow'>本学期</div>
+              <h3 style='margin-top:8px'>高等数学 A 班</h3>
+              <p class='sub'>陈老师 · 42 名同学 · 每周二、四</p>
+              <div class='foot'><span class='tag'>2 项待办</span><span class='tag'>第 3 章 微分中值定理</span></div>
+              <div class='foot' style='margin-top:12px'><span class='meta'>我的进度 68%</span><span class='link'>进入班级 →</span></div>
+            </article>
+
+            <article class='card interactive'>
+              <div class='eyebrow'>研讨</div>
+              <h3 style='margin-top:8px'>数学分析研讨班</h3>
+              <p class='sub'>王老师 · 16 名同学 · 隔周一次</p>
+              <div class='foot'><span class='tag'>下次主题：一致连续</span></div>
+              <div class='foot' style='margin-top:12px'><span class='meta'>上次参与 9 月 20 日</span><span class='link'>进入班级 →</span></div>
+            </article>
+
+            <article class='card interactive'>
+              <div class='eyebrow'>待办</div>
+              <h3 style='margin-top:8px'>尚未加入其他班级</h3>
+              <p class='sub'>老师会给你班级邀请码，或在「设置」里手动输入。</p>
+              <div class='foot' style='margin-top:12px'><span class='link'>输入邀请码 →</span></div>
+            </article>
+          </div>
+        </div>
+
+        <div class='agent-pane hidden' data-pane-content='class-rank'>
+          <div class='grid'>
+            <article class='card'>
+              <div class='eyebrow'>班级排行榜 · 本周</div>
+              <p class='sub'>按「知识点掌握度」排序，只统计实际做过的题，不产生额外积分。</p>
+              <ol class='rank-list'>
+                <li><b>01</b><span>周予安</span><i>96</i></li>
+                <li><b>02</b><span>陈行舟</span><i>93</i></li>
+                <li class='me'><b>03</b><span>你</span><i>92</i></li>
+                <li><b>04</b><span>许听白</span><i>88</i></li>
+                <li><b>05</b><span>沈见微</span><i>85</i></li>
+              </ol>
+            </article>
+
+            <article class='card'>
+              <div class='eyebrow'>班级动态</div>
+              <h3 style='margin-top:8px'>本周共 2 项</h3>
+              <p class='sub'>第 3 章练习册 3.1–3.4 · 截止 9 月 28 日；课堂互评 · 已开放。</p>
+              <div class='foot'><span class='tag'>作业</span><span class='tag'>互评</span></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+<!-- ---------- More ---------- -->
+      <section id="view-more" class="hidden">
+        <h1 class="page-title">功能</h1>
+        <div class="subnav" data-for="more">
+          <button class="on">全部</button>
+          <button>学习</button>
+          <button>复习</button>
+          <button>工具</button>
+        </div>
+
+        <div class="grid" id="features"></div>
+      </section>
+
+      <!-- ---------- Setting ---------- -->
+      <section id="view-setting" class="hidden">
+        <h1 class='page-title'>设置</h1>
+
+        <div class="subnav" data-for="setting">
+          <button class="on">视觉设计</button>
+          <button>页面与顺序</button>
+          <button>账号</button>
+        </div>
+
+        <div class="grid">
+          <div class="card">
+            <div class="eyebrow">视觉设计</div>
+            <h3 style="margin-top:8px">界面风格</h3>
+            <p class="sub">精简：一屏一件事。常规：默认。繁杂：信息全开。</p>
+            <div class="opt-row" id="styleRow">
+              <button class="opt" data-pick="lite">精简</button>
+              <button class="opt" data-pick="standard">常规</button>
+              <button class="opt" data-pick="pro">繁杂</button>
+            </div>
+            <hr class="rule" style="margin:22px 0 16px" />
+            <h3>明暗</h3>
+            <p class="sub">跟随系统，或固定其中一种。</p>
+            <div class="opt-row" id="themeRow">
+              <button class="opt" data-theme="light">浅色</button>
+              <button class="opt" data-theme="dark">深色</button>
+            </div>
+            <hr class="rule" style="margin:22px 0 16px" />
+            <h3>主题色</h3>
+            <p class="sub">挑一个你自己的颜色，按钮、坐标轴和图案会一起跟着换；最后一个可以自定义。</p>
+            <div class="swatch-row" id="accentRow">
+              <button class="swatch" data-accent="#1f4e79" style="--sw:#1f4e79" aria-label="墨蓝"></button>
+              <button class="swatch" data-accent="#5b4bb8" style="--sw:#5b4bb8" aria-label="靛紫"></button>
+              <button class="swatch" data-accent="#2f6b56" style="--sw:#2f6b56" aria-label="松绿"></button>
+              <button class="swatch" data-accent="#a5502f" style="--sw:#a5502f" aria-label="赭红"></button>
+              <button class="swatch" data-accent="#3a4250" style="--sw:#3a4250" aria-label="石墨"></button>
+              <button class="swatch" data-accent="#8a6d1f" style="--sw:#8a6d1f" aria-label="赭金"></button>
+              <label class="swatch custom" aria-label="自定义主题色">
+                <input type="color" id="accentCustom" value="#1f4e79" />
+              </label>
+            </div>
+
+            <hr class="rule" style="margin:22px 0 16px" />
+            <h3>标记色</h3>
+            <p class="sub">AI 划重点、当前选中、关键数字用的颜色。</p>
+            <div class="swatch-row" id="markRow">
+              <button class="swatch" data-mark="#e4f24a" style="--sw:#e4f24a" aria-label="荧光黄绿"></button>
+              <button class="swatch" data-mark="#7ee787" style="--sw:#7ee787" aria-label="青柠"></button>
+              <button class="swatch" data-mark="#6fd0ff" style="--sw:#6fd0ff" aria-label="天蓝"></button>
+              <button class="swatch" data-mark="#ffb86b" style="--sw:#ffb86b" aria-label="橙"></button>
+              <button class="swatch" data-mark="#ff9ec7" style="--sw:#ff9ec7" aria-label="粉"></button>
+              <label class="swatch custom" aria-label="自定义标记色">
+                <input type="color" id="markCustom" value="#e4f24a" />
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="eyebrow">页面与顺序</div>
+            <h3 style="margin-top:8px">侧栏顺序</h3>
+            <p class="sub">用按钮上下移，不用拖拽——页面里的模块同理。</p>
+            <ul class="order-list" id="orderList"></ul>
+          </div>
+
+          <div class="card">
+            <div class="eyebrow">原型工具</div>
+            <h3 style="margin-top:8px">跳到某一屏</h3>
+            <p class="sub">只用于评审演示，正式版不会有这一块。</p>
+            <div class="opt-row">
+              <button class="opt" data-jump="login">登录页</button>
+              <button class="opt" data-jump="own">Own</button>
+              <button class="opt" data-jump="agent">Agent</button>
+              <button class="opt" data-jump="more">More</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<script>
+/* ---------- 图案库：2D / 3D / 4D 参数曲线，全部由方程实时演算，不用任何图片素材 ---------- */
+const CURVES = [
+  { name: '玫瑰线',     eq: 'r = cos(5θ/2)',                    dim: 2, kind: 'rose' },
+  { name: '双纽线',     eq: 'r² = cos 2θ',                      dim: 2, kind: 'lemniscate' },
+  { name: '心形线',     eq: 'r = 1 - sin θ',                    dim: 2, kind: 'cardioid' },
+  { name: '摆线',       eq: 'x = t − sin t,  y = 1 − cos t',    dim: 2, kind: 'cycloid' },
+  { name: '螺旋线',     eq: '(cos t, sin t, t)',                dim: 3, kind: 'helix' },
+  { name: '环面纽结',   eq: '((2+cos 3t)cos 2t, (2+cos 3t)sin 2t, sin 3t)', dim: 3, kind: 'torus' },
+  { name: '球面螺线',   eq: '(sin t·cos 6t, sin t·sin 6t, cos t)', dim: 3, kind: 'spherical' },
+  { name: '四维双旋转', eq: '(cos t, sin t, cos 2t, sin 2t)',   dim: 4, kind: 'hyper' }
+];
+
+/* 采样：返回 [x, y, z]，二维曲线 z 恒为 0 */
+function sample3(curve, steps) {
+  const pts = [];
+  for (let i = 0; i <= steps; i++) {
+    const u = i / steps;
+    let x = 0, y = 0, z = 0;
+    switch (curve.kind) {
+      case 'rose': {
+        const th = u * Math.PI * 4, r = Math.cos(2.5 * th / 2);
+        x = r * Math.cos(th); y = r * Math.sin(th); break;
+      }
+      case 'lemniscate': {
+        const th = u * Math.PI * 2, r2 = Math.cos(2 * th);
+        const r = r2 < 0 ? 0 : Math.sqrt(r2);
+        x = r * Math.cos(th); y = r * Math.sin(th); break;
+      }
+      case 'cardioid': {
+        const th = u * Math.PI * 2, r = 1 - Math.sin(th);
+        x = r * Math.cos(th); y = r * Math.sin(th); break;
+      }
+      case 'cycloid': {
+        const th = u * Math.PI * 4;
+        x = th - Math.sin(th); y = 1 - Math.cos(th); break;
+      }
+      case 'helix': {
+        const th = u * Math.PI * 6;
+        x = Math.cos(th); y = Math.sin(th); z = (u - 0.5) * 3; break;
+      }
+      case 'torus': {
+        const th = u * Math.PI * 2, R = 2 + Math.cos(3 * th * 2);
+        x = R * Math.cos(2 * th * 2); y = R * Math.sin(2 * th * 2); z = Math.sin(3 * th * 2); break;
+      }
+      case 'spherical': {
+        const th = u * Math.PI;
+        x = Math.sin(th) * Math.cos(6 * th); y = Math.sin(th) * Math.sin(6 * th); z = Math.cos(th); break;
+      }
+      default: { /* 四维双旋转：投影到三维后再二维 */
+        const th = u * Math.PI * 2;
+        const w = Math.sin(2 * th);
+        const shrink = 1 / (1 + 0.35 * w);
+        x = Math.cos(th) * shrink; y = Math.sin(th) * shrink; z = Math.cos(2 * th) * 0.6;
+        break;
+      }
+    }
+    pts.push([x, y, z]);
+  }
+  return pts;
+}
+
+/* 三维旋转 + 透视 */
+function rotate3(point, ax, ay, az, fov) {
+  let x = point[0], y = point[1], z = point[2];
+  let c = Math.cos(ax), s = Math.sin(ax);
+  let ty = y * c - z * s, tz = y * s + z * c; y = ty; z = tz;
+  c = Math.cos(ay); s = Math.sin(ay);
+  let tx = x * c + z * s; z = -x * s + z * c; x = tx;
+  c = Math.cos(az); s = Math.sin(az);
+  tx = x * c - y * s; y = x * s + y * c; x = tx;
+  const depth = fov / (fov + z);
+  return [x * depth, -y * depth, depth];
+}
+
+/* ---------- Agent 的知识树（也是曲线，不是素材） ---------- */
+function buildTree() {
+  const svg = document.getElementById('tree');
+  const nodes = [
+    { x: 72,  y: 95,  label: '不定式 0/0', core: true },
+    { x: 250, y: 44,  label: '为什么不能直接代入', hot: true },
+    { x: 250, y: 95,  label: '等价无穷小 sin x ~ x', hot: true, mark: true },
+    { x: 250, y: 146, label: '重要极限 sin x / x → 1' },
+    { x: 452, y: 95,  label: '结论：极限 = 1' }
+  ];
+  const edges = [[0, 1, 0], [0, 2, 1], [0, 3, 0], [2, 4, 1], [3, 4, 0]];
+  const parts = [];
+  edges.forEach(([a, b, hot]) => {
+    const p = nodes[a], q = nodes[b];
+    const mx = (p.x + q.x) / 2;
+    parts.push(`<path class="edge${hot ? ' hot' : ''}" d="M${p.x + 8},${p.y} C${mx},${p.y} ${mx},${q.y} ${q.x - 8},${q.y}"/>`);
+  });
+  nodes.forEach(n => {
+    const r = n.core ? 7 : 5;
+    const cls = n.mark ? 'node-mark' : 'node-core';
+    parts.push(`<circle class="${cls}" cx="${n.x}" cy="${n.y}" r="${r}"/>`);
+    parts.push(`<text class="node-label" x="${n.x}" y="${n.y + (n.y > 95 ? 20 : -14)}" text-anchor="middle">${n.label}</text>`);
+  });
+  svg.innerHTML = parts.join('');
+}
+
+/* ---------- More 的功能卡片 ---------- */
+const FEATURES = [
+  { t: '自主学习',   d: '选中任何一句或一道题，直接问 Agent——它先拆知识点，再给结论。', tag: '本次实现', mark: true },
+  { t: '课程探索',   d: '按章节自学，章节只是索引，主路径是知识导图。', tag: '已有' },
+  { t: '我的作业',   d: '3 份待完成，最近一次截止 9 月 28 日。',        tag: '已有', mark: true },
+  { t: '复习收藏',   d: '按知识点归档的错题与收藏。',                   tag: '已有' },
+  { t: '学习记录',   d: '每一次提问与回复都可回看。',                   tag: '已有' },
+  { t: '班级',       d: '查看班级进度与老师发布的任务。',               tag: '已有' },
+  { t: '打卡日历',   d: '把每天学过的知识点连成一条时间轴。',           tag: '规划' },
+  { t: '来自同学的功能', d: '导入同学分享的功能码，立刻多一个入口。',   tag: '规划', code: true }
+];
+
+function buildFeatures() {
+  document.getElementById('features').innerHTML = FEATURES.map(f => `
+    <article class="card interactive feature${f.code ? ' code' : ''}">
+      <div class="top">
+        <span class="ico">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h7"/></svg>
+        </span>
+        <h3>${f.t}</h3>
+        <span class="tag ${f.mark ? 'mark' : 'ghost'}" style="margin-left:auto">${f.tag}</span>
+      </div>
+      <p class="sub">${f.d}</p>
+      ${f.code ? '<div class="code-field">SHUBAN1-eyJuYW1lIjoi5rGC5a+85pWw5Y2V6LCDIiw…</div>' : ''}
+      <div class="foot"><span>打开</span><span style="margin-left:auto">→</span></div>
+    </article>`).join('');
+}
+
+/* ---------- Own：右侧动态图案（每次进入随机一条，配坐标系，缓慢自转） ---------- */
+let ownResize = null;
+/* 用户拖拽出来的视角（叠加在基础等轴测视角上） */
+let viewYaw = 0, viewPitch = 0;
+
+function initOwnBackground() {
+  const canvas = document.getElementById('ownBg');
+  const host = canvas.parentElement;
+  const ctx = canvas.getContext('2d');
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const curve = CURVES[Math.floor(Math.random() * CURVES.length)];
+  const seed = Math.random() * Math.PI * 2;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const STEPS = curve.dim > 2 ? 560 : 480;
+  let w = 0, h = 0, boxW = 0, boxH = 0, cached = null, cachedAt = 0;
+
+  const panelEl = document.querySelector('.own-panel');
+  const eqEl = document.getElementById('ownEq');
+  if (eqEl) eqEl.innerHTML = '<b>' + curve.name + '</b>' + (curve.dim > 2 ? curve.dim + 'D · ' : '') + curve.eq;
+
+  function resize() {
+    const rect = host.getBoundingClientRect();
+    w = Math.max(360, Math.round(rect.width));
+    h = Math.max(320, Math.round(rect.height));
+    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    boxW = w * 0.60;
+    boxH = h * 0.80;
+  }
+  ownResize = resize;
+  resize();
+  window.addEventListener('resize', resize);
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(host);
+
+  /* 拖拽转视角：图案与坐标系一起被看，图案自身继续演化 */
+  let dragging = false, lastX = 0, lastY = 0;
+  const stage = host;
+  stage.addEventListener('pointerdown', event => {
+    if (event.target.closest('.own-panel, .own-eq-wrap')) return;
+    dragging = true; lastX = event.clientX; lastY = event.clientY;
+    stage.classList.add('is-dragging');
+    try { if (stage.setPointerCapture) stage.setPointerCapture(event.pointerId); } catch (err) { /* 合成事件可能没有活动指针 */ }
+  });
+  stage.addEventListener('pointermove', event => {
+    if (!dragging) return;
+    viewYaw += (event.clientX - lastX) * 0.008;
+    viewPitch = Math.max(-1.1, Math.min(1.1, viewPitch + (event.clientY - lastY) * 0.008));
+    lastX = event.clientX; lastY = event.clientY;
+  });
+  const endDrag = () => { dragging = false; stage.classList.remove('is-dragging'); };
+  stage.addEventListener('pointerup', endDrag);
+  stage.addEventListener('pointercancel', endDrag);
+  stage.addEventListener('pointerleave', endDrag);
+
+  function palette() {
+    const cs = getComputedStyle(document.documentElement);
+    return {
+      line: cs.getPropertyValue('--brand').trim() || '#1f4e79',
+      axis: cs.getPropertyValue('--ink-3').trim() || '#8fa0b0',
+      grid: cs.getPropertyValue('--grid').trim() || '#e2e8ee'
+    };
+  }
+
+  function frame(now) {
+    if (!cached || now - cachedAt > 500) { cached = palette(); cachedAt = now; }
+    const time = now / 1000;
+    const spin = reduce ? 0 : time * 0.16;
+
+    /* 视角：基础等轴测 + 用户拖拽；图案在此基础上继续自动旋转 */
+    const fov = 3.4;
+    const pitch = -0.34 + viewPitch;
+    const yawView = 0.62 + viewYaw;
+    const autoSpin = curve.dim > 2 ? spin * 0.9 : spin * 0.35;
+    const wobble = curve.dim > 2 ? Math.sin(time * 0.11 + seed) * 0.16 : 0;
+
+    const raw = sample3(curve, STEPS);
+    const projected = raw.map(point => rotate3(point, pitch + wobble, yawView + autoSpin, 0, fov));
+
+    /* 模型尺度 → 右侧盒子 */
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    projected.forEach(pt => {
+      if (pt[0] < minX) minX = pt[0];
+      if (pt[0] > maxX) maxX = pt[0];
+      if (pt[1] < minY) minY = pt[1];
+      if (pt[1] > maxY) maxY = pt[1];
+    });
+    const span = Math.max(maxX - minX, maxY - minY) || 1;
+    const size = Math.max(140, Math.min(boxW, boxH));
+    const scale = (size * 0.98) / span;
+    const cxModel = (minX + maxX) / 2, cyModel = (minY + maxY) / 2;
+    const originX = w - size * 0.5 - 20, originY = h * 0.54;
+
+    /* 左侧的框一直延伸到图案左缘，把多余空白全部框住 */
+    if (panelEl && w > 720) {
+      const targetW = Math.max(180, Math.round(w - size - 44));
+      if (Math.abs((parseFloat(panelEl.style.width) || 0) - targetW) > 1) {
+        panelEl.style.width = targetW + 'px';
+      }
+    }
+
+    const toScreen = point => [
+      originX + (point[0] - cxModel) * scale,
+      originY + (point[1] - cyModel) * scale,
+      point[2]
+    ];
+
+    ctx.clearRect(0, 0, w, h);
+
+    /* 左侧框的右边界（网格从它右边开始铺） */
+    let panelRight = 0;
+    if (panelEl) {
+      const hostRect = host.getBoundingClientRect();
+      const panelRect = panelEl.getBoundingClientRect();
+      panelRight = panelRect.right - hostRect.left;
+    }
+
+    /* 网格：只铺在右侧图案区，以坐标原点对齐 */
+    const step = 30;
+    const gridLeft = Math.max(0, panelRight + 14);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = cached.grid;
+    ctx.globalAlpha = 0.95;
+    ctx.beginPath();
+    for (let x = originX; x <= w; x += step) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
+    for (let x = originX - step; x >= gridLeft; x -= step) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
+    for (let y = originY; y <= h; y += step) { ctx.moveTo(gridLeft, y); ctx.lineTo(w, y); }
+    for (let y = originY - step; y >= 0; y -= step) { ctx.moveTo(gridLeft, y); ctx.lineTo(w, y); }
+    ctx.stroke();
+
+    /* 坐标系：跟随用户视角（拖拽能一起转），但自身不自动旋转 */
+    const axisLen = Math.max(1.0, span * 0.56);
+    const origin3 = rotate3([0, 0, 0], pitch, yawView, 0, fov);
+    const axisDefs = curve.dim > 2
+      ? [[[-axisLen * 0.45, 0, 0], ''], [[axisLen, 0, 0], 'x'], [[0, axisLen, 0], 'y'], [[0, 0, axisLen], 'z']]
+      : [[[-axisLen * 0.45, 0, 0], ''], [[axisLen, 0, 0], 'x'], [[0, axisLen, 0], 'y']];
+    const o = toScreen(origin3);
+    ctx.lineWidth = 1.8;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = cached.axis;
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    axisDefs.forEach(([dir]) => {
+      const tip = toScreen(rotate3(dir, pitch, yawView, 0, fov));
+      ctx.moveTo(o[0], o[1]);
+      ctx.lineTo(tip[0], tip[1]);
+    });
+    ctx.stroke();
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = cached.axis;
+    ctx.font = 'bold 12px Consolas, monospace';
+    axisDefs.forEach(([dir, label]) => {
+      const tip = toScreen(rotate3(dir, pitch, yawView, 0, fov));
+      const dx = tip[0] - o[0], dy = tip[1] - o[1];
+      const len = Math.hypot(dx, dy) || 1;
+      ctx.fillText(label, tip[0] + (dx / len) * 12 - 4, tip[1] + (dy / len) * 12 + 4);
+    });
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+
+    /* 曲线：按深度着墨，近处亮、远处淡 */
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = cached.line;
+    ctx.lineCap = 'round';
+    for (let i = 1; i < projected.length; i++) {
+      const a = toScreen(projected[i - 1]);
+      const b = toScreen(projected[i]);
+      if (Math.hypot(b[0] - a[0], b[1] - a[1]) > size) continue;
+      ctx.globalAlpha = 0.22 + 0.42 * Math.max(0.2, Math.min(1, b[2]));
+      ctx.beginPath();
+      ctx.moveTo(a[0], a[1]);
+      ctx.lineTo(b[0], b[1]);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    if (!reduce) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---------- 划词提问：选中文字 → 浮出按钮 → 带着原句跳到 Agent ---------- */
+function initAskOnSelect() {
+  const pop = document.createElement('button');
+  pop.className = 'ask-pop';
+  pop.type = 'button';
+  pop.innerHTML = '<b>问 Agent</b><span class="q"></span><span class="hint">ENTER</span>';
+  document.body.appendChild(pop);
+  let picked = '';
+
+  document.addEventListener('mouseup', event => {
+    if (event.target.closest && event.target.closest('.ask-pop')) return;
+    setTimeout(() => {
+      const sel = window.getSelection();
+      const raw = sel ? sel.toString().replace(/\s+/g, ' ').trim() : '';
+      if (raw.length < 2 || raw.length > 220) { pop.classList.remove('on'); return; }
+      picked = raw;
+      pop.querySelector('.q').textContent = raw.slice(0, 26) + (raw.length > 26 ? '…' : '');
+      pop.style.left = Math.max(12, Math.min(event.clientX, window.innerWidth - 300)) + 'px';
+      pop.style.top = Math.max(12, event.clientY - 48) + 'px';
+      pop.classList.add('on');
+    }, 0);
+  });
+
+  document.addEventListener('mousedown', event => {
+    if (!(event.target.closest && event.target.closest('.ask-pop'))) pop.classList.remove('on');
+  });
+
+  function send() {
+    const box = document.querySelector('.composer input');
+    if (box) box.value = '帮我看看这段：「' + picked + '」';
+    pop.classList.remove('on');
+    if (window.getSelection) window.getSelection().removeAllRanges();
+    showView('agent');
+  }
+  pop.addEventListener('click', send);
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Enter' && pop.classList.contains('on')) { event.preventDefault(); send(); }
+  });
+}
+
+/* ---------- 设置：侧栏顺序（按钮上下移） ---------- */
+const NAV_LABELS = { own: 'Own', agent: 'Agent', class: 'Class', more: 'More', setting: 'Setting' };
+let navOrder = ['own', 'agent', 'class', 'more', 'setting'];
+
+function renderOrder() {
+  const list = document.getElementById('orderList');
+  if (!list) return;
+  list.innerHTML = navOrder.map((key, i) => `
+    <li>
+      <span class="idx">0${i + 1}</span>
+      <b>${NAV_LABELS[key]}</b>
+      <span class="mv">
+        <button data-move="up" data-key="${key}" aria-label="上移" ${i === 0 ? 'disabled' : ''}>↑</button>
+        <button data-move="down" data-key="${key}" aria-label="下移" ${i === navOrder.length - 1 ? 'disabled' : ''}>↓</button>
+      </span>
+    </li>`).join('');
+  const nav = document.querySelector('.side-nav');
+  navOrder.forEach(key => {
+    const el = nav.querySelector('[data-go="' + key + '"]');
+    if (el) nav.appendChild(el);
+  });
+}
+
+function setMark(hex) {
+  document.documentElement.style.setProperty('--mark-base', hex);
+  document.querySelectorAll('[data-mark]').forEach(button =>
+    button.setAttribute('aria-pressed', String(button.dataset.mark.toLowerCase() === hex.toLowerCase())));
+}
+
+function setAccent(hex) {
+  document.documentElement.style.setProperty('--accent', hex);
+  document.querySelectorAll('[data-accent]').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.accent.toLowerCase() === String(hex).toLowerCase())));
+  const custom = document.getElementById('accentCustom');
+  if (custom) custom.value = hex;
+}
+
+function initSettings() {
+  renderOrder();
+  document.getElementById('orderList').addEventListener('click', event => {
+    const btn = event.target.closest('button[data-move]');
+    if (!btn || btn.disabled) return;
+    const i = navOrder.indexOf(btn.dataset.key);
+    const j = btn.dataset.move === 'up' ? i - 1 : i + 1;
+    if (j < 0 || j >= navOrder.length) return;
+    [navOrder[i], navOrder[j]] = [navOrder[j], navOrder[i]];
+    renderOrder();
+  });
+  document.getElementById('styleRow').addEventListener('click', event => {
+    const btn = event.target.closest('button[data-pick]');
+    if (btn) setStyle(btn.dataset.pick);
+  });
+  document.getElementById('themeRow').addEventListener('click', event => {
+    const btn = event.target.closest('button[data-theme]');
+    if (btn) setTheme(btn.dataset.theme === 'dark');
+  });
+  document.querySelectorAll('[data-jump]').forEach(btn =>
+    btn.addEventListener('click', () => showView(btn.dataset.jump)));
+  document.querySelectorAll('.card.peek').forEach(card => {
+    card.addEventListener('mouseenter', () => card.classList.add('is-open'));
+    card.addEventListener('mouseleave', () => card.classList.remove('is-open'));
+    card.addEventListener('focusin', () => card.classList.add('is-open'));
+    card.addEventListener('focusout', () => card.classList.remove('is-open'));
+  });
+  document.getElementById('accentRow').addEventListener('click', event => {
+    const btn = event.target.closest('[data-accent]');
+    if (btn) setAccent(btn.dataset.accent);
+  });
+  document.getElementById('accentCustom').addEventListener('input', event => setAccent(event.target.value));
+
+document.getElementById('markRow').addEventListener('click', event => {
+  const button = event.target.closest('button[data-mark]');
+  if (button) setMark(button.dataset.mark);
+});
+document.getElementById('markCustom').addEventListener('input', event => setMark(event.target.value));
+  setAccent(new URLSearchParams(location.search).get('accent') || '#1f4e79');
+  setMark(new URLSearchParams(location.search).get('mark') || '#e4f24a');
+}
+
+/* ---------- 视图与风格切换 ---------- */
+function showView(v) {
+  const app = document.getElementById('view-app');
+  const login = document.getElementById('view-login');
+  login.classList.toggle('hidden', v !== 'login');
+  app.classList.toggle('hidden', v === 'login');
+  document.querySelectorAll('#viewSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+  if (v !== 'login') {
+    ['own', 'agent', 'class', 'more', 'setting'].forEach(k => document.getElementById('view-' + k).classList.toggle('hidden', k !== v));
+    if (v === 'own' && ownResize) requestAnimationFrame(ownResize);
+    document.querySelectorAll('.nav-block').forEach(b => b.classList.toggle('active', b.dataset.go === v));
+    document.getElementById('crumb').textContent = NAV_LABELS[v] || v;
+  }
+}
+function setStyle(s) {
+  document.documentElement.dataset.style = s;
+  document.querySelectorAll('#styleSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.style === s)));
+  document.querySelectorAll('[data-pick]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.pick === s)));
+}
+const SUN_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.6v2.4M12 19v2.4M2.6 12H5M19 12h2.4M5.4 5.4 3.7 3.7M20.3 20.3l-1.7-1.7M18.6 5.4l1.7-1.7M3.7 20.3l1.7-1.7"/></svg>';
+const MOON_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg>';
+
+function setTheme(dark) {
+  document.documentElement.classList.toggle('dark', dark);
+  document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+  const btn = document.getElementById('themeBtn');
+  if (btn) {
+    const icon = btn.querySelector('svg');
+    if (icon) icon.outerHTML = dark ? MOON_SVG : SUN_SVG;
+    const label = document.getElementById('themeLabel');
+    if (label) label.textContent = dark ? '深色' : '浅色';
+  }
+  document.querySelectorAll('[data-theme]').forEach(b =>
+    b.setAttribute('aria-pressed', String((b.dataset.theme === 'dark') === dark)));
+}
+
+/* 控制条已并入 Setting 的「视觉设计」 */
+document.querySelectorAll('.nav-block').forEach(b => b.addEventListener('click', () => showView(b.dataset.go)));
+document.querySelectorAll('[data-pick]').forEach(b => b.addEventListener('click', () => setStyle(b.dataset.pick)));
+document.querySelectorAll('.role-tabs button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.role-tabs button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+}));
+document.getElementById('themeBtn').addEventListener('click', () => setTheme(!document.documentElement.classList.contains('dark')));
+document.getElementById('enter').addEventListener('click', () => showView('own'));
+
+initOwnBackground();
+initAskOnSelect();
+initSettings();
+document.querySelectorAll('.subnav').forEach(bar => bar.addEventListener('click', event => {
+  const btn = event.target.closest('button');
+  if (!btn) return;
+  bar.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === btn));
+  const pane = btn.dataset.pane;
+  if (!pane) return;
+  const section = bar.closest('section');
+  if (!section) return;
+  section.querySelectorAll('[data-pane-content]').forEach(block => {
+    block.classList.toggle('hidden', block.dataset.paneContent !== pane);
+  });
+}));
+buildTree();
+buildFeatures();
+setStyle('standard');
+setTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+/* ---------- URL 参数：?view=own|agent|more|login&style=lite|standard|pro&theme=dark|light
+   方便直接分享某个页面 / 某套风格的截图 ---------- */
+const params = new URLSearchParams(location.search);
+if (params.get('style')) setStyle(params.get('style'));
+if (params.get('theme')) setTheme(params.get('theme') === 'dark');
+if (params.get('view')) showView(params.get('view'));
+</script>
+</body>
+</html>
