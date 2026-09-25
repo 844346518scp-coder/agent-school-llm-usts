@@ -258,6 +258,22 @@ html[data-style="pro"] .view-head h1 { font-size: 22px; }
 .own-stage.is-dragging { cursor: grabbing; }
 .own-bg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
 .own-layer { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: calc(100vh - 150px); }
+.student-only { }
+body[data-role="teacher"] .student-only { display: none !important; }
+body[data-role="teacher"] .role-hint::after { content: ' · 教师视角'; color: var(--brand); font-size: 11px; }
+.teacher-only { display: none !important; }
+body[data-role="teacher"] .teacher-only { display: block !important; }
+body[data-role="teacher"] .grid.teacher-only { display: grid !important; }
+
+.role-switch {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 9px 6px; margin-bottom: 10px; width: 100%;
+  border: 1px dashed var(--line); border-radius: 10px;
+  color: var(--brand); font-size: 11.5px; font-weight: 600;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.role-switch:hover { border-color: var(--brand); background: var(--soft); }
+
 .page-title { font-size: 26px; letter-spacing: -.01em; margin: 0 0 22px; }
 .own-title { font-size: 30px; letter-spacing: -.02em; line-height: 1.15; }
 .own-panel {
@@ -630,6 +646,10 @@ html[data-style="lite"] .agent-aside { display: none; }
     </nav>
 
     <div class="side-foot">
+      <button class='role-switch' id='roleSwitch' type='button' title='切换学生 / 教师视角'>
+        <svg width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='M16 3.1a4 4 0 0 1 0 7.8'/><path d='M22 21v-2a4 4 0 0 0-3-3.9'/><circle cx='9' cy='7' r='4'/><path d='M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2'/></svg>
+        <span id='roleLabel'>学生</span>
+      </button>
       <span class="avatar">林</span>
       <span class="who"><strong>林同学</strong><small>学生 · 演示账号</small></span>
       <button class="chip" title="退出登录" aria-label="退出登录">
@@ -656,7 +676,7 @@ html[data-style="lite"] .agent-aside { display: none; }
         <div class="own-stage">
           <canvas class="own-bg" id="ownBg" aria-hidden="true"></canvas>
           <div class="own-layer">
-            <h1 class="own-title">数学空间</h1>
+            <h1 class="own-title"><span class="student-only role-hint">数学空间</span><span class="teacher-only">教学空间</span></h1>
             <div class="own-panel"></div>
             <div class="own-eq-wrap">
               <span class="own-eq mono" id="ownEq">—</span>
@@ -765,7 +785,29 @@ html[data-style="lite"] .agent-aside { display: none; }
         </div>
 
         <div class='agent-pane' data-pane-content='class-home'>
-          <div class='grid'>
+          <div class='grid teacher-only'>
+            <article class='card interactive'>
+              <div class='eyebrow'>本学期</div>
+              <h3 style='margin-top:8px'>高等数学 A 班</h3>
+              <p class='sub'>42 名同学 · 每周二、四 · 你负责</p>
+              <div class='foot'><span class='tag'>18 份待批改</span><span class='tag'>1 份作业进行中</span></div>
+              <div class='foot' style='margin-top:12px'><span class='meta'>班级平均掌握度 61%</span><span class='link'>进入班级 →</span></div>
+            </article>
+            <article class='card interactive'>
+              <div class='eyebrow'>本周薄弱点</div>
+              <h3 style='margin-top:8px'>3 个知识点偏弱</h3>
+              <p class='sub'>按知识点掌握度聚合，只算实际做过的题，重复刷题不涨分。</p>
+              <div class='foot'><span class='tag'>洛必达法则适用条件</span><span class='tag'>等价无穷小</span><span class='tag'>一致连续</span></div>
+            </article>
+            <article class='card interactive'>
+              <div class='eyebrow'>快捷</div>
+              <h3 style='margin-top:8px'>发布作业</h3>
+              <p class='sub'>选章节与题量，学生端会收到待办。</p>
+              <div class='foot' style='margin-top:12px'><span class='link'>新作业 →</span></div>
+            </article>
+          </div>
+
+          <div class='grid student-only'>
             <article class='card interactive'>
               <div class='eyebrow'>本学期</div>
               <h3 style='margin-top:8px'>高等数学 A 班</h3>
@@ -1386,6 +1428,17 @@ document.getElementById('enter').addEventListener('click', () => showView('own')
 
 initOwnBackground();
 initAskOnSelect();
+/* ---------- 学生 / 教师视角切换（仅原型演示，正式版按登录身份决定） ---------- */
+let role = 'student';
+function setRole(next) {
+  role = next;
+  document.body.dataset.role = next === 'teacher' ? 'teacher' : 'student';
+  const label = document.getElementById('roleLabel');
+  if (label) label.textContent = next === 'teacher' ? '教师' : '学生';
+}
+document.getElementById('roleSwitch').addEventListener('click', () => setRole(role === 'teacher' ? 'student' : 'teacher'));
+setRole(new URLSearchParams(location.search).get('role') === 'teacher' ? 'teacher' : 'student');
+
 initSettings();
 document.querySelectorAll('.subnav').forEach(bar => bar.addEventListener('click', event => {
   const btn = event.target.closest('button');
