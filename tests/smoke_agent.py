@@ -142,5 +142,49 @@ with TestClient(app) as client:
     summary.append(f'POST /api/agent/resources/search: HTTP {response.status_code} items={data.get("total")}')
     assert response.status_code == 200 and data['items']
 
+    # ---- 第三阶段：分层提示 / 图形批注 / 数学工具 / 语音适配 / 降级统计 ----
+    response = client.post('/api/agent/hint',
+                           json={'question': '求 lim(x→0) sin(x)/x 的极限', 'level': 3}, headers=HEADERS)
+    data = response.json()
+    record('POST /api/agent/hint', response.status_code, {
+        'level': data.get('level'), 'level_title': data.get('level_title'),
+        'answer_leaked': data.get('answer_leaked'), 'hint': data.get('hint'),
+    })
+    assert response.status_code == 200 and data['answer_leaked'] is False
+
+    response = client.post('/api/agent/plot/annotate',
+                           json={'question': '画 f(x)=x^2-1 的图像并标出零点', 'at': 1.0}, headers=HEADERS)
+    data = response.json()
+    summary.append(f"POST /api/agent/plot/annotate: HTTP {response.status_code} "
+                   f"samples={len(data.get('samples', []))} "
+                   f"key_points={[item['label'] for item in data.get('key_points', [])]}")
+    assert response.status_code == 200 and data['samples'] and data['key_points']
+
+    response = client.post('/api/agent/math/check',
+                           json={'expr': '(x+1)(x-1)', 'x': 3, 'expected': 8}, headers=HEADERS)
+    data = response.json()
+    record('POST /api/agent/math/check', response.status_code, {
+        'expr': data.get('expr'), 'latex': data.get('latex'),
+        'derivative': (data.get('derivative') or {}).get('derivative'),
+        'value_check': data.get('value_check'),
+    })
+    assert response.status_code == 200 and data['value_check']['ok'] is True
+
+    response = client.get('/api/agent/voice/status')
+    data = response.json()
+    summary.append(f"GET /api/agent/voice/status: HTTP {response.status_code} "
+                   f"ready={data.get('ready')} source={data.get('credential_source')}")
+    assert response.status_code == 200 and data['ready'] is False
+    # 转写接口在未配置语音服务时返回 503（禁止编造结果），由 tests/test_agent_phase3.py 覆盖。
+
+    response = client.get('/api/agent/diagnostics', headers=HEADERS)
+    data = response.json()
+    summary.append(f"GET /api/agent/diagnostics: HTTP {response.status_code} "
+                   f"total={data.get('total')} retry={data.get('retry_policy', {}).get('max_attempts')}")
+    assert response.status_code == 200
+
+    response = client.post('/api/agent/evaluate', json={'suites': ['retrieval']}, headers=HEADERS)
+    summary.append(f'POST /api/agent/evaluate（学生账号）: HTTP {response.status_code}（仅教师可用，非 200 属预期）')
+    assert response.status_code != 200
 (HERE.parent / '_smoke_out.txt').write_text('\n'.join(lines), encoding='utf-8')
 print('\n'.join(summary))

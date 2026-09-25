@@ -264,3 +264,41 @@ python tests/smoke_agent.py          # 端到端冒烟（含第二阶段步骤�
 ```
 
 下一步（9/24 冻结前）：教师端知识点掌握度按班聚合、资源库扩充与 `verified` 复核、异步任务与语音仍未实现，不得在文档或界面里当作已有能力展示。
+
+## B 模块第三阶段实现说明（2026-09-25 追加）
+
+范围：对齐 9/25–27 阶段任务「准确性评测、超时降级与错误修正」，并补齐 9 月分工图中 B 的缺口——数学工具、
+分层提示、图形批注（步骤/坐标/讲解）、语音服务适配、教师纠错。
+
+新增文件（全部位于既有目录内，未新增任何目录或第三方依赖）：
+
+- `backend/app/ai/mathcheck.py`：零依赖数学工具（解析、求值、符号求导、数值等价性、极限取样探测、零点/极值、曲线采样），求导结果带中心差商复核。
+- `backend/app/ai/hints.py`：分层提示 1/2/3 级（概念 / 方法 / 关键步骤），第 3 级只给第一步动作。
+- `backend/app/ai/plotting.py`：图形批注，输出采样坐标、关键点与分步讲解，供 A 端渲染。
+- `backend/app/ai/voice.py`：语音转写适配与口语术语纠错；未配置凭据时如实不可用，并给出浏览器原生方案。
+- `backend/app/ai/resilience.py`：降级码表、超时重试策略、模型字段修正与内存降级统计。
+- `backend/app/ai/evaluation.py` + `tests/check_agent_accuracy.py`：准确性评测（7 套件 62 用例，含阈值与 CLI）。
+- `backend/app/ai/corrections.py` + `backend/app/ai/phase3.py`：教师纠错与第三阶段路由。
+- `tests/test_agent_phase3.py`（34 项）；`tests/smoke_agent.py` 增加第三阶段冒烟步骤。
+
+硬约束（新增，后续改动不要破坏）：
+
+1. `version=0.2.0` 与 `phase=2` 是启动器与既有测试依赖的冻结字段，本轮只新增 `stage=3`，不得替换它们。
+2. 分层提示任何级别都不得包含最终答案，固定返回 `answer_leaked=false`。
+3. 图形批注的坐标与关键点只能由 `mathcheck` 算出；模型只能写讲解文字，不得改动数值。
+4. 数学工具保持零第三方依赖；`-x^2` 必须解析为 `-(x^2)`（该处曾出错，已有回归用例）。
+5. 语音未配置凭据时必须 503 + 浏览器原生方案，不得返回编造文本；转写结果只是草稿。
+6. 教师纠错表 `ai_corrections` 与 `ai_learning_events` 一样使用独立 MetaData、不进 `Base.metadata`；纠错以补偿证据追加，不删除原始记录。
+7. 只对网络阶段超时重试一次，其它失败不重试；降级统计只存进程内存，输出前必须经 `sanitize()`。
+8. `knowledge.suggest_topic()` 命中范围外词表（微分方程、重积分、曲线积分、概率论等）时必须返回 `null`，不得猜相邻主题。
+
+本地验证（本轮实际结果）：
+
+```
+python -m pytest -q                      # 135 passed
+python tests/check_agent_accuracy.py     # 7 套件全部达标（62/62 用例）
+python tests/smoke_agent.py              # 端到端冒烟通过（demo 下识别与语音 503 属预期）
+```
+
+下一步（9/27 前）：A 端接入分层提示与图形批注界面；课程资料复核后把对应知识点 `verified` 置为 True 并重跑评测；
+真实模型与真实语音服务的效果评测需先配置凭据，不得用本地评测结果代替。

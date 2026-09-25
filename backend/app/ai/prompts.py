@@ -150,6 +150,56 @@ SYSTEM_SUMMARY = (
 )
 
 
+SYSTEM_HINT = (
+    '你是《高等数学》学习引导助手，学生正在自己动手做题，你只给当前层级的一点提示。\n'
+    '层级要求：1=概念提示（只讲定义、直觉与前提条件）；2=方法提示（只说可以用什么方法、适用条件是什么）；'
+    '3=关键步骤提示（只给出第一步的动作与形式）。\n'
+    '硬约束：\n'
+    '1. 任何层级都不得给出最终答案，也不得把后续推导写出来。\n'
+    '2. 只依据给出的课程资料片段，不要编造教材章节或页码。\n'
+    '3. 只输出 JSON：{"hint":"提示正文","self_check":"一句话追问"}，不要输出其他文字。'
+)
+
+SYSTEM_PLOT = (
+    '你是《高等数学》图形批注讲解助手。系统已用本地数学工具算出采样坐标与关键点，'
+    '你只能解释这些已有结果，不得改动或新增任何坐标、关键点与数值。\n'
+    '只输出 JSON：{"explanation":"一段批注讲解","step_notes":["每步一句话"]}；'
+    '解释用简体中文，公式用 LaTeX，总长不超过 300 字；不得声称图形说明了资料未覆盖的结论。'
+)
+
+
+def build_hint_messages(question: str, level: int, level_title: str, topic: str | None,
+                        chunks: Sequence) -> list[dict]:
+    user = (
+        f'课程模块：{topic or "未指定"}\n'
+        f'当前层级：第 {level} 级（{level_title}）\n\n'
+        f'课程资料片段：\n{format_context(chunks)}\n\n'
+        f'学生的问题：{question}\n\n'
+        f'请只给出第 {level} 级提示，并输出约定 JSON。'
+    )
+    return [{'role': 'system', 'content': SYSTEM_HINT}, {'role': 'user', 'content': user}]
+
+
+def build_plot_messages(payload: dict, chunks: Sequence) -> list[dict]:
+    key_points = payload.get('key_points') or []
+    points_text = '、'.join(
+        f"{item.get('label')}({item.get('x')}, {item.get('y')})" if item.get('y') is not None
+        else f"{item.get('label')}(x={item.get('x')})"
+        for item in key_points
+    ) or '（本地工具未算出关键点）'
+    steps_text = '；'.join(item.get('title', '') for item in payload.get('steps', [])) or '（无）'
+    user = (
+        f"题目：{payload.get('question') or '（未提供）'}\n"
+        f"函数：{payload.get('function', {}).get('expr') or '（未解析出函数）'}\n"
+        f"绘图区间：x ∈ [{payload.get('viewport', {}).get('x_min')}, {payload.get('viewport', {}).get('x_max')}]\n"
+        f"本地工具算出的关键点：{points_text}\n"
+        f"本地工具给出的步骤标题：{steps_text}\n\n"
+        f"课程资料片段：\n{format_context(chunks)}\n\n"
+        '请解释这张图形标注，输出约定 JSON；坐标与关键点以上面给的为准。'
+    )
+    return [{'role': 'system', 'content': SYSTEM_PLOT}, {'role': 'user', 'content': user}]
+
+
 def build_summary_messages(summary: dict, chunks: Sequence) -> list[dict]:
     weak = '、'.join(item['title'] for item in summary.get('weak_points', [])) or '（暂无）'
     mastered = '、'.join(item['title'] for item in summary.get('mastered_points', [])) or '（暂无）'

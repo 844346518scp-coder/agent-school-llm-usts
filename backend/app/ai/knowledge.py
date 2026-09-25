@@ -403,10 +403,25 @@ def get_point(point_id: str) -> KnowledgePoint | None:
 TOPIC_SUGGESTION_MIN_SCORE = 1.5
 TOPIC_SUGGESTION_DOMINANCE = 0.5
 
+# 课本范围之外的主题词：命中时直接判定“覆盖不足”，不允许猜成相邻主题。
+# 依据：9/25 准确性评测发现「微分方程 y'=y」被猜成“导数与微分”，与 9/21 约定（覆盖不足必须返回 null）不符。
+OUT_OF_SCOPE_MARKERS = (
+    '微分方程', '重积分', '二重积分', '三重积分', '曲线积分', '曲面积分',
+    '傅里叶', '空间解析几何', '向量代数', '概率论', '线性代数', '矩阵',
+)
+
+
+def _outside_scope(text: str) -> bool:
+    """文本里出现课本未覆盖的主题词时返回 True。"""
+    cleaned = text or ''
+    return any(marker in cleaned for marker in OUT_OF_SCOPE_MARKERS)
+
 
 def suggest_topic(text: str, min_score: float = TOPIC_SUGGESTION_MIN_SCORE) -> str | None:
     """按检索得分推断最可能的课程模块，供拍照识别后的“确认”环节提示。"""
     hits = retrieve(text, top_k=3, min_score=min_score)
+    if _outside_scope(text):
+        return None
     if not hits:
         return None
     top = hits[0]

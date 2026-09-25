@@ -26,12 +26,14 @@ from . import diagnosis as diagnosis_service
 from . import knowledge, prompts
 from .config import load_settings
 from .llm import ModelCallFailed, ModelUnavailable, chat, chat_stream, extract_json
-from . import insight, memory
+from . import insight, memory, resilience
 from .phase2 import phase2_router
+from .phase3 import phase3_router
 
 router = APIRouter(prefix='/api/conversations', tags=['agent'])
 agent_router = APIRouter(prefix='/api/agent', tags=['agent-core'])
 agent_router.include_router(phase2_router)
+agent_router.include_router(phase3_router)
 
 AGENT_VERSION = '0.2.0'
 
@@ -224,7 +226,10 @@ def compose_answer(question: str, topic: str, role: str, mode: str, chunks) -> t
 
     settings = load_settings()
     try:
-        body = chat(prompts.build_qa_messages(question, topic, chunks, role), settings)
+        body, _meta = resilience.call_model(
+            lambda: chat(prompts.build_qa_messages(question, topic, chunks, role), settings),
+            endpoint='POST /api/conversations',
+        )
     except ModelUnavailable as exc:
         return demo_reply(question, topic, role), 'demo', f'未配置真实模型，已返回演示内容（{exc}）。'
     except ModelCallFailed as exc:
@@ -315,6 +320,7 @@ def agent_status():
         },
         'knowledge': knowledge.stats(),
         'phase': 2,
+        'stage': 3,
         'capabilities': {
             'qa': True,
             'qa_stream': settings.resolved_mode == 'live',
@@ -328,11 +334,20 @@ def agent_status():
             'summary': True,
             'resource_search': True,
             'async_tasks': False,
+            'hints': True,
+            'plot_annotation': True,
+            'math_tools': True,
+            'voice_input': settings.voice_ready,
+            'accuracy_eval': True,
+            'teacher_correction': True,
+            'degradation_report': True,
         },
         'notes': [
             'demo 模式只返回预设演示内容，不会伪造模型输出。',
-            '长期记忆、推荐练习、评价、总结与资源检索已在第二阶段提供；异步任务与语音仍未实现。',
+            '长期记忆、推荐练习、评价、总结与资源检索已在第二阶段提供；异步任务仍未实现。',
+            '语音服务适配、分层提示、图形批注、数学工具、准确性评测与教师纠错已在第三阶段（9/25–27）提供。',
             '掌握度由学生自评、步骤反馈与诊断证据平滑汇总，证据不足时不判定掌握。',
+            '依赖外部服务的功能（识别、语音）在未配置凭据时如实报不可用，不返回编造结果；降级事件可通过 /api/agent/diagnostics 查看。',
         ],
     }
 
@@ -384,6 +399,7 @@ def stream_ask(data: AskInput, user: User = Depends(current_user)):
             if not produced:
                 raise ModelCallFailed('模型未返回任何内容。')
         except (ModelUnavailable, ModelCallFailed) as exc:
+            resilience.record(resilience.classify(exc), 'POST /api/agent/ask/stream', str(exc))
             answer, mode, notice = compose_answer(data.question, data.topic, data.role, 'demo', chunks)
             yield _sse({'type': 'fallback', 'mode': 'demo', 'replace': True, 'notice': f'流式调用失败，已降级（{exc}）。'})
             yield _sse({'type': 'delta', 'text': answer})
@@ -443,7 +459,11 @@ def recognize_question(data: RecognizeInput, user: User = Depends(current_user))
         )
     data_url = f'data:{detect_image_type(decode_image(data.image_base64)) or data.media_type};base64,{data.image_base64}'
     try:
-        raw = chat(prompts.build_recognize_messages(data_url, data.hint), settings, model=settings.vision_model)
+        raw, _meta = resilience.call_model(
+            lambda: chat(prompts.build_recognize_messages(data_url, data.hint), settings,
+                         model=settings.vision_model),
+            endpoint='POST /api/agent/recognize',
+        )
     except ModelUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except ModelCallFailed as exc:

@@ -705,3 +705,14 @@ GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：
 - 文档同步：本日志与 AGENTS.md 项目记忆；无代码与依赖变更。
 - GitHub 上传 / 密钥状态：按用户要求直接提交到 main；不含密钥。
 
+
+## 2026-09-25 · B 模块第三阶段（分层提示 / 图形批注 / 数学工具 / 语音适配 / 准确性评测 / 教师纠错 / 超时降级）
+
+- 开发内容：按 9 月三人分工图与 9/25–27 阶段任务补齐 B 的缺口——① 分层提示（概念→方法→关键步骤，绝不泄露最终答案）；② 图形批注（B 输出步骤、坐标与讲解，供 A 端渲染）；③ 零依赖数学工具（求值、符号求导、极限数值探测、等价性、零点/极值、曲线采样）；④ 语音服务适配（转写 + 口语术语纠错 + 浏览器原生回退说明）；⑤ 准确性评测（7 套件 62 用例、逐套件阈值、CLI 与教师接口）；⑥ 教师纠错（追加补偿证据修正判断与状态）；⑦ 超时降级与错误修正（只对网络阶段超时重试一次、模型字段白名单修正、内存降级统计）。
+- 为何开发：分工图把“准确性评测、超时降级与错误修正”列为 B 在 9/25–27 的交付；数学工具、分层提示、语音服务适配、圆圈图注（B 侧输出）与教师纠错在代码中尚缺，属于 B 的既定职责。
+- 修改文件：新增 `backend/app/ai/{mathcheck,hints,plotting,voice,resilience,evaluation,corrections,phase3}.py`、`tests/{test_agent_phase3.py,check_agent_accuracy.py}`、`docs/b-module-accuracy-report.md`；修改 `backend/app/ai/{config,prompts,service,diagnosis,insight,knowledge}.py`、`tests/smoke_agent.py`、`.env.example`、`README.md`、`AGENTS.md`、`docs/{architecture.md,contracts/README.md,feature-list.md}`。未新增目录，未引入第三方依赖。
+- 负责人：Chatbox（AI 助手）。本轮为 B 单模块改动，按用户此前“单人单文件改动直接推 main”的口径执行；**未走分支 + PR 审阅**，此处如实标注，与 AGENTS.md 第 4 节的默认流程有差异。
+- 验证结果：`python -m pytest -q` → 135 passed（原 101 + 新增 34）；`python tests/check_agent_accuracy.py` → retrieval / topic / diagnosis / resources / math / memory_rules / honesty 全部达标，62/62；`python tests/smoke_agent.py` → 端到端通过（demo 模式下识别 503、语音 503 属预期）。
+- 评测发现并修复：①「微分方程」「概率论」等课本外主题曾被 BM25 猜成“导数与微分”，现按范围外词表 `suggest_topic` 返回 `null`；② 表达式解析把 `-x^2` 当成 `(-x)^2`（乘方优先级低于一元负号），已修正为教材写法 `-(x^2)`。两项均补回归用例。
+- 未完成/遗留：课程资料 `verified` 复核（12 个知识点仍为 false，必须由人工确认）；真实模型、真实视觉与真实语音服务的效果未评测（当前无凭据，不得用本地评测代替）；A 端尚未接入分层提示与图形批注界面；异步任务与长任务进度仍未实现。
+- 文档同步：`AGENTS.md`、`docs/contracts/README.md`、`docs/architecture.md`、`docs/feature-list.md`、`README.md`、`.env.example`、`docs/b-module-accuracy-report.md` 已同步；`docs/development-log.md` 即本条目。历史材料中的旧结论（“语音未实现”等）保留原样，以本条与本轮契约为准。

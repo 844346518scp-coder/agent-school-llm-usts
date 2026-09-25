@@ -225,3 +225,48 @@ AI反馈复核还需明确原始结果、教师修改、审核状态、发布人
 - 拍照识别的多题切分与公式人工修正细节。
 - 教师端知识点掌握度聚合：当前长期记忆只对本人开放，教师端学情仍以作业提交统计为主；如需按班聚合，需要新增教师侧接口并定义权限边界。
 - 资源库扩充：已在知识点派生的基础上追加 6 条跨模块资料/导览条目（章节导览 ×4、极限计算思路图、积分方法选择表），全部 `verified=false` 待复核；外部课件/视频接入后需同样的复核流程。
+
+## 2026-09-25 · 智能体接口 v0.4（B 模块第三阶段）
+
+状态：已实现、可本地运行（`python -m pytest -q` → 135 passed；`python tests/check_agent_accuracy.py` → 7 套件全部达标，62/62 用例）。
+范围：分层提示、图形批注（步骤/坐标/讲解）、数学工具、语音服务适配、准确性评测、教师纠错、降级与错误统计。
+字段冻结说明：`GET /api/agent/status` 的 `version` 仍为 `0.2.0`、`phase` 仍为 `2`（启动器与既有测试依赖），本轮新增 `stage=3` 标识阶段。
+
+### 新增接口（POST 需登录会话 + `X-Requested-With: shuban-web`；两个探针为公开 GET）
+
+| 方法 / 路径 | 请求 | 响应要点 |
+| --- | --- | --- |
+| POST /api/agent/hint | question(1–1000)、level(1–3，默认 1)、topic | level、level_title（概念提示/方法提示/关键步骤提示）、hint、self_check、next_level、answer_leaked=false、guard、point{id,title,topic,source,verified}、references、mode、method |
+| POST /api/agent/plot/annotate | question、expr、at、topic、x_min、x_max、samples(2–241)、cx/cy/radius | shape、function{expr,latex,derivative,derivative_latex,derivative_checked}、viewport{x_min,x_max,y_min,y_max}、samples[[x,y]]、clipped、key_points[]{kind,label,x,y,slope,explain}、steps[]{index,title,detail,points}、explanation（live）、honesty |
+| POST /api/agent/math/check | expr(1–200)、x、expected、compare_expr、x0 | expr、latex、variables、derivative{ok,derivative,derivative_latex,numeric_agreement}、value、value_check、limit、equivalence、method、limitations |
+| GET /api/agent/voice/status | 无（公开） | ready、credential_source(voice_env/model_env/none)、model、endpoint(scheme+host)、timeout_seconds、limits{formats,max_bytes,max_duration_seconds}、text_to_speech=false、browser_fallback |
+| POST /api/agent/voice/transcribe | audio_base64、media_type、language、duration_seconds、hint | text（纠错后）、raw_text、corrections[]{from,to,count}、warnings、changed、suggested_topic、requires_confirmation=true、confirm_endpoint；未配置语音服务 → 503；音频非法 → 422 |
+| GET /api/agent/diagnostics | 无（需登录） | total、counters、recent[]{at,code,endpoint,detail,meaning}、codes、retry_policy{max_attempts:2,retryable_codes}、scope、math_tools、voice |
+| POST /api/agent/evaluate | suites[]（可选） | **仅教师**；overall{cases,passed,failed,rate,ok}、suites[]{name,title,cases,passed,failed,rate,threshold,ok,failures,results}、scope、limitations、degradation |
+| POST /api/agent/corrections | student_id、point_id、corrected(correct/incorrect/unclear)、reason、weight(-3..3)、origin | **仅教师**；correction{...}、point{id,title,topic}、before、after、state、note |
+| GET /api/agent/corrections | limit（默认 50） | items[]{...,point_title,topic}、total、scope(teacher_self/own_account) |
+
+`GET /api/agent/status` 新增 `stage=3`；capabilities 增加 `hints`、`plot_annotation`、`math_tools`、`accuracy_eval`、`teacher_correction`、`degradation_report`（恒为 true），`voice_input` 取决于语音凭据是否就绪（demo 模式下为 false）。
+
+### 口径与硬约束（后续改动不要破坏）
+
+- **分层提示**任何级别都不得包含最终答案，响应固定 `answer_leaked=false`；第 3 级只给“第一步动作”。
+- **图形批注**的 `samples` 与 `key_points` 全部由本地数学工具算出；live 模式模型只写讲解（`explanation`/`step_notes`），不得改动数值。
+- **数学工具**零第三方依赖；`-x^2` 解析为 `-(x^2)`；极限与等价性是数值证据，必须带 `method` 与说明，不得表述为证明。
+- **语音**未配置凭据返回 503 并给出浏览器原生方案，不返回编造文本；转写结果只是草稿（`requires_confirmation=true`）。
+- **教师纠错**为追加式补偿证据：不删除原始 `ai_learning_events`；`ai_corrections` 用独立 MetaData 惰性建表，**不进 `Base.metadata`**（原因同长期记忆：schema v3 校验会导致既有库启动失败）。
+- **超时降级**只对网络阶段超时重试一次（`MAX_ATTEMPTS=2`），其它失败不重试；降级统计仅存进程内存，`sanitize()` 已去掉 URL 与长 token。
+
+### 给前端（A）的接入建议
+
+1. 分层提示做成“提示 / 再具体一点”按钮：`next_level` 为 null 时禁用；不要在前端自己拼接三级提示。
+2. 图形批注直接用 `viewport` + `samples` 画折线，`key_points` 做标注；`clipped>0` 表示有超出视窗的点被裁掉，界面需要说明。
+3. 语音优先使用 `browser_fallback` 的 Web Speech API；启用服务端转写后把 `corrections` 展示给学生确认，再走 `/api/conversations` 保存。
+4. 教师纠错：教师端“复核”调用 `POST /api/agent/corrections`；学生端用 `GET /api/agent/corrections` 显示“已由教师复核”。
+
+### 仍待 B 模块后续定义（不属于本轮范围）
+
+- 异步任务与长任务进度（`async_tasks` 仍为 false）、诊断任务状态。
+- 拍照识别多题切分；数学工具的多变量、积分与级数支持。
+- 资源库 `verified` 复核（12 个知识点仍为 false，需课程资料复核后重跑评测）。
+- 真实模型、真实视觉与真实语音服务的效果评测（未配置凭据前不得声称已评测）。
