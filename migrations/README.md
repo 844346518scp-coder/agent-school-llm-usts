@@ -53,3 +53,10 @@
 ## 源码自动启动补充（2026-09-18）
 
 start.ps1默认自动准备项目环境并同源启动；原.venv/8000/5173改为-Dev。自动准备后可用`.runtime/python-3.13.13/python.exe -m migrations.upgrade`或`-m migrations.restore`。为保持既有兼容，health的version/agent_version仍为0.2.0，不应据此判断数据版本；本轮新增teaching_version/schema_version明确标识v0.3/v3。
+
+
+## 2026-10-07 学生注册、六位班级码与师生信箱（桌面0.3.4）
+
+应用启动在平台v3迁移之后执行migrations/community.py独立扩展迁移，记录community_schema_migrations=1；新增class_join_codes/community_mail，原表原列不变。首次扩展前以SQLite backup生成同目录.before-community-v1-随机标识.db，再独占事务创建；重复启动核对表结构、保留班级码。仅运行migrations.upgrade不会运行扩展，完整升级应启动应用。恢复仍使用上述restore工具到新路径；请同时备份数据库旁的个人加密API设置，DPAPI不能保证跨Windows用户解密。
+
+本次先验安装库副本，再实际升级安装库；逐张原表全部行比较一致、完整性通过。源码backend/demo.db未迁移且哈希未变。扩展表和个人配置不要随应用分发。

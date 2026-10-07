@@ -10,6 +10,8 @@ import StudentHome from './student/StudentHome.vue'
 import TeacherHome from './teacher/TeacherHome.vue'
 import ClassesView from './teacher/ClassesView.vue'
 import AccountSettings from './shared/AccountSettings.vue'
+import MyClasses from './student/MyClasses.vue'
+import Mailbox from './shared/Mailbox.vue'
 import AgentView from './shared/AgentView.vue'
 import AssignmentsView from './shared/AssignmentsView.vue'
 import RecordsView from './shared/RecordsView.vue'
@@ -39,9 +41,9 @@ const navigation = computed(() => user.value?.must_change_password ? [{ id: 'acc
   { id: 'agent', label: '教学助手', icon: Sparkles },
 ] : [
   { id: 'dashboard', label: '学习概览', icon: LayoutDashboard }, { id: 'agent', label: '数伴智能体', icon: Sparkles },
-  { id: 'courses', label: '课程探索', icon: BookOpen }, { id: 'assignments', label: '我的作业', icon: ClipboardList },
+  { id: 'my-classes', label: '我的班级', icon: Users }, { id: 'courses', label: '课程探索', icon: BookOpen }, { id: 'assignments', label: '我的作业', icon: ClipboardList },
   { id: 'favorites', label: '复习收藏', icon: Bookmark }, { id: 'records', label: '学习记录', icon: History },
-]), { id: 'account', label: '账号设置', icon: Settings }])
+]), { id: 'mail', label: '师生信箱', icon: BookOpen }, { id: 'account', label: '账号设置', icon: Settings }])
 let generation = 0
 async function loadData() {
   if (!user.value || user.value.must_change_password) return
@@ -85,7 +87,7 @@ onBeforeUnmount(() => window.removeEventListener('session-expired', expired))
     <div v-if="mobileNav" class="nav-backdrop" @click="mobileNav = false"></div>
     <aside class="sidebar" :class="{ 'is-open': mobileNav }"><div class="sidebar-brand"><Brand/><button class="icon-button mobile-only" aria-label="关闭导航" @click="mobileNav = false"><X :size="20"/></button></div><div class="workspace-label"><span class="tiny-dot"/>{{ teacher ? '教师教学空间' : '学生学习空间' }}</div><div class="nav-section-label">{{ teacher ? '教学工作台' : '我的学习空间' }}</div><nav><button v-for="nav in navigation" :key="nav.id" :class="{ active: page === nav.id }" @click="navigate(nav.id)"><component :is="nav.icon" :size="19"/><span>{{ nav.label }}</span><span v-if="nav.id === 'agent'" class="nav-ai">AI</span><span v-if="nav.id === 'assignments' && !teacher && assignments.some(a => a.status === 'published' && a.can_submit !== false && !a.class_archived && !a.submitted && a.due_date >= localToday())" class="nav-dot"></span></button></nav><div class="sidebar-bottom"><div class="sidebar-note"><span>一点好奇，一点进步。</span><p>数伴陪你，把每一步走扎实。</p><Sparkles :size="22"/></div><button class="help-link" @click="help = true"><CircleHelp :size="17"/> 使用说明<ArrowUpRight :size="14"/></button><div class="sidebar-user"><span class="user-avatar">{{ user.name.slice(0, 1) }}</span><div><strong>{{ user.name }}</strong><small>{{ teacher ? '教师' : '学生' }}{{ user.is_demo ? ' · 演示账号' : '' }}</small></div><button class="icon-button" :disabled="loggingOut" aria-label="退出登录" title="退出登录" @click="logout"><LogOut :size="17"/></button></div></div></aside>
     <div class="app-body"><header class="topbar"><button class="icon-button mobile-only" aria-label="打开导航" @click="mobileNav = true"><Menu :size="22"/></button><div class="breadcrumb"><span>工作台</span><ChevronRight :size="13"/><strong>{{ navigation.find(n => n.id === page)?.label }}</strong></div><div class="topbar-right"><ThemeToggle class="topbar-theme"/><span class="local-indicator"><span class="tiny-dot"/> 本地教学空间</span><span class="topbar-divider"></span><GraduationCap :size="18"/><span>高等数学</span></div></header><main class="main-content"><div v-if="loadError" class="load-error" role="alert"><span>{{ loadError }}</span><button class="subtle-link" @click="loadData"><RefreshCw :size="14"/> 重新加载</button></div>
-      <AccountSettings v-if="user.must_change_password || page === 'account'" :user="user" @updated="updatedUser"/>
+      <MyClasses v-if="page === 'my-classes' && !teacher" @changed="loadData"/><Mailbox v-if="page === 'mail'" :key="user.id"/><AccountSettings v-if="user.must_change_password || page === 'account'" :user="user" @updated="updatedUser"/>
       <StudentHome v-else-if="page === 'dashboard' && !teacher" :user="user" :records="records" :assignments="assignments" @navigate="navigate" @ask="ask"/>
       <TeacherHome v-else-if="page === 'dashboard'" :user="user" :records="records" :assignments="classFilter ? assignments.filter(a => a.class_id === classFilter) : assignments" :stats="teachingStats" :classes="classes" :class-id="classFilter" :loading="dataLoading" @filter="filterClass" @navigate="navigate" @create="create" @refresh="loadData"/>
       <AgentView v-else-if="page === 'agent'" :user="user" :records="records" :initial-question="initialQuestion" :selected-id="selectedId" @saved="loadData" @select="selectedId = $event"/>

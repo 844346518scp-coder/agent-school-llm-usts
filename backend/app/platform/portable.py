@@ -41,7 +41,8 @@ def main():
     if not args.source:
         os.environ['DATABASE_URL'] = 'sqlite:///' + (ROOT / 'backend/demo.db').as_posix()
         os.environ['COOKIE_SECURE'] = 'false'
-    os.environ['SHUBAN_INSTANCE_ID'] = hashlib.sha256(str(ROOT).casefold().encode()).hexdigest()[:24]
+    if not (ROOT / 'desktop-installed.json').is_file():
+        os.environ['SHUBAN_INSTANCE_ID'] = hashlib.sha256(str(ROOT).casefold().encode()).hexdigest()[:24]
     instance = os.environ['SHUBAN_INSTANCE_ID']
     if args.serve:
         sys.path.insert(0, str(ROOT))

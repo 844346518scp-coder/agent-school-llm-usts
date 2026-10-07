@@ -251,7 +251,7 @@ def test_model_timeout_is_finite_and_below_frontend_budget(monkeypatch, value):
     monkeypatch.setenv('MODEL_MAX_TOKENS', 'nan')
     settings = load_settings()
     assert 1 <= settings.timeout <= 60
-    assert settings.max_tokens == 900
+    assert settings.max_tokens == 4096
 
 
 def test_http_model_errors_do_not_echo_provider_body(monkeypatch):

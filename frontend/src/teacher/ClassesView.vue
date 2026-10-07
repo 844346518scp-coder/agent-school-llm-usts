@@ -104,19 +104,26 @@ function exportCsv() {
   catch { ElMessage.error('未能启动下载，请稍后重试。') }
 }
 onMounted(async () => { await load(); if (props.entry) openAssignments(props.entry.classId, props.entry.create) })
+async function copyCode(code: string) { try { await navigator.clipboard.writeText(code); ElMessage.success('班级码已复制') } catch { error.value = '复制失败，请手动选中班级码复制。' } }
+async function resetCode() {
+ if (!selected.value || busy.value) return
+ busy.value = true; error.value = ''
+ try { await api('/classes/' + selected.value.id + '/join-code', {method:'POST'}); await load(); ElMessage.success('班级码已重置，旧码立即失效，已有成员不受影响') }
+ catch(e) {error.value=(e as Error).message} finally {busy.value=false}
+}
 </script>
 <template>
   <template v-if="view === 'list'">
     <div class="page-heading"><div><div class="eyebrow">MY CLASSES</div><h1>班级管理</h1><p>从班级出发，安排练习、查看作答与学生进度。</p></div><div class="action-row"><button class="outline-button" :disabled="loading || busy" @click="refreshWorkspace"><RefreshCw :size="16"/> 刷新</button><button class="primary-button" :disabled="busy" @click="openClass()"><Plus :size="17"/> 新建班级</button></div></div>
     <div class="panel work-toolbar"><div class="filter-tabs"><button :class="{ active: !archived }" @click="archived = false">使用中的班级</button><button :class="{ active: archived }" @click="archived = true">已归档</button></div><button class="subtle-link" @click="openAssignments('')">全部作业与草稿 <ArrowUpRight :size="14"/></button></div>
     <p v-if="!loading" class="muted small">{{ visibleClasses.length }} 个班级</p>
-    <div v-if="visibleClasses.length" class="class-grid"><article v-for="c in visibleClasses" :key="c.id" class="panel class-card"><div class="section-heading"><span class="stat-icon green"><BookOpen :size="20"/></span><span class="small-pill">{{ c.student_count }} 位有效学生</span></div><h3>{{ c.name }}</h3><p>{{ c.course }} · {{ c.term }}</p><div class="class-card-actions"><button v-if="!c.archived" class="primary-button" @click="openAssignments(c.id, true)"><Plus :size="15"/> 布置作业</button><button class="outline-button" @click="openAssignments(c.id)">查看作业</button><button class="subtle-link" @click="openMembers(c.id)"><Users :size="15"/> 班级成员 <ArrowUpRight :size="14"/></button></div></article></div>
+    <div v-if="visibleClasses.length" class="class-grid"><article v-for="c in visibleClasses" :key="c.id" class="panel class-card"><div class="section-heading"><span class="stat-icon green"><BookOpen :size="20"/></span><span class="small-pill">{{ c.student_count }} 位有效学生</span></div><h3>{{ c.name }}</h3><p>{{ c.course }} · {{ c.term }}</p><p v-if="!c.archived">班级码：<strong>{{c.join_code}}</strong> <button class="subtle-link" @click="copyCode(c.join_code)">复制</button></p><div class="class-card-actions"><button v-if="!c.archived" class="primary-button" @click="openAssignments(c.id, true)"><Plus :size="15"/> 布置作业</button><button class="outline-button" @click="openAssignments(c.id)">查看作业</button><button class="subtle-link" @click="openMembers(c.id)"><Users :size="15"/> 班级成员 <ArrowUpRight :size="14"/></button></div></article></div>
     <div v-if="!loading && !visibleClasses.length && !error" class="panel empty-state"><Users :size="38"/><h3>{{ archived ? '没有归档班级' : '从第一个班级开始' }}</h3><p>{{ archived ? '归档的班级会在这里保留，随时可以恢复。' : '新建班级、添加学生，再布置第一次作业。' }}</p><button v-if="!archived" class="primary-button" @click="openClass()">创建班级</button></div>
   </template>
   <template v-else>
     <button class="subtle-link class-back" :disabled="busy" @click="backToClasses">← 返回班级管理</button>
     <div class="page-heading class-detail-heading"><div><div class="eyebrow">CLASSROOM</div><h1>{{ selected?.name || '全部作业与草稿' }}</h1><p>{{ selected ? selected.course + ' · ' + selected.term : '查看各班作业，也可继续编辑尚未分班的草稿。' }}</p></div><div v-if="selected" class="action-row"><button v-if="!selected.archived" class="subtle-link" :disabled="busy" @click="openClass(selected)">编辑班级</button><button class="subtle-link" :disabled="busy" @click="confirmClass">{{ selected.archived ? '恢复班级' : '归档班级' }}</button></div></div>
-    <div v-if="selected" class="filter-tabs class-detail-tabs" aria-label="班级页面"><button :class="{ active: view === 'assignments' }" :aria-current="view === 'assignments' ? 'page' : undefined" @click="openAssignments(selected.id)">班级作业</button><button :class="{ active: view === 'members' }" :aria-current="view === 'members' ? 'page' : undefined" @click="openMembers(selected.id)">班级成员</button></div>
+    <div v-if="selected && !selected.archived" class="panel"><p>班级码：<strong>{{selected.join_code}}</strong> <button class="subtle-link" @click="copyCode(selected.join_code)">复制班级码</button></p><p class="muted small">学生可注册账号后通过此码加入。重置后旧码立即失效，已有成员不受影响。</p><button class="outline-button" :disabled="busy" @click="resetCode">重置班级码</button></div><div v-if="selected" class="filter-tabs class-detail-tabs" aria-label="班级页面"><button :class="{ active: view === 'assignments' }" :aria-current="view === 'assignments' ? 'page' : undefined" @click="openAssignments(selected.id)">班级作业</button><button :class="{ active: view === 'members' }" :aria-current="view === 'members' ? 'page' : undefined" @click="openMembers(selected.id)">班级成员</button></div>
   </template>
   <p v-if="error" class="form-error" role="alert">{{ error }}</p><p v-if="loading" class="muted" role="status">正在读取班级…</p>
   <AssignmentsView v-if="view === 'assignments'" :user="user" :assignments="assignments" :classes="classes" :class-id="selectedId" :create-requested="createRequested" :loading="dataLoading" embedded @close-create="createRequested = false" @filter="openAssignments($event)" @saved="refreshWorkspace" @refresh="refreshWorkspace"/>

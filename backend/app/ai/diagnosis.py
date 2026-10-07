@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Iterable, Sequence
 
-from . import knowledge, prompts
+from . import knowledge, prompts, resilience
 from .config import AgentSettings, load_settings
 from .llm import ModelCallFailed, ModelUnavailable, chat, extract_json
 
@@ -87,7 +87,10 @@ def diagnose(
 
     if weak and settings.resolved_mode == 'live':
         try:
-            raw = chat(prompts.build_diagnosis_messages(question, answer, wrong_points, evidence), settings)
+            raw, _meta = resilience.call_model(
+                lambda: chat(prompts.build_diagnosis_messages(question, answer, wrong_points, evidence), settings),
+                endpoint='POST /api/agent/diagnosis',
+            )
         except (ModelUnavailable, ModelCallFailed) as exc:
             notice = f'模型润色失败，已使用规则结论（原因：{exc}）。'
         else:
@@ -163,7 +166,10 @@ def step_feedback(
 
     if settings.resolved_mode == 'live':
         try:
-            raw = chat(prompts.build_step_feedback_messages(question, step, steps, evidence), settings)
+            raw, _meta = resilience.call_model(
+                lambda: chat(prompts.build_step_feedback_messages(question, step, steps, evidence), settings),
+                endpoint='POST /api/agent/feedback',
+            )
         except (ModelUnavailable, ModelCallFailed) as exc:
             notice = f'模型调用失败，已改用规则结论（原因：{exc}）。'
         else:

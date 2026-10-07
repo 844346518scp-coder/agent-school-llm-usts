@@ -10,15 +10,28 @@ from sqlalchemy import select
 
 from .platform.database import Base, engine, SessionLocal, User, Assignment, Classroom, ClassMember, AssignmentRecipient
 from .platform.auth import router as auth_router, hash_password
+from .platform.auth import current_user
+from .platform.model_settings import router as model_settings_router, read_config
+from .ai.config import personal_settings
+from fastapi import HTTPException
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import request_validation_exception_handler
 from .ai.config import load_settings
 from .ai.service import agent_router as agent_core_router, router as agent_router
 from .teaching.routes import router as teaching_router
 from .teaching.classes import router as classes_router
 from migrations.upgrade import upgrade
+from migrations.community import upgrade_community
+from .teaching.community import router as community_router, CommunityBase, ensure_code
 
 
 def initialize_database():
     upgrade(engine, Base.metadata)
+    upgrade_community(engine, CommunityBase.metadata)
+    with SessionLocal() as db:
+        for class_id in db.scalars(select(Classroom.id)):
+            ensure_code(db, class_id)
+        db.commit()
     if os.getenv('SHUBAN_SEED_DEMO', 'false').lower() != 'true':
         return
     with SessionLocal() as db:
@@ -38,6 +51,7 @@ def initialize_database():
                 topic='函数与极限', due_date=(date.today() + timedelta(days=7)).isoformat(), created_at=datetime.now(timezone.utc).isoformat()))
         db.flush()
         db.add(AssignmentRecipient(assignment_id='demo-limit', student_id='student'))
+        ensure_code(db, 'demo-class')
         db.commit()
 
 
@@ -50,13 +64,32 @@ async def lifespan(app):
 app = FastAPI(title='数伴 · 教育智能体 MVP', version='0.2.0', lifespan=lifespan)
 
 
+@app.exception_handler(RequestValidationError)
+async def validation_error(request, exc):
+    if request.url.path.startswith('/api/model-settings'):
+        return JSONResponse({'detail': '请检查API地址、模型名称和密钥格式（地址使用HTTPS，本机可用HTTP）。'}, status_code=422)
+    return await request_validation_exception_handler(request, exc)
+
+
 @app.middleware('http')
 async def request_guard(request: Request, call_next):
     # A non-simple header plus no cross-origin CORS prevents browser cross-site mutations.
     if request.url.path.startswith('/api/') and request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
         if request.headers.get('X-Requested-With') != 'shuban-web':
             return JSONResponse({'detail': '请求来源校验失败，请从应用页面操作。'}, status_code=403)
-    response = await call_next(request)
+    token = personal_settings.set(None)
+    try:
+        if request.url.path.startswith(('/api/agent/', '/api/conversations')):
+            try:
+                with SessionLocal() as db:
+                    user = current_user(request, db)
+                    personal_settings.set(read_config(user.id))
+            except HTTPException as exc:
+                if exc.status_code != 401:
+                    return JSONResponse({'detail': exc.detail}, status_code=exc.status_code)
+        response = await call_next(request)
+    finally:
+        personal_settings.reset(token)
     if request.url.path.startswith('/api/'):
         response.headers['Cache-Control'] = 'no-store'
     response.headers['X-Content-Type-Options'] = 'nosniff'
@@ -65,10 +98,12 @@ async def request_guard(request: Request, call_next):
 
 
 app.include_router(auth_router)
+app.include_router(model_settings_router)
 app.include_router(agent_router)
 app.include_router(agent_core_router)
 app.include_router(teaching_router)
 app.include_router(classes_router)
+app.include_router(community_router)
 
 
 @app.get('/api/health')

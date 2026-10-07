@@ -192,7 +192,7 @@ def test_multi_teacher_migrated_members_are_readable_but_accounts_remain_unmanag
     main.app.dependency_overrides[database.get_db] = isolated_db
     clients = []
     try:
-        upgrade(engine, metadata)
+        main.initialize_database()
         for username in ('teacher', 'other_teacher'):
             client = TestClient(main.app, headers={'X-Requested-With': 'shuban-web'})
             clients.append(client)

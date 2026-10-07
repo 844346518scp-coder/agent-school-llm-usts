@@ -94,6 +94,65 @@ def login(client, role='student', remember=False):
     return client.post('/api/auth/login', json={'username': role, 'password': f'{role.title()}123!', 'role': role, 'remember': remember})
 
 
+def test_quick_demo_disabled(client, monkeypatch):
+    monkeypatch.setenv('SHUBAN_DEMO_LOGIN', 'false')
+    assert client.get('/api/auth/demo').json() == {'enabled': False}
+    assert client.post('/api/auth/demo', json={'role': 'teacher'}).status_code == 403
+
+
+def test_personal_model_config(client, monkeypatch, tmp_path):
+    from backend.app.platform import model_settings as ms
+    from backend.app.ai.config import load_settings
+    from backend.app.ai import service
+    monkeypatch.setenv('SHUBAN_API_SETTINGS_DIR', str(tmp_path))
+    payload = {'base_url': 'https://api.deepseek.com', 'model': 'deepseek-flash', 'api_key': 'synthetic-api-key'}
+    assert client.get('/api/model-settings').status_code == 401
+    login(client)
+    assert not client.get('/api/model-settings').json()['has_key']
+    seen = []
+    monkeypatch.setattr(ms, 'chat', lambda messages, settings: seen.append(settings.api_key) or 'OK')
+    assert client.post('/api/model-settings/test', json=payload).status_code == 200
+    assert not list(tmp_path.iterdir())  # test-only request never writes a secret
+    saved = client.put('/api/model-settings', json=payload)
+    assert saved.status_code == 200 and saved.json()['has_key']
+    assert payload['api_key'] not in saved.text
+    assert all(payload['api_key'].encode() not in p.read_bytes() for p in tmp_path.iterdir())
+    assert ms.read_config('student')['api_key'] == payload['api_key']
+    assert client.put('/api/model-settings', json={**payload, 'api_key': '', 'model': 'updated'}).status_code == 200
+    assert client.post('/api/model-settings/test', json={**payload, 'api_key': '', 'base_url': 'https://example.com'}).status_code == 422
+    invalid = client.put('/api/model-settings', json={**payload, 'api_key': 'secret\ninvalid'})
+    assert invalid.status_code == 422 and 'secret' not in invalid.text
+    monkeypatch.setattr(service, 'chat', lambda messages, settings, **kw: seen.append(settings.api_key) or '个人模型测试')
+    assert client.post('/api/conversations', json={'question': '求导数'}).json()['mode'] == 'live'
+    assert seen[-1] == payload['api_key']
+    client.post('/api/auth/logout'); login(client, 'teacher')
+    assert not client.get('/api/model-settings').json()['has_key']
+    assert client.post('/api/conversations', json={'question': '求导数'}).json()['mode'] == 'demo'
+    client.post('/api/auth/logout'); login(client)
+    assert client.delete('/api/model-settings').status_code == 200
+    assert not list(tmp_path.iterdir())
+    assert client.post('/api/conversations', json={'question': '求导数'}).json()['mode'] == 'demo'
+
+
+def test_quick_demo_roles_and_private_conversion(client, monkeypatch):
+    monkeypatch.setenv('SHUBAN_DEMO_LOGIN', 'true')
+    assert client.post('/api/auth/demo', json={'role': 'admin'}).status_code == 422
+    for role in ('teacher', 'student', 'teacher'):
+        r = client.post('/api/auth/demo', json={'role': role})
+        assert r.status_code == 200
+        assert r.json()['role'] == role and r.json()['is_demo']
+        assert client.get('/api/auth/me').json()['id'] == 'quick-demo-' + role
+    assert len(client.get('/api/classes').json()) == 1
+    # Entering a demo does not prevent first private teacher setup.
+    assert client.get('/api/auth/setup').json()['required']
+    assert client.post('/api/auth/setup', json={'username': 'privateTeacher', 'name': '正式老师', 'password': 'PrivateTeacher123!'}).status_code == 201
+    assert not client.get('/api/auth/setup').json()['required']
+    with SessionLocal() as db:
+        db.get(User, 'quick-demo-teacher').is_demo = False
+        db.commit()
+    assert client.post('/api/auth/demo', json={'role': 'teacher'}).status_code == 409
+
+
 @pytest.mark.parametrize('role', ['student', 'teacher'])
 def test_login_and_role(client, role):
     response = login(client, role)
@@ -366,3 +425,46 @@ def test_concurrent_review_and_resubmit_preserves_version_boundary(client):
         assert final['version'] == 2 and final['review'] is None
         assert all(r['version'] == 1 and r['answer_snapshot'] == 'v1' for r in final['review_history'])
         assert len(final['review_history']) == (1 if review_result.status_code == 200 else 0)
+
+
+def test_split_demo_cookie_isolation_and_three_students(client, monkeypatch):
+    monkeypatch.setenv('SHUBAN_DEMO_LOGIN', 'true')
+    teacher = {'X-Demo-Window': 'teacher'}
+    assert client.post('/api/auth/demo', json={'role': 'teacher'}, headers=teacher).status_code == 200
+    students = []
+    for number in (1, 2, 3):
+        headers = {'X-Demo-Window': f'student-{number}'}
+        response = client.post('/api/auth/demo', json={'role': 'student', 'student': number}, headers=headers)
+        assert response.status_code == 200
+        students.append(response.json()['id'])
+        assert client.get('/api/auth/me', headers=teacher).json()['role'] == 'teacher'
+    assert len(set(students)) == 3
+    assert client.get('/api/auth/me').status_code == 401
+    classes = client.get('/api/classes', headers=teacher).json()
+    assert next(c for c in classes if c['id'] == 'quick-demo-class')['student_count'] == 3
+    assignment = client.post('/api/assignments', headers=teacher, json={
+        'class_id': 'quick-demo-class', 'title': '多窗口演示', 'topic': '导数',
+        'content': '求导', 'due_date': date.today().isoformat()})
+    assert assignment.status_code == 201
+    aid = assignment.json()['id']
+    for number in (1, 2, 3):
+        headers = {'X-Demo-Window': f'student-{number}'}
+        assert client.get('/api/auth/me', headers=headers).json()['id'] == students[number-1]
+        assert client.put(f'/api/assignments/{aid}/submission', headers=headers, json={'answer': f'学生{number}作答'}).status_code == 200
+    item = next(a for a in client.get('/api/assignments', headers=teacher).json() if a['id'] == aid)
+    assert len(item['submissions']) == 3
+    assert client.post('/api/auth/logout', headers={'X-Demo-Window': 'student-2'}).status_code == 200
+    assert client.get('/api/auth/me', headers={'X-Demo-Window': 'student-2'}).status_code == 401
+    assert client.get('/api/auth/me', headers=teacher).status_code == 200
+    assert client.get('/api/auth/me', headers={'X-Demo-Window': 'student-1'}).status_code == 200
+    assert client.get('/api/auth/me', headers={'X-Demo-Window': 'bad'}).status_code == 422
+    assert client.post('/api/auth/demo', json={'role': 'student', 'student': 4}).status_code == 422
+    from backend.app.platform.database import ClassMember
+    with SessionLocal() as db:
+        db.get(ClassMember, ('quick-demo-class', students[2])).active = False
+        db.get(User, students[1]).is_demo = False
+        db.commit()
+    assert client.post('/api/auth/demo', json={'role': 'student', 'student': 2}).status_code == 409
+    assert client.post('/api/auth/demo', json={'role': 'student', 'student': 3}).status_code == 200
+    with SessionLocal() as db:
+        assert not db.get(ClassMember, ('quick-demo-class', students[2])).active

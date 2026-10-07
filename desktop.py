@@ -34,14 +34,16 @@ import time
 import urllib.request
 
 ROOT = Path(__file__).resolve().parent
-BACKEND = ROOT / 'backend'
+INSTALLED = (ROOT / 'desktop-installed.json').is_file()
+BACKEND = (Path(os.environ.get('SHUBAN_DATA_DIR') or (Path(os.environ['LOCALAPPDATA']) / 'Shuban/data'))
+           if INSTALLED else ROOT / 'backend')
 PORT_FILE = BACKEND / 'launcher-port.txt'
 LOCK_FILE = BACKEND / 'launcher.lock'
-PORTABLE = BACKEND / 'app/platform/portable.py'
+PORTABLE = ROOT / 'backend/app/platform/portable.py'
 DEFAULT_PORT = 18080
 READY_TIMEOUT = 45
 WINDOW_SIZE = (1280, 860)
-WINDOW_PROFILE = ROOT / '.runtime/desktop-profile'
+WINDOW_PROFILE = BACKEND / 'desktop-profile' if INSTALLED else ROOT / '.runtime/desktop-profile'
 EXPECTED = ('0.2.0', '0.3.0', 3)  # agent_version, teaching_version, schema_version
 
 _OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -49,7 +51,24 @@ _OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 def instance_id():
     """Must match backend/app/platform/portable.py so both entries share a service."""
-    return hashlib.sha256(str(ROOT).casefold().encode()).hexdigest()[:24]
+    identity = str(ROOT) + ('|' + str(BACKEND.resolve()) if INSTALLED else '')
+    return hashlib.sha256(identity.casefold().encode()).hexdigest()[:24]
+
+
+def prepare_installed_data():
+    if not INSTALLED:
+        return
+    BACKEND.mkdir(parents=True, exist_ok=True)
+    config = BACKEND / '.env'
+    if not config.exists():
+        config.write_text('AGENT_MODE=auto\nMODEL_BASE_URL=https://api.deepseek.com\nMODEL_NAME=deepseek-flash\nMODEL_VISION_NAME=deepseek-flash\nMODEL_API_KEY=\nMODEL_THINKING=auto\nMODEL_MAX_TOKENS=4096\n', encoding='utf-8')
+    from dotenv import load_dotenv
+    load_dotenv(config)
+    os.environ['DATABASE_URL'] = 'sqlite:///' + (BACKEND / 'demo.db').as_posix()
+    os.environ['SHUBAN_INSTANCE_ID'] = instance_id()
+    os.environ['COOKIE_SECURE'] = 'false'
+    os.environ['SHUBAN_SEED_DEMO'] = 'false'
+    os.environ.setdefault('SHUBAN_DEMO_LOGIN', 'true')
 
 
 def is_ready(url):
@@ -146,7 +165,14 @@ def main():
                         help='fixed port; 0 reuses backend/launcher-port.txt then 18080')
     parser.add_argument('--check', action='store_true',
                         help='prepare/reuse the backend and exit without opening a window')
+    parser.add_argument('--configure', action='store_true', help='open the installed model configuration')
     args = parser.parse_args()
+    prepare_installed_data()
+    if args.configure:
+        if not INSTALLED:
+            raise RuntimeError('Configuration shortcut is for installed copies only.')
+        subprocess.Popen(['notepad.exe', str(BACKEND / '.env')])
+        return 0
     if args.port and not 1024 <= args.port <= 65535:
         print('ERROR: --port must be between 1024 and 65535.', file=sys.stderr)
         return 2
@@ -193,5 +219,9 @@ if __name__ == '__main__':
     try:
         sys.exit(main())
     except Exception as exc:  # keep the console message short and actionable
-        print(f'ERROR: {exc}', file=sys.stderr)
+        if sys.stderr is not None:
+            print(f'ERROR: {exc}', file=sys.stderr)
+        else:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(None, str(exc), 'SHUBAN 启动失败', 0x10)
         sys.exit(1)

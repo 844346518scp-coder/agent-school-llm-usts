@@ -11,6 +11,7 @@ from ..platform.auth import (AccountInput, Input, create_user, hash_password,
                              public_user, require_role, validate_name, validate_password)
 from ..platform.database import (Assignment, AssignmentRecipient, Classroom, ClassMember,
                                  Review, Submission, User, Session as LoginSession, get_db, write_db)
+from .community import ClassCode, ensure_code
 
 router = APIRouter(prefix='/api', tags=['classes'])
 
@@ -68,7 +69,8 @@ def managed_student(db, student_id, user):
 def class_data(item, db):
     students = list(db.scalars(select(User.id).join(ClassMember, ClassMember.student_id == User.id)
                               .where(ClassMember.class_id == item.id, ClassMember.active.is_(True), User.active.is_(True))))
-    return {key: getattr(item, key) for key in ('id', 'name', 'course', 'term', 'archived', 'created_at')} | {'student_count': len(students)}
+    code = db.get(ClassCode, item.id)
+    return {key: getattr(item, key) for key in ('id', 'name', 'course', 'term', 'archived', 'created_at')} | {'student_count': len(students), 'join_code': code.code if code else ''}
 
 
 def student_data(student, member, db, teacher_id):
@@ -95,6 +97,8 @@ def classes(user: User = Depends(require_role('teacher')), db: Session = Depends
 def create_class(data: ClassInput, db: Session = Depends(write_db), user: User = Depends(require_role('teacher'))):
     item = Classroom(id=str(uuid4()), teacher_id=user.id, **data.model_dump(), archived=False, created_at=datetime.now(timezone.utc).isoformat())
     db.add(item)
+    db.flush()
+    ensure_code(db, item.id)
     db.commit()
     return class_data(item, db)
 

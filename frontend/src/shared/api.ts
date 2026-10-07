@@ -1,6 +1,8 @@
+const requestedWindow = new URLSearchParams(window.location.search).get('demo_window') || ''
+export const demoWindow = ['teacher', 'student-1', 'student-2', 'student-3'].includes(requestedWindow) ? requestedWindow : ''
 export type Role = 'student' | 'teacher'
 export interface User { id: string; username: string; name: string; role: Role; active: boolean; must_change_password: boolean; is_demo: boolean }
-export interface TeachingClass { id: string; name: string; course: string; term: string; archived: boolean; student_count: number; created_at: string }
+export interface TeachingClass { join_code: string; id: string; name: string; course: string; term: string; archived: boolean; student_count: number; created_at: string }
 export interface ClassStudent { id: string; username: string; name: string; active: boolean; must_change_password: boolean; member_active: boolean; manageable: boolean; submitted: number; completed: number; pending: number; needs_improvement: number; expected: number }
 export interface Reference { index: number; id: string; title: string; source: string; verified: boolean }
 export interface Conversation { id: string; question: string; answer: string; topic: string; favorite: boolean; created_at: string; mode: 'demo' | 'live'; notice?: string | null; references?: Reference[] }
@@ -16,10 +18,10 @@ export const reviewLabel = (status?: ReviewStatus) => status === 'completed' ? '
 export class ApiError extends Error { constructor(message: string, public status: number) { super(message) } }
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const controller = new AbortController()
-  const isAiWrite = options.method === 'POST' && (path === '/conversations' || path.startsWith('/agent/'))
+  const isAiWrite = options.method === 'POST' && (path === '/conversations' || path.startsWith('/agent/') || path === '/model-settings/test')
   const timeout = setTimeout(() => controller.abort(), isAiWrite ? 90000 : 15000)
   try {
-    const response = await fetch(`/api${path}`, { ...options, signal: controller.signal, credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'shuban-web', ...options.headers } })
+    const response = await fetch(`/api${path}`, { ...options, signal: controller.signal, credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'shuban-web', ...(demoWindow ? { 'X-Demo-Window': demoWindow } : {}), ...options.headers } })
     const data = await response.json()
     if (!response.ok) {
       if (response.status === 401 && !path.startsWith('/auth/')) window.dispatchEvent(new Event('session-expired'))
@@ -28,6 +30,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     return data as T
   } catch (error) {
     if (error instanceof ApiError) throw error
+    if (path === '/model-settings/test') throw new Error('连接测试超时或网络不可用，测试不会保存配置。')
     if (isAiWrite) throw new Error('本次响应未能完成接收。请先刷新学习记录确认是否已保存，再决定是否重试，避免重复提问。')
     throw new Error('暂时无法连接服务，请确认后端已启动后重试。')
   } finally { clearTimeout(timeout) }

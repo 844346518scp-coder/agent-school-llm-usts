@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Iterable, Sequence
 
-from . import knowledge, prompts
+from . import knowledge, prompts, resilience
 from .config import AgentSettings, load_settings
 from .llm import ModelCallFailed, ModelUnavailable, chat, extract_json
 
@@ -132,7 +132,10 @@ def evaluate(text: str, topic: str | None = None, kind: str = 'feynman',
 
     if settings.resolved_mode == 'live':
         try:
-            comment = chat(prompts.build_feynman_messages(target.topic, cleaned, candidates), settings)
+            comment, _meta = resilience.call_model(
+                lambda: chat(prompts.build_feynman_messages(target.topic, cleaned, candidates), settings),
+                endpoint='POST /api/agent/review',
+            )
         except (ModelUnavailable, ModelCallFailed) as exc:
             result['notice'] = f'模型点评失败，已保留规则结论（原因：{exc}）。'
         else:
@@ -274,7 +277,10 @@ def summarize(state_data: dict, conversations: Sequence[dict], days: int = 7,
 
     if settings.resolved_mode == 'live' and (weak or recent):
         try:
-            text = chat(prompts.build_summary_messages(result, evidence), settings)
+            text, _meta = resilience.call_model(
+                lambda: chat(prompts.build_summary_messages(result, evidence), settings),
+                endpoint='POST /api/agent/summary',
+            )
         except (ModelUnavailable, ModelCallFailed) as exc:
             result['notice'] = f'模型润色失败，已保留规则总结（原因：{exc}）。'
         else:

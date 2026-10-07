@@ -14,9 +14,9 @@ SYSTEM_TUTOR = (
     '必须遵守以下规则：\n'
     '1. 只依据“课程资料片段”作答；资料没有覆盖的内容要明确说明“资料中未涉及”，不要凭记忆补充。\n'
     '2. 引用资料时在句末标注编号，例如 [1]、[2]；不要编造资料名称、章节或页码。\n'
-    '3. 按“概念层 → 例题层 → 迁移层”三层组织回答：先讲定义与直觉，再给一个完整例题，最后留一道变式给学生自己做。\n'
+    '3. 默认按“概念层 → 例题层 → 迁移层”组织；用户要求简短或只求某一步时，直接回答该问题，不扩写整节课。\n'
     '4. 数学公式一律使用 LaTeX：行内 $...$，独立公式 $$...$$。\n'
-    '5. 不要把例题的每一步都讲完：给出关键一步后停下来提问，引导学生继续。\n'
+    '5. 引导式练习给关键一步后提问；用户明确要求结果或完整解答时给出结果和必要步骤，不强行追问。\n'
     '6. 使用简体中文，语气平实，不堆砌鼓励性感叹句。'
 )
 
@@ -24,9 +24,10 @@ SYSTEM_TEACHER = (
     '你是《高等数学》课程的教学设计助手，服务对象是任课教师。\n'
     '必须遵守：\n'
     '1. 只依据“课程资料片段”设计内容，并在引用处标注编号 [1]、[2]。\n'
-    '2. 输出结构：教学目标 → 引入情境 → 讲解主线 → 例题与易错点 → 课堂练习 → 作业分层（基础/提高）。\n'
+    '2. 按教师本次要求组织内容；仅完整教案才使用教学目标、情境、例题、练习和作业结构。简短提问不要扩写成教案。\n'
     '3. 明确指出学生容易出错的地方，并给出对应的追问话术。\n'
-    '4. 使用简体中文，公式用 LaTeX。'
+    '4. 使用简体中文和 Markdown，公式用 $...$ 或 $$...$$；默认不超过800字，先给所需结论。\n'
+    '5. 区分概念不同与数值不等：导数与函数值含义不同，但在某点可以数值相等。'
 )
 
 SYSTEM_FEYNMAN = (
@@ -92,9 +93,9 @@ def build_qa_messages(question: str, topic: str, chunks: Sequence, role: str = '
     system = SYSTEM_TEACHER if role == 'teacher' else SYSTEM_TUTOR
     user = (
         f'课程模块：{topic}\n'
-        f'回答结构要求：{LAYER_HINT}\n\n'
+        f'回答结构要求：{"优先遵从教师要求的篇幅与格式" if role == "teacher" else LAYER_HINT + "；简短问题按需简化"}\n\n'
         f'课程资料片段：\n{format_context(chunks)}\n\n'
-        f'学生问题：{question}\n\n'
+        f'{"教师要求" if role == "teacher" else "学生问题"}：{question}\n\n'
         '请按结构要求作答，凡引用资料处标注编号；资料未覆盖时直接说明。'
     )
     return [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}]
@@ -148,6 +149,56 @@ SYSTEM_SUMMARY = (
     '3. 输出 3—5 句话的复习总结，简体中文，公式用 LaTeX。\n'
     '4. 不要写出“你一定掌握了”这类数据无法支持的判断。'
 )
+
+
+SYSTEM_HINT = (
+    '你是《高等数学》学习引导助手，学生正在自己动手做题，你只给当前层级的一点提示。\n'
+    '层级要求：1=概念提示（只讲定义、直觉与前提条件）；2=方法提示（只说可以用什么方法、适用条件是什么）；'
+    '3=关键步骤提示（只给出第一步的动作与形式）。\n'
+    '硬约束：\n'
+    '1. 任何层级都不得给出最终答案，也不得把后续推导写出来。\n'
+    '2. 只依据给出的课程资料片段，不要编造教材章节或页码。\n'
+    '3. 只输出 JSON：{"hint":"提示正文","self_check":"一句话追问"}，不要输出其他文字。'
+)
+
+SYSTEM_PLOT = (
+    '你是《高等数学》图形批注讲解助手。系统已用本地数学工具算出采样坐标与关键点，'
+    '你只能解释这些已有结果，不得改动或新增任何坐标、关键点与数值。\n'
+    '只输出 JSON：{"explanation":"一段批注讲解","step_notes":["每步一句话"]}；'
+    '解释用简体中文，公式用 LaTeX，总长不超过 300 字；不得声称图形说明了资料未覆盖的结论。'
+)
+
+
+def build_hint_messages(question: str, level: int, level_title: str, topic: str | None,
+                        chunks: Sequence) -> list[dict]:
+    user = (
+        f'课程模块：{topic or "未指定"}\n'
+        f'当前层级：第 {level} 级（{level_title}）\n\n'
+        f'课程资料片段：\n{format_context(chunks)}\n\n'
+        f'学生的问题：{question}\n\n'
+        f'请只给出第 {level} 级提示，并输出约定 JSON。'
+    )
+    return [{'role': 'system', 'content': SYSTEM_HINT}, {'role': 'user', 'content': user}]
+
+
+def build_plot_messages(payload: dict, chunks: Sequence) -> list[dict]:
+    key_points = payload.get('key_points') or []
+    points_text = '、'.join(
+        f"{item.get('label')}({item.get('x')}, {item.get('y')})" if item.get('y') is not None
+        else f"{item.get('label')}(x={item.get('x')})"
+        for item in key_points
+    ) or '（本地工具未算出关键点）'
+    steps_text = '；'.join(item.get('title', '') for item in payload.get('steps', [])) or '（无）'
+    user = (
+        f"题目：{payload.get('question') or '（未提供）'}\n"
+        f"函数：{payload.get('function', {}).get('expr') or '（未解析出函数）'}\n"
+        f"绘图区间：x ∈ [{payload.get('viewport', {}).get('x_min')}, {payload.get('viewport', {}).get('x_max')}]\n"
+        f"本地工具算出的关键点：{points_text}\n"
+        f"本地工具给出的步骤标题：{steps_text}\n\n"
+        f"课程资料片段：\n{format_context(chunks)}\n\n"
+        '请解释这张图形标注，输出约定 JSON；坐标与关键点以上面给的为准。'
+    )
+    return [{'role': 'system', 'content': SYSTEM_PLOT}, {'role': 'user', 'content': user}]
 
 
 def build_summary_messages(summary: dict, chunks: Sequence) -> list[dict]:

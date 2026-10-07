@@ -5,6 +5,7 @@ import secrets
 import time
 import re
 from uuid import uuid4
+from datetime import datetime, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -12,11 +13,19 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session as DBSession
 
-from .database import Session, User, get_db, write_db
+from .database import Session, User, Classroom, ClassMember, get_db, write_db
 
 router = APIRouter(prefix='/api/auth', tags=['auth'])
 COOKIE = 'shuxue_session'
 SECURE_COOKIE = os.getenv('COOKIE_SECURE', 'false').lower() == 'true'
+
+
+def session_cookie(request: Request):
+    # Separate HttpOnly cookies keep demonstration windows independent.
+    scope = request.headers.get('X-Demo-Window', '')
+    if scope and scope not in ('teacher', 'student-1', 'student-2', 'student-3'):
+        raise HTTPException(422, '无效的演示窗口。')
+    return COOKIE + ('_' + scope if scope else '')
 
 
 def hash_password(password: str) -> str:
@@ -42,7 +51,7 @@ def public_user(user: User):
 
 
 def current_user(request: Request, db: DBSession = Depends(get_db)) -> User:
-    session = db.get(Session, token_hash(request.cookies.get(COOKIE, '')))
+    session = db.get(Session, token_hash(request.cookies.get(session_cookie(request), '')))
     if not session or session.expires <= int(time.time()):
         raise HTTPException(401, '登录已过期，请重新登录。')
     user = db.get(User, session.user_id)
@@ -99,6 +108,22 @@ class PasswordInput(Input):
     _password = field_validator('new_password')(validate_password)
 
 
+class StudentRegistration(AccountInput):
+    class_code: str = Field(default='', max_length=20)
+
+
+@router.post('/register/student', status_code=201)
+def register_student(data: StudentRegistration, request: Request, response: Response, db: DBSession = Depends(write_db)):
+    user = create_user(db, AccountInput(**data.model_dump(exclude={'class_code'})), 'student')
+    if data.class_code.strip():
+        from ..teaching.community import join_class
+        join_class(db, user, data.class_code)
+    db.execute(delete(Session).where(Session.token_hash == token_hash(request.cookies.get(session_cookie(request), ''))))
+    issue_session(db, user, response, request=request)
+    db.commit()
+    return public_user(user)
+
+
 class ProfileInput(Input):
     name: str = Field(min_length=1, max_length=80)
     _name = field_validator('name')(validate_name)
@@ -122,28 +147,89 @@ def create_user(db, data: AccountInput, role, created_by=None, temporary=False):
     return user
 
 
-def issue_session(db, user, response, remember=False):
+def issue_session(db, user, response, remember=False, request=None):
     timestamp = int(time.time())
     db.execute(delete(Session).where(Session.expires <= timestamp))
     lifetime = 7 * 86400 if remember else 8 * 3600
     token = secrets.token_urlsafe(32)
     db.add(Session(token_hash=token_hash(token), user_id=user.id, expires=timestamp + lifetime))
-    response.set_cookie(COOKIE, token, httponly=True, secure=SECURE_COOKIE, samesite='strict',
+    response.set_cookie(session_cookie(request) if request is not None else COOKIE, token, httponly=True, secure=SECURE_COOKIE, samesite='strict',
                         max_age=lifetime if remember else None, path='/')
 
 
 @router.get('/setup')
 def setup_status(db: DBSession = Depends(get_db)):
-    return {'required': db.scalar(select(User.id).where(User.role == 'teacher').limit(1)) is None}
+    return {'required': db.scalar(select(User.id).where(User.role == 'teacher', User.is_demo.is_(False)).limit(1)) is None}
+
+
+def demo_enabled():
+    return os.getenv('SHUBAN_DEMO_LOGIN', 'false').lower() == 'true'
+
+
+@router.get('/demo')
+def demo_status():
+    return {'enabled': demo_enabled()}
+
+
+class DemoLoginInput(Input):
+    role: Literal['student', 'teacher']
+    student: Literal[1, 2, 3] = 1
+
+
+@router.post('/demo')
+def demo_login(data: DemoLoginInput, request: Request, response: Response, db: DBSession = Depends(write_db)):
+    if not demo_enabled():
+        raise HTTPException(403, '当前服务未启用演示登录。')
+    # Only these dedicated accounts may bypass passwords; never reuse real accounts.
+    accounts = {}
+    newly_created = set()
+    for key, role, name in [('teacher', 'teacher', '演示老师'),
+                             ('student', 'student', '演示同学'),
+                             ('student-2', 'student', '演示同学 2'),
+                             ('student-3', 'student', '演示同学 3')]:
+        identity = 'quick-demo-' + key
+        user = db.get(User, identity)
+        if user is None:
+            user = User(id=identity, username='demo-' + key + '-' + secrets.token_hex(4),
+                        name=name, role=role, password_hash=hash_password(secrets.token_urlsafe(32)),
+                        active=True, is_demo=True, must_change_password=False,
+                        created_by='quick-demo-teacher' if role == 'student' else None)
+            db.add(user)
+            db.flush()
+            newly_created.add(identity)
+        accounts[key] = user
+    selected = 'teacher' if data.role == 'teacher' else 'student' if data.student == 1 else f'student-{data.student}'
+    for key in ('teacher', selected):
+        user = accounts[key]
+        if not user.is_demo or not user.active or user.must_change_password or user.role != ('teacher' if key == 'teacher' else 'student'):
+            raise HTTPException(409, '演示账号已停用或转为正式账号，请使用账号密码登录。')
+    classroom = db.get(Classroom, 'quick-demo-class')
+    if classroom is None:
+        classroom = Classroom(id='quick-demo-class', teacher_id=accounts['teacher'].id,
+                              name='一键体验演示班', course='高等数学', term='演示学期', archived=False,
+                              created_at=datetime.now(timezone.utc).isoformat())
+        db.add(classroom)
+        db.flush()
+        newly_created.update(u.id for u in accounts.values() if u.role == 'student' and u.is_demo and u.active)
+    if not classroom.archived and classroom.teacher_id == accounts['teacher'].id:
+        for identity in newly_created:
+            if accounts['teacher'].id != identity and not db.get(ClassMember, (classroom.id, identity)):
+                db.add(ClassMember(class_id=classroom.id, student_id=identity, active=True))
+    from ..teaching.community import ensure_code
+    ensure_code(db, 'quick-demo-class')
+    db.execute(delete(Session).where(Session.token_hash == token_hash(request.cookies.get(session_cookie(request), ''))))
+    issue_session(db, accounts[selected], response, request=request)
+    db.commit()
+    return public_user(accounts[selected])
 
 
 @router.post('/setup', status_code=201)
 def setup(data: AccountInput, request: Request, response: Response, db: DBSession = Depends(write_db)):
-    if db.scalar(select(User.id).where(User.role == 'teacher').limit(1)):
+    if db.scalar(select(User.id).where(User.role == 'teacher', User.is_demo.is_(False)).limit(1)):
         raise HTTPException(409, '教师账号已初始化，请登录。')
     user = create_user(db, data, 'teacher')
-    db.execute(delete(Session).where(Session.token_hash == token_hash(request.cookies.get(COOKIE, ''))))
-    issue_session(db, user, response)
+    db.execute(delete(Session).where(Session.token_hash == token_hash(request.cookies.get(session_cookie(request), ''))))
+    issue_session(db, user, response, request=request)
     db.commit()
     return public_user(user)
 
@@ -156,7 +242,7 @@ def create_teacher(data: AccountInput, db: DBSession = Depends(write_db), user: 
 
 
 @router.post('/password')
-def change_password(data: PasswordInput, response: Response, db: DBSession = Depends(write_db), user: User = Depends(current_user)):
+def change_password(data: PasswordInput, request: Request, response: Response, db: DBSession = Depends(write_db), user: User = Depends(current_user)):
     if not verify_password(data.current_password, user.password_hash):
         raise HTTPException(403, '当前密码不正确。')
     if data.current_password == data.new_password:
@@ -166,7 +252,7 @@ def change_password(data: PasswordInput, response: Response, db: DBSession = Dep
     # A former publicly documented account becomes private only after password change.
     user.is_demo = False
     db.execute(delete(Session).where(Session.user_id == user.id))
-    issue_session(db, user, response)
+    issue_session(db, user, response, request=request)
     db.commit()
     return public_user(user)
 
@@ -183,10 +269,10 @@ def login(data: LoginInput, request: Request, response: Response, db: DBSession 
     user = db.scalar(select(User).where(User.username == data.username.strip()))
     if not user or not user.active or not verify_password(data.password, user.password_hash) or user.role != data.role:
         raise HTTPException(401, '账号、密码或所选身份不正确，请检查后重试。')
-    old = request.cookies.get(COOKIE)
+    old = request.cookies.get(session_cookie(request))
     if old:
         db.execute(delete(Session).where(Session.token_hash == token_hash(old)))
-    issue_session(db, user, response, data.remember)
+    issue_session(db, user, response, data.remember, request=request)
     db.commit()
     return public_user(user)
 
@@ -198,7 +284,7 @@ def me(user: User = Depends(current_user)):
 
 @router.post('/logout')
 def logout(request: Request, response: Response, db: DBSession = Depends(get_db)):
-    db.execute(delete(Session).where(Session.token_hash == token_hash(request.cookies.get(COOKIE, ''))))
+    db.execute(delete(Session).where(Session.token_hash == token_hash(request.cookies.get(session_cookie(request), ''))))
     db.commit()
-    response.delete_cookie(COOKIE, path='/', httponly=True, secure=SECURE_COOKIE, samesite='strict')
+    response.delete_cookie(session_cookie(request), path='/', httponly=True, secure=SECURE_COOKIE, samesite='strict')
     return {'ok': True}

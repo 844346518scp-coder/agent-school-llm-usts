@@ -1,5 +1,15 @@
 # 接口约定入口
 
+## 2026-10-07 演示登录接口
+
+GET /api/auth/demo 返回enabled；POST同路径接受role=student|teacher，返回既有public_user并设置8小时会话Cookie（同既有CSRF头规则）。关闭时403、角色无效422、指定演示账号停用/转正式/需改密时409；不返回密码。只允许quick-demo专用ID且is_demo=true的有效用户。首次按事务创建师生及演示班，重复调用复用数据。GET/POST /auth/setup 以非演示教师是否存在判断首次正式建档。HTTP已有接口字段和schema v3不变；新增配置SHUBAN_DEMO_LOGIN源码默认关闭，桌面默认启用（可覆盖false）。
+
+
+## 2026-10-07 模型兼容更新
+
+`MODEL_THINKING=auto|enabled|disabled`：auto仅对官方DeepSeek域名发送disabled，其余服务不发送此参数。`MODEL_MAX_TOKENS`默认4096、上限16384。同步与流式返回length均拒绝作为完整成功答案；沿用既有调用失败降级与notice，不改响应字段/HTTP/schema。真实文字与单图OCR样例已通过，范围见开发日志。
+
+
 ## 2026-09-21 模拟验收发现（尚未修复，不改变现行接口）
 
 后续免费Qwen3-VL-2B本地真实调用中，普通问答Q01/Q02超时后返回HTTP200、mode=demo及notice；两张合成PNG的识别均返回502及明确调用失败提示，没有可用于符号准确率统计的text。直接模型短请求成功不等于上述应用契约通过，也不改变status只反映配置是否齐全的边界。未改变超时、响应字段、权限或数据库结构，见[续测报告](../simulation-test-report.md)。
@@ -225,3 +235,65 @@ AI反馈复核还需明确原始结果、教师修改、审核状态、发布人
 - 拍照识别的多题切分与公式人工修正细节。
 - 教师端知识点掌握度聚合：当前长期记忆只对本人开放，教师端学情仍以作业提交统计为主；如需按班聚合，需要新增教师侧接口并定义权限边界。
 - 资源库扩充：已在知识点派生的基础上追加 6 条跨模块资料/导览条目（章节导览 ×4、极限计算思路图、积分方法选择表），全部 `verified=false` 待复核；外部课件/视频接入后需同样的复核流程。
+
+## 2026-09-25 · 智能体接口 v0.4（B 模块第三阶段）
+
+状态：已实现、可本地运行（`python -m pytest -q` → 135 passed；`python tests/check_agent_accuracy.py` → 7 套件全部达标，62/62 用例）。
+范围：分层提示、图形批注（步骤/坐标/讲解）、数学工具、语音服务适配、准确性评测、教师纠错、降级与错误统计。
+字段冻结说明：`GET /api/agent/status` 的 `version` 仍为 `0.2.0`、`phase` 仍为 `2`（启动器与既有测试依赖），本轮新增 `stage=3` 标识阶段。
+
+### 新增接口（POST 需登录会话 + `X-Requested-With: shuban-web`；两个探针为公开 GET）
+
+| 方法 / 路径 | 请求 | 响应要点 |
+| --- | --- | --- |
+| POST /api/agent/hint | question(1–1000)、level(1–3，默认 1)、topic | level、level_title（概念提示/方法提示/关键步骤提示）、hint、self_check、next_level、answer_leaked=false、guard、point{id,title,topic,source,verified}、references、mode、method |
+| POST /api/agent/plot/annotate | question、expr、at、topic、x_min、x_max、samples(2–241)、cx/cy/radius | shape、function{expr,latex,derivative,derivative_latex,derivative_checked}、viewport{x_min,x_max,y_min,y_max}、samples[[x,y]]、clipped、key_points[]{kind,label,x,y,slope,explain}、steps[]{index,title,detail,points}、explanation（live）、honesty |
+| POST /api/agent/math/check | expr(1–200)、x、expected、compare_expr、x0 | expr、latex、variables、derivative{ok,derivative,derivative_latex,numeric_agreement}、value、value_check、limit、equivalence、method、limitations |
+| GET /api/agent/voice/status | 无（公开） | ready、credential_source(voice_env/model_env/none)、model、endpoint(scheme+host)、timeout_seconds、limits{formats,max_bytes,max_duration_seconds}、text_to_speech=false、browser_fallback |
+| POST /api/agent/voice/transcribe | audio_base64、media_type、language、duration_seconds、hint | text（纠错后）、raw_text、corrections[]{from,to,count}、warnings、changed、suggested_topic、requires_confirmation=true、confirm_endpoint；未配置语音服务 → 503；音频非法 → 422 |
+| GET /api/agent/diagnostics | 无（需登录） | total、counters、recent[]{at,code,endpoint,detail,meaning}、codes、retry_policy{max_attempts:2,retryable_codes}、scope、math_tools、voice |
+| POST /api/agent/evaluate | suites[]（可选） | **仅教师**；overall{cases,passed,failed,rate,ok}、suites[]{name,title,cases,passed,failed,rate,threshold,ok,failures,results}、scope、limitations、degradation |
+| POST /api/agent/corrections | student_id、point_id、corrected(correct/incorrect/unclear)、reason、weight(-3..3)、origin | **仅教师**；correction{...}、point{id,title,topic}、before、after、state、note |
+| GET /api/agent/corrections | limit（默认 50） | items[]{...,point_title,topic}、total、scope(teacher_self/own_account) |
+
+`GET /api/agent/status` 新增 `stage=3`；capabilities 增加 `hints`、`plot_annotation`、`math_tools`、`accuracy_eval`、`teacher_correction`、`degradation_report`（恒为 true），`voice_input` 取决于语音凭据是否就绪（demo 模式下为 false）。
+
+### 口径与硬约束（后续改动不要破坏）
+
+- **分层提示**任何级别都不得包含最终答案，响应固定 `answer_leaked=false`；第 3 级只给“第一步动作”。
+- **图形批注**的 `samples` 与 `key_points` 全部由本地数学工具算出；live 模式模型只写讲解（`explanation`/`step_notes`），不得改动数值。
+- **数学工具**零第三方依赖；`-x^2` 解析为 `-(x^2)`；极限与等价性是数值证据，必须带 `method` 与说明，不得表述为证明。
+- **语音**未配置凭据返回 503 并给出浏览器原生方案，不返回编造文本；转写结果只是草稿（`requires_confirmation=true`）。
+- **教师纠错**为追加式补偿证据：不删除原始 `ai_learning_events`；`ai_corrections` 用独立 MetaData 惰性建表，**不进 `Base.metadata`**（原因同长期记忆：schema v3 校验会导致既有库启动失败）。
+- **超时降级**只对网络阶段超时重试一次（`MAX_ATTEMPTS=2`），其它失败不重试；降级统计仅存进程内存，`sanitize()` 已去掉 URL 与长 token。
+
+### 给前端（A）的接入建议
+
+1. 分层提示做成“提示 / 再具体一点”按钮：`next_level` 为 null 时禁用；不要在前端自己拼接三级提示。
+2. 图形批注直接用 `viewport` + `samples` 画折线，`key_points` 做标注；`clipped>0` 表示有超出视窗的点被裁掉，界面需要说明。
+3. 语音优先使用 `browser_fallback` 的 Web Speech API；启用服务端转写后把 `corrections` 展示给学生确认，再走 `/api/conversations` 保存。
+4. 教师纠错：教师端“复核”调用 `POST /api/agent/corrections`；学生端用 `GET /api/agent/corrections` 显示“已由教师复核”。
+
+### 仍待 B 模块后续定义（不属于本轮范围）
+
+- 异步任务与长任务进度（`async_tasks` 仍为 false）、诊断任务状态。
+- 拍照识别多题切分；数学工具的多变量、积分与级数支持。
+- 资源库 `verified` 复核（12 个知识点仍为 false，需课程资料复核后重跑评测）。
+- 真实模型、真实视觉与真实语音服务的效果评测（未配置凭据前不得声称已评测）。
+
+## 2026-10-07 个人API配置（已实现）
+
+新增 GET/PUT/DELETE /api/model-settings 和 POST /api/model-settings/test，需有效登录。输入base_url/model/vision_model/api_key；读取只返回has_key，不返回密钥。留空仅在地址未改时保留个人密钥；测试不保存，保存后按当前账号即时用于问答/OCR。Windows DPAPI加密，配置与数据库同目录分文件保存，不改schema。
+
+个人配置POST测试失败返回502且不回显上游内容；输入校验422省略敏感input，避免错误响应泄露密钥。当前用户配置以请求ContextVar快照供AI消费，token在请求结束还原，不写全局MODEL环境变量。测试字段同保存，POST测试不持久化。GET的configured/has_key仅指个人配置，不表明默认环境配置状态。
+
+## 2026-10-07 学生注册、班级码与信箱（本轮实施）
+
+POST /api/auth/register/student 接受username/name/password/class_code可选，创建学生并登录，可同事务加入班级；错误班级码不留下账号。GET /api/student/classes 查看所属班级，POST /api/student/classes/join 通过code加入；被移出成员需教师恢复，不允许绕过移出状态。教师创建班级生成6位纯数字码，班级列表含join_code；POST /api/classes/{id}/join-code 重置旧码。归档/教师停用停止入班，旧作业收件快照不扩展。
+
+GET /api/mail/contacts 返回当前班级师生及历史联系人/未读数，POST /api/mail/messages 发文字（recipient_id/content/client_id），GET /api/mail/messages/{peer_id}?before=... 分页读取100条，POST同路径/read接受through_id标已读。仅通信双方能读，只有当前有效班级师生可发送；同角色或无关系拒绝。client_id按发送者限定幂等；不代替邮件/实时推送。独立CommunityBase与community_schema_migrations=1记录新增表，平台schema v3不改；首次扩展迁移前备份SQLite，原表不改。
+
+
+## 2026-10-07 分开演示接口扩展
+
+POST /api/auth/demo增加可选student=1|2|3，默认1，role仍为student|teacher；无效编号422，关闭演示403，所选账号停用/转正式/需改密409。仍返回原User结构。所有API可携带X-Demo-Window=teacher|student-1|student-2|student-3选择独立Cookie名称，无头使用原Cookie；非法非空值在认证时422。标识不替代身份认证，不通过URL传会话令牌。无数据库结构/迁移/依赖变更。

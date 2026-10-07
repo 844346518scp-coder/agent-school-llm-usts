@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import re
 from typing import Iterator
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -54,13 +55,28 @@ def extract_json(text: str) -> dict | None:
 
 
 def _payload(messages: list[dict], settings: AgentSettings, *, stream: bool, model: str | None) -> dict:
-    return {
+    payload = {
         'model': model or settings.model,
         'messages': messages,
         'temperature': settings.temperature,
         'max_tokens': settings.max_tokens,
         'stream': stream,
     }
+    # DeepSeek enables thinking by default. Keep its reasoning from consuming
+    # the answer budget; do not send vendor-specific fields to other providers.
+    thinking = settings.thinking
+    if thinking == 'auto' and urlsplit(settings.base_url).hostname == 'api.deepseek.com':
+        thinking = 'disabled'
+    if thinking in ('enabled', 'disabled'):
+        payload['thinking'] = {'type': thinking}
+    return payload
+
+
+def _check_finish(reason):
+    if reason == 'length':
+        raise ModelCallFailed('模型输出达到长度上限，回复不完整；请缩小问题范围或提高 MODEL_MAX_TOKENS。')
+    if reason in ('content_filter', 'tool_calls', 'insufficient_system_resource'):
+        raise ModelCallFailed('模型未生成完整文字回复，请调整问题后重试。')
 
 
 def _headers(settings: AgentSettings) -> dict:
@@ -93,7 +109,9 @@ def chat(
     if response.status_code >= 400:
         raise ModelCallFailed(f'模型返回 HTTP {response.status_code}。')
     try:
-        content = response.json()['choices'][0]['message']['content']
+        choice = response.json()['choices'][0]
+        _check_finish(choice.get('finish_reason'))
+        content = choice['message']['content']
     except (ValueError, KeyError, IndexError, TypeError) as exc:
         raise ModelCallFailed('模型返回结构无法解析。') from exc
     if not isinstance(content, str):
@@ -136,6 +154,7 @@ def chat_stream(
                     except ValueError:
                         continue
                     try:
+                        _check_finish(chunk['choices'][0].get('finish_reason'))
                         piece = chunk['choices'][0]['delta'].get('content')
                     except (KeyError, IndexError, TypeError):
                         piece = None
