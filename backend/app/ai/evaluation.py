@@ -47,6 +47,8 @@ RETRIEVAL_CASES = (
 TOPIC_CASES = (
     ('求 lim(x→0) sin x / x', '极限与连续'),
     ('用定义求 x^2 的导数', '导数与微分'),
+    # 10/10 多题切分时发现：按主题“合计”会被两个极限点带偏，现在按离群命中优先。
+    ('用定义求 f(x)=x^2 在 x=1 处的导数', '导数与微分'),
     ('定积分换元法', '一元函数积分学'),
     ('幂级数的收敛半径', '无穷级数'),
     # 课本未覆盖的主题必须返回 None：猜成相邻主题会误导学生与教师。
@@ -240,6 +242,52 @@ def suite_teaching(settings: AgentSettings | None = None) -> list[dict]:
     return rows
 
 
+def suite_planning(settings: AgentSettings | None = None) -> list[dict]:
+    """复习排期（间隔重复规则）与多题切分的确定性用例。"""
+    from datetime import datetime, timedelta, timezone
+
+    from . import question_split, review
+
+    moment = datetime(2026, 10, 10, 12, 0, tzinfo=timezone.utc)
+
+    def ago(days: float) -> str:
+        return (moment - timedelta(days=days)).isoformat()
+
+    state = {'points': [
+        {'point_id': 'limit-techniques', 'attempts': 3, 'positive': 0, 'negative': 3, 'mastery': 0.2,
+         'status': 'weak', 'last_seen': ago(3)},
+        {'point_id': 'derivative-definition', 'attempts': 4, 'positive': 3, 'negative': 0, 'mastery': 0.86,
+         'status': 'mastered', 'last_seen': ago(10)},
+        {'point_id': 'continuity', 'attempts': 2, 'positive': 1, 'negative': 1, 'mastery': 0.5,
+         'status': 'learning', 'last_seen': ago(1)},
+    ]}
+    plan = review.plan(state, days=7, limit=5, now=moment)
+    rows: list[dict] = []
+    rows.append(_case('间隔取值（薄弱/练习中/已较稳）', [1, 3, 7],
+                      [review.intervals_for('weak'), review.intervals_for('learning'),
+                       review.intervals_for('mastered')]))
+    rows.append(_case('薄弱点排在已较稳之前', 'limit-techniques', plan['items'][0]['point_id']))
+    rows.append(_case('逾期天数按间隔计算', 2.0, plan['items'][0]['overdue_days']))
+    rows.append(_case('未到期的不进今日排期', 'continuity', plan['upcoming'][0]['point_id']))
+    rows.append(_case('未练过的不排期', 0, len(review.plan({'points': []}, now=moment)['items'])))
+    rows.append(_case('间隔规则标注为经验规则', True, '未经学习效果实验校准' in plan['rule']))
+
+    numbered = '1. 求 lim(x→0) sin(x)/x\n2. 用定义求 f(x)=x^2 的导数\n3. 判断级数 sum(1/n^2) 是否收敛'
+    split = question_split.split(numbered)
+    rows.append(_case('按行首序号切分', 3, split['total']))
+    rows.append(_case('切分策略标记', 'markers', split['strategy']))
+    rows.append(_case('每题带建议主题', '无穷级数', split['items'][2]['suggested_topic']))
+    rows.append(_case('切分结果要求确认', True, split['requires_confirmation']))
+    sentences = question_split.split('求 lim(x→0) sin x / x。计算定积分 ∫0..1 x^2 dx。证明可导必连续。')
+    rows.append(_case('无序号时按题目动词切分', 3, sentences['total']))
+    single = question_split.split('求 lim(x→0) sin(x)/x')
+    rows.append(_case('单题时如实说明未识别到分题标记', True, '没有识别到分题标记' in (single['notice'] or '')))
+    many = '\n'.join(f'{index}. 求第 {index} 题的计算' for index in range(1, 15))
+    truncated = question_split.split(many)
+    rows.append(_case('超过上限时只返回前 N 道并标记截断', [10, True], [truncated['total'], truncated['truncated']]))
+    return rows
+
+
 def suite_honesty(settings: AgentSettings | None = None) -> list[dict]:
     """诚实性不变量：演示内容不得冒充模型输出，功能未配置时不得返回编造结果。"""
     from . import diagnosis, service
@@ -289,6 +337,7 @@ SUITE_SPECS = (
     ('math', '数学工具（求值 / 符号求导 / 极限探测）', 0.95, suite_math),
     ('memory_rules', '记忆与纠错口径（掌握度、状态阈值、纠错权重）', 1.0, suite_memory_rules),
     ('teaching', '教学逻辑与知识拆解（刻意练习计划、作答判定、知识树结构）', 0.95, suite_teaching),
+    ('planning', '复习排期与多题切分（间隔规则、排序、切分策略与截断）', 0.95, suite_planning),
     ('honesty', '诚实性不变量（demo 不冒充模型、未配置不编造）', 1.0, suite_honesty),
 )
 
@@ -319,7 +368,7 @@ def run(suites: tuple[str, ...] | None = None, settings: AgentSettings | None = 
     for name, title, threshold, runner in SUITE_SPECS:
         if name not in selected:
             continue
-        rows = runner(settings) if name in ('honesty', 'teaching') else runner()
+        rows = runner(settings) if name in ('honesty', 'teaching', 'planning') else runner()
         passed = sum(1 for row in rows if row['ok'])
         rate = round(passed / len(rows), 3) if rows else 0.0
         report_suites.append({

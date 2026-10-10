@@ -743,3 +743,14 @@ GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：
 - 集成复核发现并已修复：图注 `derivative_checked` 返回对象而前端按布尔使用（诚实性缺陷），现改为布尔 + `derivative_check` 明细，契约与测试同步；另补齐 A 端接入逻辑缺失的原生 Node 测试（其中一条用例暴露了“课程主题名不在对话页下拉里”的真实错位，由 `decideTopic` 保留原主题并回显建议值处理）。
 - 未完成/遗留：课程资料 `verified` 复核（12 个知识点仍为 false，必须人工确认）；真实模型/视觉/语音效果未评测；A 端尚未接入刻意练习与知识树界面；异步任务、拍照多题切分、数学工具的多变量/积分/级数仍未实现；刻意练习判定仍是规则口径，未做间隔重复排期。
 - 文档同步：`docs/contracts/README.md`（新增 v0.5 一节）、`docs/architecture.md`（新增第四阶段一节）、`docs/feature-list.md`（会议第 1、2 条状态更新）、`docs/b-module-accuracy-report.md`（8 套件 72 用例与三处修复记录）、`README.md`、`AGENTS.md` 已同步；`docs/development-log.md` 即本条目。历史条目不改写。
+
+## 2026-10-10 续 · B 模块第五阶段（复习排期 / 多题切分 / 班级掌握度聚合）
+
+- 开发内容：① 复习排期 `review.py` + `POST /api/agent/review-plan`：按掌握档位取 1/3/7 天经验间隔，用长期记忆时间戳算到期，薄弱优先、逾期越久越靠前，未练过不排期；② 多题切分 `question_split.py` + `POST /api/agent/recognize/split`：序号优先、其次按句末标点与题目动词切分，每题带建议主题、超上限截断并标记，结果只是草稿（逐题确认）；③ 班级掌握度聚合 `class_insight.py` + `GET /api/agent/class-insight`、`/class-insight/summary`：一次查全班证据，按学生/知识点聚合薄弱人数与平均掌握度，只读 platform 班级成员表，只输出状态与证据条数；④ 主题推断改进：新增“离群命中优先”（首条命中 ≥1.5 倍次条时采用其主题）。
+- 为何开发：长期记忆此前只产出画像与推荐，缺少“今天该复习什么”的时间维度；拍照识别只返回一段文本，学生一次拍到多题时无法逐题提问；教师端看不到按班的掌握分布（会议第 10 条师生联动的 B 侧）。
+- 修改文件：新增 `backend/app/ai/{review,question_split,class_insight,phase5}.py`、`tests/test_agent_phase5.py`；修改 `backend/app/ai/{service,knowledge,evaluation}.py`、`tests/{smoke_agent.py,test_agent_phase4.py}`、`docs/{contracts/README.md,architecture.md,feature-list.md,b-module-accuracy-report.md}`、`README.md`、`AGENTS.md`。未新增目录、未引入依赖、未改数据库结构。
+- 负责人：Chatbox（AI 助手）。仍按用户“单人单文件改动直接推 main”的口径执行，**未走分支 + PR 审阅**，此处如实标注。
+- 验证结果：`python -m pytest -q` → 174 passed（101 原有 + 34 + 19 + 本次 20）；`python tests/check_agent_accuracy.py` → 9 套件 86/86 达标（新增 planning 13 项）；`python tests/smoke_agent.py` → 端到端通过（新增 3 个步骤，教师专属接口在学生账号下按预期 403）；`node --experimental-strip-types --test tests/test_agent_tools.mjs` → 10 passed。
+- 本轮发现并已修复：`suggest_topic('用定义求 f(x)=x^2 在 x=1 处的导数')` 因两个极限知识点分数合计略高而被判成“极限与连续”（单条最高命中其实是导数点），已加离群优先规则并补评测用例；复习排期排序从“逾期优先”改为“薄弱优先”，更符合教学口径并写入文档。
+- 未完成/遗留：课程资料 `verified` 复核（12 个知识点、45 条资源仍为 false）；真实模型/视觉/语音效果未评测；班级聚合的更细权限矩阵（助教、多教师）与教师端页面归属需 C 侧契约，本轮只按班级所有者放行；异步任务、拍照多题的真实视觉识别、数学工具的多变量/积分/级数仍未实现；复习间隔未经学习效果实验校准。
+- 文档同步：`docs/contracts/README.md`（新增 v0.6）、`docs/architecture.md`（新增第五阶段一节）、`docs/feature-list.md`（第 10 条与多题切分状态更新）、`docs/b-module-accuracy-report.md`（9 套件 86 用例与第五处修复）、`README.md`、`AGENTS.md` 已同步；`docs/development-log.md` 即本条目。历史条目不改写。

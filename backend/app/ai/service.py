@@ -30,12 +30,14 @@ from . import insight, memory, resilience
 from .phase2 import phase2_router
 from .phase3 import phase3_router
 from .phase4 import phase4_router
+from .phase5 import phase5_router
 
 router = APIRouter(prefix='/api/conversations', tags=['agent'])
 agent_router = APIRouter(prefix='/api/agent', tags=['agent-core'])
 agent_router.include_router(phase2_router)
 agent_router.include_router(phase3_router)
 agent_router.include_router(phase4_router)
+agent_router.include_router(phase5_router)
 
 AGENT_VERSION = '0.2.0'
 
@@ -322,7 +324,7 @@ def agent_status():
         },
         'knowledge': knowledge.stats(),
         'phase': 2,
-        'stage': 4,
+        'stage': 5,
         'capabilities': {
             'qa': True,
             'qa_stream': settings.resolved_mode == 'live',
@@ -346,12 +348,16 @@ def agent_status():
             'deliberate_practice': True,
             'knowledge_tree': True,
             'teaching_logic': True,
+            'review_plan': True,
+            'class_insight': True,
+            'question_split': True,
         },
         'notes': [
             'demo 模式只返回预设演示内容，不会伪造模型输出。',
             '长期记忆、推荐练习、评价、总结与资源检索已在第二阶段提供；异步任务仍未实现。',
             '语音服务适配、分层提示、图形批注、数学工具、准确性评测与教师纠错已在第三阶段（9/25–27）提供。',
             '刻意练习 / 苏格拉底追问与知识讲解拆解（知识树）已在第四阶段（2026-10-10）提供；练习计划的期望答案不对外公开。',
+            '复习排期、按班掌握度聚合（教师，只读）与多题切分已在第五阶段提供；班级聚合不含学生作答原文。',
             '掌握度由学生自评、步骤反馈与诊断证据平滑汇总，证据不足时不判定掌握。',
             '依赖外部服务的功能（识别、语音）在未配置凭据时如实报不可用，不返回编造结果；降级事件可通过 /api/agent/diagnostics 查看。',
         ],

@@ -260,7 +260,7 @@ def test_status_reports_stage4_without_changing_frozen_fields():
     with TestClient(app) as anonymous:
         payload = anonymous.get('/api/agent/status').json()
     assert payload['phase'] == 2  # 冻结字段，启动器与既有测试依赖
-    assert payload['stage'] == 4
+    assert payload['stage'] >= 4  # 阶段号随迭代递增（当前为第五阶段），phase 保持不变
     capabilities = payload['capabilities']
     for key in ('deliberate_practice', 'knowledge_tree', 'teaching_logic'):
         assert capabilities[key] is True

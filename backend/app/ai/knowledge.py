@@ -403,6 +403,10 @@ def get_point(point_id: str) -> KnowledgePoint | None:
 TOPIC_SUGGESTION_MIN_SCORE = 1.5
 TOPIC_SUGGESTION_DOMINANCE = 0.5
 
+# 单条命中远超其余命中时，直接采用它的主题：按主题“合计”选会被多个次相关知识点带偏
+# （例：“用定义求 f(x)=x^2 在 x=1 处的导数”里导数 25.7 分，两个极限点合计 26.2 分）。
+TOPIC_OUTLIER_FACTOR = 1.5
+
 # 课本范围之外的主题词：命中时直接判定“覆盖不足”，不允许猜成相邻主题。
 # 依据：9/25 准确性评测发现「微分方程 y'=y」被猜成“导数与微分”，与 9/21 约定（覆盖不足必须返回 null）不符。
 OUT_OF_SCOPE_MARKERS = (
@@ -430,6 +434,9 @@ def suggest_topic(text: str, min_score: float = TOPIC_SUGGESTION_MIN_SCORE) -> s
     if len(informative) < 2 and not title_terms:
         # 只命中单字或仅一个泛词时不下结论，避免把“微分方程”猜成“导数与微分”。
         return None
+    # 离群命中优先：第一条命中分数明显高于第二条时，它的主题就是答案。
+    if len(hits) > 1 and top.score >= TOPIC_OUTLIER_FACTOR * hits[1].score and informative:
+        return top.point.topic
     totals: dict[str, float] = {}
     for hit in hits:
         totals[hit.point.topic] = totals.get(hit.point.topic, 0.0) + hit.score

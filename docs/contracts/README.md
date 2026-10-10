@@ -328,3 +328,51 @@ AI反馈复核还需明确原始结果、教师修改、审核状态、发布人
 - 拍照识别多题切分；数学工具的多变量、积分与级数支持。
 - 资源库 `verified` 复核；真实模型/视觉/语音的效果评测。
 - 刻意练习的判定目前是规则口径，若要按“间隔重复/遗忘曲线”排期，需先定义证据与评测集。
+
+## 2026-10-10 续 · 智能体接口 v0.6（B 模块第五阶段）
+
+状态：已实现、可本地运行（`python -m pytest -q` → 174 passed；`python tests/check_agent_accuracy.py` → 9 套件 86/86 达标）。
+范围：复习排期（间隔重复的规则版）、多题切分、班级掌握度聚合（教师只读）。
+字段冻结说明：`version` 仍为 `0.2.0`、`phase` 仍为 `2`；`stage` 递增为 `5`。
+
+### 新增接口
+
+| 方法 / 路径 | 权限 | 请求 | 响应要点 |
+| --- | --- | --- | --- |
+| POST /api/agent/review-plan | 登录 | days(1–60，默认 7)、limit(1–12，默认 8)、topic | horizon_days、due_count、upcoming_count、items[]{point_id,title,topic,status,mastery,attempts,last_seen,due_at,interval_days,overdue_days,reason,source,verified}、upcoming[]、unscheduled[]、intervals{weak:1,learning:3,mastered:7}、rule、method、note |
+| POST /api/agent/recognize/split | 登录 | text(1–6000)、max_items(1–10) | items[]{index,text,char_count,suggested_topic}、total、strategy(markers/sentences/single)、truncated、requires_confirmation=true、confirm_endpoint、note、notice |
+| GET /api/agent/class-insight/summary | 教师 | 无 | classes[]{class_id,name,course,term,archived,summary{students,students_with_evidence,evidence_events,weak_point_rows,class_avg_mastery},top_weak[]}、total、privacy、mastery_rule、scope_note |
+| GET /api/agent/class-insight | 教师 | 查询参数 class_id | class{id,name,course,term,archived}、students[]{id,name,event_count,evidence_points,weak_points,mastered_points,avg_mastery,last_active}、points[]{point_id,title,topic,verified,students_with_evidence,weak_students,mastered_students,avg_mastery}、top_weak[]、summary{}、unseen_note、privacy、mastery_rule、scope_note；非本人班级返回 404（不区分“不存在”与“不可访问”） |
+
+`GET /api/agent/status` 的 `stage` 变为 `5`；capabilities 增加 `review_plan`、`class_insight`、`question_split`。
+
+### 口径与硬约束
+
+- **复习间隔是经验规则**：薄弱 1 天 / 练习中 3 天 / 已较稳 7 天，**未经学习效果实验校准**，响应 `rule` 必须原样展示；
+  不得对外称“记忆曲线/遗忘曲线模型”。排序规则：薄弱优先，其次逾期越久越靠前。未练过（`unseen`）不排期。
+- **多题切分只是草稿**：序号优先（`1.`/`1、`/`（1）`/`第1题`/`第一题`/`①`），无序号时按句末标点与题目动词切分；
+  超过 `max_items` 时只返回前 N 道并置 `truncated=true`；每题都必须由学生确认后再调用 `/api/conversations`。
+  切分不调用模型，避免把变式条件切丢。纯空白文本返回 422。
+- **班级聚合只读且只输出状态**：B 只读 platform 的 `classrooms` / `class_members` / `users`，不新增表、不改结构；
+  教师只能看自己名下班级（`Classroom.teacher_id == user.id`）；输出**不含学生作答原文**；
+  证据不足的学生/知识点显示“未练”，不得显示为已掌握。
+- **权限矩阵待与 C 确认**：当前只按“教师 = 班级所有者”放行；助教、多教师共同授课等更细权限需 C 侧出契约后再改。
+- **主题推断新增离群优先规则**：`suggest_topic()` 在“首条命中 ≥1.5 倍次条命中”时直接采用该命中所属主题，
+  解决“用定义求 f(x)=x^2 在 x=1 处的导数”被两个极限知识点合计带偏的问题；覆盖不足仍返回 `null`。
+
+### 给前端（A/C）的接入建议
+
+1. 学生端“今天该复习什么”：直接用 `items[]`，`reason` 已写明依据，不要改写成“AI 智能排期”；
+   `due_count > 0` 时可把首项一键接到 `/api/agent/practice/plan`（传 `point_id`）。
+2. 拍照/语音之后：先调用 `recognize/split`，把 `items[]` 做成可勾选的题目卡片，逐题确认后再提问或保存；
+   `strategy=single` 且带 `notice` 时按单题处理并提示可手动拆分。
+3. 教师端学情：`class-insight/summary` 做班级卡片，`class-insight?class_id=` 做班内明细；
+   `students_with_evidence` 与 `evidence_events` 要一起展示，避免把“没有证据”读成“没有学习”。
+4. `stage` 会随迭代递增，判断能力请用 capabilities 的具体键。
+
+### 仍待 B 模块后续定义
+
+- 异步任务与长任务进度（`async_tasks` 仍为 false）、诊断任务状态。
+- 数学工具的多变量、积分与级数支持；拍照识别的公式人工修正细节。
+- 班级聚合的更细权限（助教/多教师）与教师端页面归属，需要 C 侧契约。
+- 资源库 `verified` 复核；真实模型/视觉/语音的效果评测。

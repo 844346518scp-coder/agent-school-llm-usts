@@ -339,3 +339,41 @@ python tests/smoke_agent.py              # 端到端冒烟通过
 
 下一步：A 端接入刻意练习与知识树界面；课程资料复核后把知识点置为 `verified=true` 并重跑评测；
 真实模型与真实语音服务的效果评测需先配置凭据；异步任务与拍照多题切分仍未实现。
+
+## B 模块第五阶段实现说明（2026-10-10 续）
+
+范围：复习排期、多题切分、班级掌握度聚合（教师只读），即“把长期记忆用起来 + 教师视图”。
+
+新增文件（均在既有目录内，未新增目录、未引入依赖）：
+
+- `backend/app/ai/review.py`：复习排期（薄弱 1 天 / 练习中 3 天 / 已较稳 7 天的经验间隔，逾期越久越靠前）。
+- `backend/app/ai/question_split.py`：多题切分（序号优先，其次题目动词；结果只是草稿）。
+- `backend/app/ai/class_insight.py`：班级掌握度聚合（只读 platform 班级成员表，只输出状态与证据条数）。
+- `backend/app/ai/phase5.py`：第五阶段路由（`/api/agent/review-plan`、`/recognize/split`、`/class-insight*`）。
+- `tests/test_agent_phase5.py`（20 项，含越权与隐私断言）。
+
+修改文件：`backend/app/ai/{service,knowledge,evaluation}.py`（stage=5 与 capabilities、主题推断离群优先、评测套件）、
+`tests/{smoke_agent.py,test_agent_phase4.py}`、`docs/{contracts/README.md,architecture.md,feature-list.md,
+b-module-accuracy-report.md}`、`README.md`。
+
+硬约束（新增，后续改动不要破坏）：
+
+1. 复习间隔是**经验规则**（1/3/7 天），响应 `rule` 必须原样展示，不得对外称“记忆曲线/遗忘曲线模型”。
+2. 多题切分结果必须 `requires_confirmation=true`；切分不调用模型；纯空白文本返回 422；超上限必须置 `truncated=true`。
+3. 班级聚合**只读** platform 的班级/成员/用户表，不新增表、不改结构、不做迁移；教师只能看自己名下班级，越权返回 404。
+4. 班级聚合输出**不得包含学生作答原文**（`excerpt` 不对外），证据不足显示“未练”。
+5. 更细的班级权限（助教、多教师）属于 C 侧，需先出契约再改，不得在 B 侧先行定义。
+6. `version=0.2.0`、`phase=2` 仍冻结，`stage` 递增为 5；前端判断能力请用 capabilities 的键。
+7. `suggest_topic()` 的“离群命中优先”规则（首条 ≥1.5 倍次条）与范围外词表必须同时保留；覆盖不足返回 `null`。
+
+本地验证（本轮实际结果）：
+
+```
+python -m pytest -q                      # 174 passed
+python tests/check_agent_accuracy.py     # 9 套件 86/86 达标
+python tests/smoke_agent.py              # 端到端冒烟通过（含第五阶段 3 个步骤）
+.runtime/node-v22.23.2-win-x64/node.exe --experimental-strip-types --test tests/test_agent_tools.mjs   # 10 passed
+```
+
+下一步：A/C 端接入复习清单与班级学情页面；课程资料复核后置 `verified=true` 并重跑评测；
+真实模型/视觉/语音效果评测需先配置凭据；异步任务与数学工具的多变量/积分/级数仍未实现。

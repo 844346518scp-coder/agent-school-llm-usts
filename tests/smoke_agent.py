@@ -225,5 +225,27 @@ with TestClient(app) as client:
         'branches': [(item['label'], len(item['children'])) for item in data.get('branches', [])],
     })
     assert response.status_code == 200 and data['branch_count'] >= 5
+    # ---- 第五阶段：复习排期 / 多题切分 / 班级掌握度聚合 ----
+    response = client.post('/api/agent/review-plan', json={'days': 7, 'limit': 5}, headers=HEADERS)
+    data = response.json()
+    record('POST /api/agent/review-plan', response.status_code, {
+        'due_count': data.get('due_count'), 'upcoming_count': data.get('upcoming_count'),
+        'intervals': data.get('intervals'),
+        'items': [(item['point_id'], item['overdue_days']) for item in data.get('items', [])],
+    })
+    assert response.status_code == 200 and data['intervals']['weak'] == 1
+
+    response = client.post('/api/agent/recognize/split',
+                           json={'text': '1. 求 lim(x→0) sin(x)/x\n2. 用定义求 f(x)=x^2 的导数'},
+                           headers=HEADERS)
+    data = response.json()
+    summary.append(f"POST /api/agent/recognize/split: HTTP {response.status_code} "
+                   f"total={data.get('total')} strategy={data.get('strategy')}")
+    assert response.status_code == 200 and data['total'] == 2
+
+    response = client.get('/api/agent/class-insight/summary', headers=HEADERS)
+    summary.append(f'GET /api/agent/class-insight/summary（学生账号）: HTTP {response.status_code}'
+                   '（仅教师可用，非 200 属预期）')
+    assert response.status_code != 200
 (HERE.parent / '_smoke_out.txt').write_text('\n'.join(lines), encoding='utf-8')
 print('\n'.join(summary))
