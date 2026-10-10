@@ -240,7 +240,10 @@ def annotate(question: str = '', *, topic: str | None = None, expr: str | None =
             'latex': mathcheck.to_latex(node),
             'derivative': derived['derivative'],
             'derivative_latex': derived['derivative_latex'],
-            'derivative_checked': None if not derived['ok'] else derived['numeric_agreement'],
+            # 布尔别名 + 明细对象：前端（A）按契约只判断“复核是否通过”，
+            # 明细留给需要展示比对过程的界面，避免把对象当布尔用而永远显示“已通过”。
+            'derivative_checked': None if not derived['ok'] else bool(derived['numeric_agreement']['ok']),
+            'derivative_check': None if not derived['ok'] else derived['numeric_agreement'],
         },
         'viewport': {'x_min': curve['x_min'], 'x_max': curve['x_max'],
                      'y_min': curve['y_min'], 'y_max': curve['y_max']},

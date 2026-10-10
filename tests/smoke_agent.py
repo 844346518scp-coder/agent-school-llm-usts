@@ -186,5 +186,44 @@ with TestClient(app) as client:
     response = client.post('/api/agent/evaluate', json={'suites': ['retrieval']}, headers=HEADERS)
     summary.append(f'POST /api/agent/evaluate（学生账号）: HTTP {response.status_code}（仅教师可用，非 200 属预期）')
     assert response.status_code != 200
+    # ---- 第四阶段：刻意练习 / 苏格拉底追问 / 知识讲解拆解 ----
+    response = client.post('/api/agent/practice/plan', json={'point_id': 'important-limits'}, headers=HEADERS)
+    data = response.json()
+    record('POST /api/agent/practice/plan', response.status_code, {
+        'point': (data.get('session') or {}).get('title'),
+        'why': data.get('why'),
+        'steps': [(item['index'], item['kind'], item['title']) for item in data.get('steps', [])],
+    })
+    assert response.status_code == 200 and len(data['steps']) == 4
+    # 公开计划不得包含期望关键词或期望数值（否则等于把答案给学生）。
+    assert all(set(item) == {'index', 'kind', 'title', 'prompt'} for item in data['steps'])
+
+    response = client.post('/api/agent/practice/answer',
+                           json={'point_id': 'important-limits', 'step_index': 3,
+                                 'answer': '先整理成 sin u/u 的形式，取极限 = 1'}, headers=HEADERS)
+    data = response.json()
+    record('POST /api/agent/practice/answer', response.status_code, {
+        'verdict': data.get('verdict'), 'band': data.get('band'), 'coverage': data.get('coverage'),
+        'numeric_check': data.get('numeric_check'), 'follow_up': data.get('follow_up'),
+        'memory_recorded': data.get('memory_recorded'),
+    })
+    assert response.status_code == 200 and data['verdict'] == 'correct'
+    assert data['memory_recorded'] is True
+
+    response = client.get('/api/agent/knowledge/tree', headers=HEADERS)
+    data = response.json()
+    topics = [item['topic'] for item in data.get('topics', [])]
+    summary.append(f"GET /api/agent/knowledge/tree: HTTP {response.status_code} "
+                   f"points={data.get('total_points')} edges={len(data.get('edges', []))} topics={topics}")
+    assert response.status_code == 200 and data['total_points'] == 12
+
+    response = client.post('/api/agent/knowledge/explain',
+                           json={'point_id': 'integral-ftc'}, headers=HEADERS)
+    data = response.json()
+    record('POST /api/agent/knowledge/explain', response.status_code, {
+        'root': (data.get('root') or {}).get('label'),
+        'branches': [(item['label'], len(item['children'])) for item in data.get('branches', [])],
+    })
+    assert response.status_code == 200 and data['branch_count'] >= 5
 (HERE.parent / '_smoke_out.txt').write_text('\n'.join(lines), encoding='utf-8')
 print('\n'.join(summary))

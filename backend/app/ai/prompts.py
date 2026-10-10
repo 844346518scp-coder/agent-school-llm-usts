@@ -200,6 +200,54 @@ def build_plot_messages(payload: dict, chunks: Sequence) -> list[dict]:
     return [{'role': 'system', 'content': SYSTEM_PLOT}, {'role': 'user', 'content': user}]
 
 
+SYSTEM_PRACTICE = (
+    '你是《高等数学》刻意练习的反馈助手。系统已经用本地规则给出 band（档位）、verdict（数值核对结论）与覆盖率，\n'
+    '你只能把它们写成更自然的反馈文字，**不得改动档位、结论与任何数值**。\n'
+    '要求：\n'
+    '1. 只针对学生这一步的作答，不给出完整解答，也不给出后续步骤的答案；\n'
+    '2. 指出他这一步用到的依据，或提一个能让他自己往下走的问题；\n'
+    '3. 用简体中文，公式用 LaTeX，总长不超过 200 字；\n'
+    '4. 只输出 JSON：{"feedback":"反馈正文","follow_up":"一句话追问"}，不要输出其他文字。'
+)
+
+SYSTEM_TREE = (
+    '你是《高等数学》知识讲解助手。系统已给出知识点的规则树（分支与叶子来自课程知识点库），\n'
+    '你只负责把讲解文字组织得更清楚，**不得新增或删除要点，不得改动出处与术语**。\n'
+    '只输出 JSON：{"summary":"一句话定位","branches":[{"label":"分支名","children":[{"label":"叶子名","text":"讲解"}]}]}；\n'
+    '分支不超过 6 个，每个分支叶子不超过 6 个，label 不超过 40 字，text 不超过 500 字；简体中文，公式用 LaTeX。'
+)
+
+
+def build_practice_messages(result: dict, point, answer: str) -> list[dict]:
+    numeric = result.get('numeric_check') or {}
+    user = (
+        f'知识点：{point.title}（{point.topic}）\n'
+        f'当前步骤：第 {result["step"]["index"]} 步 · {result["step"]["title"]}（{result["step"]["kind"]}）\n'
+        f'题目：{result["step"]["prompt"]}\n\n'
+        f'学生这一步的作答：\n{answer}\n\n'
+        f'本地规则结论（不得改动）：band={result["band"]}、verdict={result["verdict"]}、'
+        f'覆盖率={result["coverage"]}、命中={result["signals_hit"]}、缺失={result["signals_missing"]}\n'
+        f'数值核对：{numeric}\n\n'
+        '请据上面的结论写反馈与一句追问，输出约定 JSON。'
+    )
+    return [{'role': 'system', 'content': SYSTEM_PRACTICE}, {'role': 'user', 'content': user}]
+
+
+def build_tree_messages(result: dict, chunks: Sequence) -> list[dict]:
+    branch_text = '\n'.join(
+        f"- {branch['label']}：" + '；'.join(child['text'] for child in branch['children'])
+        for branch in result.get('branches', [])
+    )
+    user = (
+        f"知识点：{result['root']['label']}（{result['root']['topic']}）\n"
+        f"系统规则树：\n{branch_text}\n\n"
+        f"先修：{'、'.join(item['title'] for item in result.get('prerequisites', [])) or '（无）'}\n"
+        f"课程资料片段：\n{format_context(chunks)}\n\n"
+        '请保留上面的分支与要点含义，只把讲解措辞整理清楚，输出约定 JSON。'
+    )
+    return [{'role': 'system', 'content': SYSTEM_TREE}, {'role': 'user', 'content': user}]
+
+
 def build_summary_messages(summary: dict, chunks: Sequence) -> list[dict]:
     weak = '、'.join(item['title'] for item in summary.get('weak_points', [])) or '（暂无）'
     mastered = '、'.join(item['title'] for item in summary.get('mastered_points', [])) or '（暂无）'

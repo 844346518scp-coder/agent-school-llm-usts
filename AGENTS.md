@@ -303,3 +303,39 @@ python tests/smoke_agent.py              # 端到端冒烟通过（demo 下识�
 
 下一步（9/27 前）：A 端接入分层提示与图形批注界面；课程资料复核后把对应知识点 `verified` 置为 True 并重跑评测；
 真实模型与真实语音服务的效果评测需先配置凭据，不得用本地评测结果代替。
+
+## B 模块第四阶段实现说明（2026-10-10 追加）
+
+范围：会议第 1、2 条里属于 B 的部分（教学逻辑与知识拆解），以及第三阶段接口的集成复核。
+
+新增文件（均在既有目录内，未新增目录、未引入依赖）：
+
+- `backend/app/ai/practice.py`：刻意练习与苏格拉底追问（4 步固定结构、逐步评价、数值核对、选题规则）。
+- `backend/app/ai/knowledge_tree.py`：知识树与讲解拆解（含人工整理的先修/解锁关系）。
+- `backend/app/ai/phase4.py`：第四阶段路由（`/api/agent/practice/*`、`/api/agent/knowledge/*`）。
+- `tests/test_agent_phase4.py`（19 项）、`tests/test_agent_tools.mjs`（10 项，A 端接入逻辑的原生 Node 测试）。
+
+修改文件：`backend/app/ai/{service,memory,evaluation,plotting,prompts,phase3 测试}`（新增 capability、记忆证据类型、
+评测套件、`derivative_checked` 字段修正、提示词）；`tests/{smoke_agent.py,test_agent_phase3.py}`；
+`docs/{contracts/README.md,architecture.md,feature-list.md,b-module-accuracy-report.md}`、`README.md`。
+
+硬约束（新增，后续改动不要破坏）：
+
+1. `version=0.2.0` 与 `phase=2` 仍为冻结字段，`stage` 随迭代递增（当前 4）；前端判断能力请用 capabilities 的键，不要写死 `stage`。
+2. 刻意练习的公开计划（`steps[]`）只能有 `index/kind/title/prompt` 四个字段，**不得**包含期望关键词与期望数值。
+3. 练习判定口径：关键词覆盖率 + `compute` 步的显式结果数值核对；两者都不是掌握度，`method` 与 `repeat_rule` 必须保留规则原话。
+4. 知识树的先修关系是人工维护的课程顺序，不得改由模型推断；`explain` 的 live 分支结构校验（≤6 分支、≤6 叶子、label ≤40、text ≤500）不过就退回规则树。
+5. 图形批注 `function.derivative_checked` 必须是布尔（或 null），明细放 `derivative_check`；不得再返回对象（前端按布尔判断）。
+6. 练习作答写入长期记忆的证据类型为 `practice`（`evidence_tags` 已同步），写失败不得影响评价结果。
+
+本地验证（本轮实际结果）：
+
+```
+python -m pytest -q                      # 154 passed
+python tests/check_agent_accuracy.py     # 8 套件 72/72 达标
+python tests/smoke_agent.py              # 端到端冒烟通过
+.runtime/node-v22.23.2-win-x64/node.exe --experimental-strip-types --test tests/test_agent_tools.mjs   # 10 passed
+```
+
+下一步：A 端接入刻意练习与知识树界面；课程资料复核后把知识点置为 `verified=true` 并重跑评测；
+真实模型与真实语音服务的效果评测需先配置凭据；异步任务与拍照多题切分仍未实现。

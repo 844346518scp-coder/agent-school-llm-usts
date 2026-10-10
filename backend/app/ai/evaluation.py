@@ -190,6 +190,56 @@ def suite_memory_rules() -> list[dict]:
     return rows
 
 
+def suite_teaching(settings: AgentSettings | None = None) -> list[dict]:
+    """教学逻辑（刻意练习 / 苏格拉底追问）与知识讲解拆解的结构不变量。"""
+    from . import knowledge_tree as tree_module
+    from . import practice
+
+    state = {'points': [{'point_id': 'limit-techniques', 'title': '极限', 'topic': '极限与连续',
+                         'attempts': 3, 'positive': 0, 'negative': 3, 'mastery': 0.2,
+                         'confidence': 0.9, 'status': 'weak',
+                         'last_seen': '2026-09-25T00:00:00+00:00'}]}
+    rows: list[dict] = []
+    plan = practice.plan(state, settings=settings)
+    rows.append(_case('练习计划优先选薄弱点', 'limit-techniques', plan['session']['point_id']))
+    rows.append(_case('练习步数固定', practice.TOTAL_STEPS, len(plan['steps'])))
+    rows.append(_case('步骤类型顺序', ['recall', 'boundary', 'compute', 'transfer'],
+                      [step['kind'] for step in plan['steps']]))
+    leak = sorted({key for step in plan['steps'] for key in step})
+    rows.append(_case('公开计划不包含期望答案字段', ['index', 'kind', 'prompt', 'title'], leak))
+    correct = practice.answer('important-limits', 3, '先整理成 sin u/u 的形式，取极限 = 1', settings=settings)
+    rows.append(_case('数值核对通过判定', 'correct', correct['verdict']))
+    wrong = practice.answer('important-limits', 3, '我先直接代入，0/0 是不定式，得到 0', settings=settings)
+    rows.append(_case('数值核对未通过判定', 'incorrect', wrong['verdict']))
+
+    graph = tree_module.PREREQUISITES
+    known = {point.id for point in knowledge.KNOWLEDGE_POINTS}
+    dangling = sorted({node for nodes in graph.values() for node in nodes} - known)
+    rows.append(_case('先修关系没有未知节点', [], dangling))
+    seen: set[str] = set()
+    stack: set[str] = set()
+
+    def cyclic(node: str) -> bool:
+        if node in stack:
+            return True
+        if node in seen:
+            return False
+        seen.add(node)
+        stack.add(node)
+        found = any(cyclic(parent) for parent in graph.get(node, ()))
+        stack.discard(node)
+        return found
+
+    has_cycle = any(cyclic(node) for node in list(graph))
+    rows.append(_case('先修关系无环', False, has_cycle))
+    explanation = tree_module.explain('integral-ftc', settings=settings)
+    rows.append(_case('拆解分支数（>=5）', True, explanation['branch_count'] >= 5))
+    empty_leaves = [child['id'] for branch in explanation['branches'] for child in branch['children']
+                    if not child['label'] or not child['text']]
+    rows.append(_case('拆解叶子都有标签与正文', [], empty_leaves))
+    return rows
+
+
 def suite_honesty(settings: AgentSettings | None = None) -> list[dict]:
     """诚实性不变量：演示内容不得冒充模型输出，功能未配置时不得返回编造结果。"""
     from . import diagnosis, service
@@ -238,6 +288,7 @@ SUITE_SPECS = (
     ('resources', '资源检索命中（期望条目进入 top-3）', 0.8, suite_resources),
     ('math', '数学工具（求值 / 符号求导 / 极限探测）', 0.95, suite_math),
     ('memory_rules', '记忆与纠错口径（掌握度、状态阈值、纠错权重）', 1.0, suite_memory_rules),
+    ('teaching', '教学逻辑与知识拆解（刻意练习计划、作答判定、知识树结构）', 0.95, suite_teaching),
     ('honesty', '诚实性不变量（demo 不冒充模型、未配置不编造）', 1.0, suite_honesty),
 )
 
@@ -250,6 +301,7 @@ LIMITATIONS = (
     '极限与等价性由数值取样给出证据，不是严格证明；评测通过只说明取样点上一致。',
     '检索为本地 BM25（中文 bigram），没有语义向量；同义改写会掉分。',
     '诊断只覆盖关键词信号能触发的知识点，未覆盖的情形不会出现在评测集里。',
+    '刻意练习的逐步评价是关键词覆盖率 + 数值核对；它不代表学生对知识点已掌握。',
     '11–12 个知识点的内容仍是 verified=false，需课程资料复核后重跑本评测。',
 )
 
@@ -267,7 +319,7 @@ def run(suites: tuple[str, ...] | None = None, settings: AgentSettings | None = 
     for name, title, threshold, runner in SUITE_SPECS:
         if name not in selected:
             continue
-        rows = runner(settings) if name == 'honesty' else runner()
+        rows = runner(settings) if name in ('honesty', 'teaching') else runner()
         passed = sum(1 for row in rows if row['ok'])
         rate = round(passed / len(rows), 3) if rows else 0.0
         report_suites.append({
@@ -307,6 +359,7 @@ def run(suites: tuple[str, ...] | None = None, settings: AgentSettings | None = 
         'known_fixed': [
             '「微分方程」等课本外主题曾被猜成“导数与微分”，已在 suggest_topic 增加范围外词表并加评测负例。',
             '表达式解析曾把 -x^2 当成 (-x)^2（乘方优先级低于一元负号），已修正为教材写法 -(x^2) 并加回归用例。',
+            '图形批注的 derivative_checked 曾返回对象而前端按布尔使用，导致“数值复核未通过”提示永不出现；已改为布尔标记 + derivative_check 明细。',
         ],
     }
 

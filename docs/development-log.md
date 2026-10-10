@@ -732,3 +732,14 @@ GitHub 上传 / 密钥状态 / 检查范围 / 用户确认依据：
   - 其他：9/23 原稿与 9/24 B 个人构思稿均保持原样；本轮只做风格对照稿，不改 feature-list 状态。
 - GitHub 上传 / 密钥状态：未上传，未执行 git 写操作；产物为纯静态 HTML，内含虚构示例数据，无真实凭据、无 .env 读取、不含绝对路径。
 - 遗留问题与下一步：等待用户评审三版风格并裁定取舍；华丽版本身即深色，极简 / 普通如需深色变体须另出深色令牌（与 9/21 build-dark-theme.py 生成式深色方案是两条路径，接入前需先决定）；三版令牌若要落地现有 frontend，仍以 style.css 335 处颜色字面量改造为设计令牌为前提。
+
+## 2026-10-10 · B 模块第四阶段（刻意练习 / 苏格拉底追问 / 知识讲解拆解 + 集成复核）
+
+- 开发内容：① 教学逻辑（会议第 2 条）——`practice.py` 提供 4 步固定刻意练习（复述条件 → 辨析易错 → 动手算一步 → 迁移自检），逐步评价只针对当前这一步，`compute` 步的显式结果用本地数学工具核对，作答按长期记忆口径记为 `practice` 证据；② 知识讲解拆解（会议第 1 条 B 侧）——`knowledge_tree.py` 输出章节 → 知识点 → 先修/解锁关系与 6 分支拆解，供 A 端画树状图；③ 集成复核——核对 A 端对第三阶段接口的接入，修正图注 `derivative_checked` 字段类型错配（对象被前端当布尔用，导致“数值复核未通过”永不显示，属诚实性缺陷），并补上 `agentTools.ts` 头部声明却缺失的 `tests/test_agent_tools.mjs`（10 项）。
+- 为何开发：会议第 1、2 条中 B 负责的部分此前状态为「部分」，缺刻意练习与结构化拆解输出；A 端已接入第三阶段接口（提交 e6be947），需要一次契约核对与修正。
+- 修改文件：新增 `backend/app/ai/{practice,knowledge_tree,phase4}.py`、`tests/{test_agent_phase4.py,test_agent_tools.mjs}`；修改 `backend/app/ai/{service,memory,evaluation,plotting,prompts}.py`、`tests/{smoke_agent.py,test_agent_phase3.py}`、`docs/{contracts/README.md,architecture.md,feature-list.md,b-module-accuracy-report.md}`、`README.md`、`AGENTS.md`。未新增目录、未引入第三方依赖。
+- 负责人：Chatbox（AI 助手）。仍按用户“单人单文件改动直接推 main”的口径执行，**未走分支 + PR 审阅**，此处如实标注。
+- 验证结果：`python -m pytest -q` → 154 passed（101 原有 + 第三阶段 34 + 第四阶段 19）；`python tests/check_agent_accuracy.py` → 8 套件 72/72 达标；`python tests/smoke_agent.py` → 端到端通过（新增练习计划/答作/知识树四个步骤）；`node --experimental-strip-types --test tests/test_agent_tools.mjs tests/test_class_progress.mjs tests/test_question_selection.mjs` → 24 passed。
+- 集成复核发现并已修复：图注 `derivative_checked` 返回对象而前端按布尔使用（诚实性缺陷），现改为布尔 + `derivative_check` 明细，契约与测试同步；另补齐 A 端接入逻辑缺失的原生 Node 测试（其中一条用例暴露了“课程主题名不在对话页下拉里”的真实错位，由 `decideTopic` 保留原主题并回显建议值处理）。
+- 未完成/遗留：课程资料 `verified` 复核（12 个知识点仍为 false，必须人工确认）；真实模型/视觉/语音效果未评测；A 端尚未接入刻意练习与知识树界面；异步任务、拍照多题切分、数学工具的多变量/积分/级数仍未实现；刻意练习判定仍是规则口径，未做间隔重复排期。
+- 文档同步：`docs/contracts/README.md`（新增 v0.5 一节）、`docs/architecture.md`（新增第四阶段一节）、`docs/feature-list.md`（会议第 1、2 条状态更新）、`docs/b-module-accuracy-report.md`（8 套件 72 用例与三处修复记录）、`README.md`、`AGENTS.md` 已同步；`docs/development-log.md` 即本条目。历史条目不改写。

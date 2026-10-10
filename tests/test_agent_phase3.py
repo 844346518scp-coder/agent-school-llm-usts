@@ -319,7 +319,7 @@ def test_stage_reported_without_breaking_frozen_phase_field():
     with TestClient(app) as anonymous:
         payload = anonymous.get('/api/agent/status').json()
     assert payload['phase'] == 2  # 冻结字段，启动器与既有测试依赖
-    assert payload['stage'] == 3
+    assert payload['stage'] >= 3  # 阶段号随迭代递增（当前为第四阶段），phase 保持不变
     capabilities = payload['capabilities']
     for key in ('hints', 'plot_annotation', 'math_tools', 'accuracy_eval', 'teacher_correction'):
         assert capabilities[key] is True

@@ -11,7 +11,7 @@
 
 掌握度口径（对教师与学生都要能解释）：
 
-- 事件来自三类可核对的信号：学生自评/复述评价结果、步骤反馈结论、诊断命中；
+- 事件来自四类可核对的信号：学生自评/复述评价结果、步骤反馈结论、诊断命中、刻意练习作答（另加教师纠错补偿）；
 - 掌握度用拉普拉斯平滑的加权成功率表示：`(正证据 + 1) / (正证据 + 负证据 + 2)`，
   没有证据时是 0.5，不代表掌握；
 - 掌握度**不是模型判断**，证据不足时状态一律是 `learning`。
@@ -192,7 +192,7 @@ def state(db: Session, user_id: str, limit: int = DEFAULT_EVENT_WINDOW, engine: 
         'topics': topic_rows,
         'weak_points': [item['point_id'] for item in points if item['status'] == 'weak'],
         'mastered_points': [item['point_id'] for item in points if item['status'] == 'mastered'],
-        'evidence_tags': ['学生自评/复述评价', '步骤反馈结论', '诊断命中'],
+        'evidence_tags': ['学生自评/复述评价', '步骤反馈结论', '诊断命中', '刻意练习作答', '教师纠错'],
         'note': '掌握度由可核对的证据汇总平滑得到，证据不足时不判定掌握；它不是模型判断。',
     }
 

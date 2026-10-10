@@ -270,3 +270,61 @@ AI反馈复核还需明确原始结果、教师修改、审核状态、发布人
 - 拍照识别多题切分；数学工具的多变量、积分与级数支持。
 - 资源库 `verified` 复核（12 个知识点仍为 false，需课程资料复核后重跑评测）。
 - 真实模型、真实视觉与真实语音服务的效果评测（未配置凭据前不得声称已评测）。
+
+## 2026-10-10 · 智能体接口 v0.5（B 模块第四阶段）
+
+状态：已实现、可本地运行（`python -m pytest -q` → 154 passed；`python tests/check_agent_accuracy.py` → 8 套件 72/72 达标；
+`node --experimental-strip-types --test tests/test_agent_tools.mjs` → 10 passed）。
+范围：教学逻辑（刻意练习 / 苏格拉底追问）、知识讲解拆解（知识树），以及第三阶段接口的集成复核修正。
+字段冻结说明：`version` 仍为 `0.2.0`、`phase` 仍为 `2`；`stage` 递增为 `4`。
+
+### 新增接口（需登录会话 + `X-Requested-With: shuban-web`）
+
+| 方法 / 路径 | 请求 | 响应要点 |
+| --- | --- | --- |
+| POST /api/agent/practice/plan | point_id（可选）、topic（可选） | session{point_id,title,topic,total_steps=4,source,verified}、why（为什么练它）、steps[]{index,kind,title,prompt}、focus_rule、answer_rule、leak_guard、references、mode |
+| POST /api/agent/practice/answer | point_id、step_index(1–4)、answer(1–2000) | point、step、verdict（correct/incorrect/unverifiable）、band、coverage、signals_hit、signals_missing、numeric_check、feedback、follow_up、next_step（最后一步为 null）、completed、memory_weight、memory_recorded、repeat_rule、references、method |
+| GET /api/agent/knowledge/tree | 无 | order[]、topics[]{topic,points[]{id,title,summary,key_point_count,verified,source,prerequisites[],unlocks[]}}、edges[]{from,to}、total_points、verified_points、pending_review、note |
+| POST /api/agent/knowledge/explain | point_id、question（可选） | root{id,label,topic,summary,verified,source}、branches[]{id,label,children[]{id,label,text}}、prerequisites、unlocks、branch_count、leaf_count、honesty、references、mode |
+
+`GET /api/agent/status` 的 `stage` 变为 `4`；capabilities 增加 `deliberate_practice`、`knowledge_tree`、`teaching_logic`（恒为 true）。
+
+### 教学逻辑的口径（对教师与学生都必须能解释）
+
+- **练习结构固定 4 步**：复述与条件 → 辨析与易错 → 动手算一步 → 迁移与自检；`kind` 依次为
+  `recall` / `boundary` / `compute` / `transfer`。
+- **公开的计划不包含期望答案**：`steps[]` 只有 `index`、`kind`、`title`、`prompt` 四个字段；
+  期望关键词（`signals_*`）与数值核对规则只存在于后端私有表里，答题后才会在反馈中出现。
+- **判定口径**：`compute` 步若学生写了显式结果（`=`、`等于`、`得到`、`算出`、`求得`、`答案是`、`结果是` 之后的数字），
+  用本地数学工具核对 → `correct` / `incorrect`；没写显式结果则为 `unverifiable`，只按关键词覆盖率给档位。
+  关键词覆盖率**不是**掌握度，响应 `method` 必须写明这一点。
+- **记忆口径扩展**：`practice` 成为第五类可核对证据（此前为自评/复述评价、步骤反馈结论、诊断命中、教师纠错补偿）。
+  权重：数值核对通过 +2、未通过 -2、基本到位 +1、有遗漏 0、需要重讲 -1。
+- **选题规则**：薄弱（掌握度低/负面证据多）→ 练过没稳住 → 本章还没练过的；`why` 字段用中文说明本次选题依据，界面应原样展示。
+
+### 知识树的边界
+
+- 先修关系（`edges`）由 B 按课程顺序**人工整理**，不是模型推断；知识点仍全部 `verified=false`，界面需照实标注。
+- `explain` 的规则树分支固定为：概念定位 → 关键要点 → 常见误区 → 例题拆解 → 在知识体系里的位置 → 怎么练。
+- live 模式下模型只能重组讲解文字：分支 ≤6、每支叶子 ≤6、label ≤40 字、text ≤500 字，结构校验不过就退回规则树并写 `notice`。
+
+### 第三阶段接口的集成修正（A 端需要知道）
+
+`POST /api/agent/plot/annotate` 的 `function.derivative_checked` 由**明细对象改为布尔**（`true/false/null`），
+明细移到新字段 `derivative_check`。原实现里前端按布尔判断，会永远显示“导数已用中心差商数值复核一致”，
+包括复核其实没通过的情形 —— 属于诚实性缺陷，故在后端纠正为布尔语义。前端现有写法（布尔判断）无需改动，
+若要展示比对过程再读 `derivative_check`。
+
+### 给前端（A）的接入建议
+
+1. 刻意练习：`steps[]` 逐步渲染，提交后用 `next_step` 推进；`completed=true` 时展示 `repeat_rule` 原文，不要写成“已掌握”。
+2. 答题框旁提示“算出结果请写成 `= 结果` 的形式”，否则数值核对不会触发（界面应说明这是可选步骤）。
+3. 知识树：`edges` 可直接画有向边；`verified=false` 必须标“待课程资料复核”。
+4. `GET /api/agent/status` 的 `stage` 会随迭代递增，判断能力时请用 capabilities 的具体键，不要写死 `stage`。
+
+### 仍待 B 模块后续定义
+
+- 异步任务与长任务进度（`async_tasks` 仍为 false）、诊断任务状态。
+- 拍照识别多题切分；数学工具的多变量、积分与级数支持。
+- 资源库 `verified` 复核；真实模型/视觉/语音的效果评测。
+- 刻意练习的判定目前是规则口径，若要按“间隔重复/遗忘曲线”排期，需先定义证据与评测集。
